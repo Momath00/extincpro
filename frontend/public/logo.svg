@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="Extincteurs Nationex">
+  <circle cx="100" cy="100" r="100" fill="#7f1d1d"/>
+  <circle cx="100" cy="100" r="92" fill="none" stroke="#dc2626" stroke-width="3"/>
+  <g transform="translate(100,108)">
+    <rect x="-16" y="-58" width="32" height="90" rx="10" fill="#ffffff"/>
+    <rect x="-16" y="-58" width="32" height="18" rx="6" fill="#dc2626"/>
+    <rect x="-6" y="-78" width="12" height="22" rx="3" fill="#e5e7eb"/>
+    <path d="M -6 -78 L -26 -92 L -20 -84 Z" fill="#e5e7eb"/>
+    <path d="M -14 -40 C -46 -34 -50 4 -30 24" fill="none" stroke="#e5e7eb" stroke-width="7" stroke-linecap="round"/>
+    <rect x="-38" y="18" width="16" height="8" rx="2" fill="#111827"/>
+  </g>
+</svg>
