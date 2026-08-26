@@ -4,8 +4,22 @@ from rest_framework import serializers
 from accounts.models import Utilisateur
 
 
+class OrganisationResumeSerializer(serializers.Serializer):
+    """Résumé léger de l'organisation de l'utilisateur, pour /api/me/."""
+
+    id = serializers.IntegerField()
+    nom = serializers.CharField()
+    modules_actifs = serializers.SerializerMethodField()
+
+    def get_modules_actifs(self, obj):
+        return list(
+            obj.organisationmodule_set.filter(actif=True).values_list("module__code", flat=True)
+        )
+
+
 class UtilisateurSerializer(serializers.ModelSerializer):
     role_display = serializers.CharField(source="get_role_display", read_only=True)
+    organisation = serializers.SerializerMethodField()
 
     class Meta:
         model = Utilisateur
@@ -22,8 +36,14 @@ class UtilisateurSerializer(serializers.ModelSerializer):
             "est_actif",
             "mdp_temporaire",
             "date_creation",
+            "organisation",
         ]
         read_only_fields = ["est_actif", "mdp_temporaire", "date_creation"]
+
+    def get_organisation(self, obj):
+        if obj.organisation_id is None:
+            return None
+        return OrganisationResumeSerializer(obj.organisation).data
 
 
 # ── Invitation par le Superviseur (Technicien ou Citoyen) ──────────────────

@@ -6,9 +6,17 @@ import { usePathname, useRouter } from 'next/navigation'
 const RED = '#0f172a'
 const ACCENT = '#dc2626'
 
+const NAV_ITEMS = [
+  { href: '/citoyen', label: 'Mon rapport', icon: 'ti-home', module: 'rapport_incendie' },
+  { href: '/citoyen/rapports-extincteurs', label: 'Rapport Extincteur', icon: 'ti-fire-extinguisher', module: 'rapport_extincteur' },
+]
+
 export default function CitoyenSidebar({ user, onClose }: { user: any; onClose?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
+
+  const modulesActifs: string[] = user?.organisation?.modules_actifs || []
+  const itemsVisibles = NAV_ITEMS.filter(item => !item.module || modulesActifs.includes(item.module))
 
   function logout() {
     localStorage.removeItem('access_token')
@@ -69,9 +77,7 @@ export default function CitoyenSidebar({ user, onClose }: { user: any; onClose?:
             Navigation
           </p>
           <div className="flex flex-col gap-0.5">
-            {[
-              { href: '/citoyen/rapports-extincteurs', label: 'Rapport Extincteur', icon: 'ti-fire-extinguisher' },
-            ].map((item) => {
+            {itemsVisibles.map((item) => {
               const active = pathname === item.href || pathname.startsWith(item.href + '/')
               return (
                 <button

@@ -100,7 +100,7 @@ class UtilisateurViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, EstSuperviseur]
 
     def get_queryset(self):
-        qs = Utilisateur.objects.exclude(pk=self.request.user.pk)
+        qs = Utilisateur.objects.exclude(pk=self.request.user.pk).filter(organisation=self.request.user.organisation)
         role = self.request.query_params.get("role")
         if role:
             qs = qs.filter(role=role)
@@ -139,6 +139,7 @@ class UtilisateurViewSet(viewsets.ModelViewSet):
             est_actif=True,
             mdp_temporaire=True,
             invite_par=request.user,
+            organisation=request.user.organisation,
         )
 
         role_label = utilisateur.get_role_display()
@@ -207,9 +208,9 @@ class MotDePasseOublieView(APIView):
         try:
             user = Utilisateur.objects.get(email=email, est_actif=True)
         except Utilisateur.DoesNotExist:
-            # Réponse volontairement identique, pour ne pas révéler si l'email existe.
             return Response(
-                {"message": "Si cet email est enregistré, un code vous a été envoyé."}
+                {"error": "Aucun compte actif n'est associé à cet email."},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         CodeVerification.objects.filter(email=email).delete()
@@ -223,10 +224,15 @@ class MotDePasseOublieView(APIView):
 </p>
 <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:28px;">
   <tr><td align="center">
-    <div style="display:inline-block;background:linear-gradient(135deg,#123a63,#0a1c2e);padding:24px 48px;border-radius:14px;text-align:center;">
-      <p style="margin:0 0 6px;color:rgba(255,255,255,.55);font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;">Code de vérification</p>
-      <p style="margin:0;color:#dc2626;font-size:36px;font-weight:800;letter-spacing:10px;font-family:monospace;">{code_obj.code}</p>
-    </div>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="border-radius:14px;">
+      <tr>
+        <td align="center" bgcolor="#123a63"
+          style="background-color:#123a63;background-image:linear-gradient(135deg,#123a63,#0a1c2e);padding:24px 48px;border-radius:14px;">
+          <p style="margin:0 0 6px;color:rgba(255,255,255,.55);font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;">Code de vérification</p>
+          <p style="margin:0;color:#dc2626;font-size:36px;font-weight:800;letter-spacing:10px;font-family:monospace;">{code_obj.code}</p>
+        </td>
+      </tr>
+    </table>
   </td></tr>
 </table>
 <p style="margin:0;text-align:center;color:#64748b;font-size:13px;">
@@ -240,7 +246,7 @@ class MotDePasseOublieView(APIView):
             "Réinitialisation de mot de passe — Extincteurs Nationex",
             _html_template(html_body),
         )
-        return Response({"message": "Si cet email est enregistré, un code vous a été envoyé."})
+        return Response({"message": "Un code de vérification vous a été envoyé par email."})
 
 
 class ReinitialiserMotDePasseView(APIView):

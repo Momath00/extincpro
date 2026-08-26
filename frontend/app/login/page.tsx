@@ -9,6 +9,20 @@ const NAVY = '#0f172a'
 
 type Etape = 'login' | 'oublie_email' | 'oublie_code'
 
+function Spinner({ size = 15 }: { size?: number }) {
+  return (
+    <span
+      className="inline-block rounded-full animate-spin flex-shrink-0"
+      style={{
+        width: size,
+        height: size,
+        border: '2px solid rgba(255,255,255,0.35)',
+        borderTopColor: '#fff',
+      }}
+    />
+  )
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const [etape, setEtape] = useState<Etape>('login')
@@ -27,11 +41,50 @@ export default function LoginPage() {
   const [confirmerMdp, setConfirmerMdp] = useState('')
   const [showNvMdp, setShowNvMdp] = useState(false)
   const [showCfMdp, setShowCfMdp] = useState(false)
-  const [successMsg, setSuccessMsg] = useState('')
+  const [toast, setToast] = useState('')
 
   function reset() {
-    setError(''); setSuccessMsg('')
+    setError('')
     setEmail(''); setCode(''); setNouveauMdp(''); setConfirmerMdp('')
+  }
+
+  // ── Connexion + redirection vers le bon tableau de bord ──────────────────
+  async function connecterEtRediriger(u: string, p: string) {
+    const tokenRes = await fetch(`${API_URL}/api/token/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p }),
+    })
+    if (!tokenRes.ok) {
+      const err = await tokenRes.json()
+      throw new Error(err.error || err.detail || 'Identifiants incorrects.')
+    }
+    const tokenData = await tokenRes.json()
+    localStorage.setItem('access_token', tokenData.access)
+    localStorage.setItem('refresh_token', tokenData.refresh)
+
+    const meRes = await fetch(`${API_URL}/api/me/`, {
+      headers: { Authorization: `Bearer ${tokenData.access}` },
+    })
+    if (!meRes.ok) throw new Error("Impossible de récupérer votre profil.")
+    const user = await meRes.json()
+
+    localStorage.setItem('user_role', user.role)
+    localStorage.setItem('user_id', String(user.id))
+    localStorage.setItem('user_username', user.username)
+
+    if (user.mdp_temporaire) {
+      router.push('/changer-mot-de-passe')
+      return
+    }
+
+    const routesParRole: Record<string, string> = {
+      super_admin: '/super-admin',
+      superviseur: '/superviseur',
+      technicien: '/technicien',
+      citoyen: '/citoyen',
+    }
+    router.push(routesParRole[user.role] || '/')
   }
 
   // ── Connexion ──────────────────────────────────────────────────────────
@@ -39,40 +92,7 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true); setError('')
     try {
-      const tokenRes = await fetch(`${API_URL}/api/token/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      })
-      if (!tokenRes.ok) {
-        const err = await tokenRes.json()
-        throw new Error(err.error || err.detail || 'Identifiants incorrects.')
-      }
-      const tokenData = await tokenRes.json()
-      localStorage.setItem('access_token', tokenData.access)
-      localStorage.setItem('refresh_token', tokenData.refresh)
-
-      const meRes = await fetch(`${API_URL}/api/me/`, {
-        headers: { Authorization: `Bearer ${tokenData.access}` },
-      })
-      if (!meRes.ok) throw new Error("Impossible de récupérer votre profil.")
-      const user = await meRes.json()
-
-      localStorage.setItem('user_role', user.role)
-      localStorage.setItem('user_id', String(user.id))
-      localStorage.setItem('user_username', user.username)
-
-      if (user.mdp_temporaire) {
-        router.push('/changer-mot-de-passe')
-        return
-      }
-
-      const routesParRole: Record<string, string> = {
-        superviseur: '/superviseur',
-        technicien: '/technicien',
-        citoyen: '/citoyen',
-      }
-      router.push(routesParRole[user.role] || '/')
+      await connecterEtRediriger(username, password)
     } catch (err: any) {
       setError(err.message || 'Identifiants incorrects. Réessayez.')
     } finally {
@@ -115,9 +135,18 @@ export default function LoginPage() {
       })
       const data = await res.json() as any
       if (!res.ok) throw new Error(data.error || 'Erreur')
-      const nomUtilisateur = data.username ? ` Nom d'utilisateur : ${data.username}` : ''
-      setSuccessMsg(`Mot de passe réinitialisé ! Connectez-vous avec votre nom d'utilisateur (pas votre email).${nomUtilisateur}`)
-      setTimeout(() => { reset(); setEtape('login') }, 4500)
+
+      setToast('Mot de passe mis à jour')
+      setTimeout(() => setToast(''), 3000)
+      try {
+        await connecterEtRediriger(data.username, nouveauMdp)
+      } catch {
+        // Connexion automatique impossible (rare) — retour au login, username pré-rempli.
+        setToast('')
+        setUsername(data.username || '')
+        reset()
+        setEtape('login')
+      }
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -152,7 +181,7 @@ export default function LoginPage() {
             </div>
 
             <h1 className="text-white font-bold text-sm tracking-widest relative z-10 leading-tight">
-              EXTINCTEURS<br /><span className="text-white/70">NATIONEX</span>
+              EXTINCPRO
             </h1>
           </div>
 
@@ -168,12 +197,6 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
-            {successMsg && (
-              <div className="bg-green-50 text-green-700 text-xs px-4 py-2.5 rounded-xl mb-4 border border-green-100 flex items-center gap-2">
-                <i className="ti ti-check" /> {successMsg}
-              </div>
-            )}
-
             {/* ── Formulaire Login ── */}
             {etape === 'login' && (
               <form onSubmit={handleLogin} className="flex flex-col gap-5">
@@ -186,7 +209,7 @@ export default function LoginPage() {
                     style={{ borderBottomColor: undefined }}
                     onFocus={e => (e.currentTarget.style.borderBottomColor = NAVY)}
                     onBlur={e => (e.currentTarget.style.borderBottomColor = '')}
-                    placeholder="votre nom d'utilisateur" required />
+                    placeholder="votre nom d'utilisateur" required autoComplete="username" />
                 </div>
                 <div>
                   <label className="text-xs font-bold tracking-widest uppercase mb-2 block" style={{ color: NAVY }}>
@@ -198,7 +221,7 @@ export default function LoginPage() {
                       className="w-full border-0 border-b border-gray-200 pb-2 pr-8 text-sm text-gray-700 focus:outline-none bg-transparent transition-colors placeholder-gray-300"
                       onFocus={e => (e.currentTarget.style.borderBottomColor = NAVY)}
                       onBlur={e => (e.currentTarget.style.borderBottomColor = '')}
-                      placeholder="••••••••••" required />
+                      placeholder="••••••••••" required autoComplete="current-password" />
                     <button type="button" onClick={() => setShowPassword(v => !v)}
                       className="absolute right-0 bottom-2 text-gray-300 hover:text-[#0f172a] transition-colors">
                       <i className={`ti ${showPassword ? 'ti-eye-off' : 'ti-eye'} text-base`} />
@@ -206,9 +229,9 @@ export default function LoginPage() {
                   </div>
                 </div>
                 <button type="submit" disabled={loading}
-                  className="text-white py-3.5 rounded-2xl text-xs font-bold tracking-widest uppercase hover:opacity-90 hover:scale-105 disabled:opacity-50 transition-all duration-300 mt-2"
+                  className="text-white py-3.5 rounded-2xl text-xs font-bold tracking-widest uppercase hover:opacity-90 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 transition-all duration-300 mt-2 flex items-center justify-center gap-2.5"
                   style={gradientStyle}>
-                  {loading ? 'Connexion...' : 'Connexion'}
+                  {loading ? <Spinner size={17} /> : 'Connexion'}
                 </button>
               </form>
             )}
@@ -229,14 +252,14 @@ export default function LoginPage() {
                       className="w-full bg-white border-2 border-gray-200 rounded-xl pl-10 pr-4 py-3 text-sm text-gray-800 focus:outline-none transition-colors placeholder-gray-300"
                       onFocus={e => (e.currentTarget.style.borderColor = NAVY)}
                       onBlur={e => (e.currentTarget.style.borderColor = '')}
-                      placeholder="votre@email.com" required autoFocus />
+                      placeholder="votre@email.com" required autoFocus autoComplete="email" />
                   </div>
                   <p className="text-xs text-gray-400 mt-1.5">Entrez l'email associé à votre compte</p>
                 </div>
                 <button type="submit" disabled={loading}
-                  className="text-white py-3.5 rounded-2xl text-xs font-bold tracking-widest uppercase hover:opacity-90 hover:scale-105 disabled:opacity-50 transition-all duration-300"
+                  className="text-white py-3.5 rounded-2xl text-xs font-bold tracking-widest uppercase hover:opacity-90 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 transition-all duration-300 flex items-center justify-center gap-2.5"
                   style={gradientStyle}>
-                  {loading ? 'Envoi en cours...' : 'Envoyer le code'}
+                  {loading && <Spinner />} {loading ? 'Envoi en cours...' : 'Envoyer le code'}
                 </button>
                 <button type="button" onClick={() => { reset(); setEtape('login') }}
                   className="text-xs text-gray-400 hover:text-[#0f172a] transition-colors text-center">
@@ -261,7 +284,7 @@ export default function LoginPage() {
                     style={{ color: NAVY }}
                     onFocus={e => (e.currentTarget.style.borderColor = NAVY)}
                     onBlur={e => (e.currentTarget.style.borderColor = '')}
-                    placeholder="ABC123" maxLength={6} required autoFocus />
+                    placeholder="ABC123" maxLength={6} required autoFocus autoComplete="one-time-code" />
                 </div>
                 <div>
                   <label className="text-xs font-bold tracking-widest uppercase mb-2 block" style={{ color: NAVY }}>
@@ -273,7 +296,7 @@ export default function LoginPage() {
                       className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm text-gray-800 focus:outline-none transition-colors placeholder-gray-300"
                       onFocus={e => (e.currentTarget.style.borderColor = NAVY)}
                       onBlur={e => (e.currentTarget.style.borderColor = '')}
-                      placeholder="••••••••" required />
+                      placeholder="••••••••" required autoComplete="new-password" />
                     <button type="button" onClick={() => setShowNvMdp(v => !v)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0f172a] transition-colors">
                       <i className={`ti ${showNvMdp ? 'ti-eye-off' : 'ti-eye'} text-base`} />
@@ -290,7 +313,7 @@ export default function LoginPage() {
                       className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm text-gray-800 focus:outline-none transition-colors placeholder-gray-300"
                       onFocus={e => (e.currentTarget.style.borderColor = NAVY)}
                       onBlur={e => (e.currentTarget.style.borderColor = '')}
-                      placeholder="••••••••" required />
+                      placeholder="••••••••" required autoComplete="new-password" />
                     <button type="button" onClick={() => setShowCfMdp(v => !v)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0f172a] transition-colors">
                       <i className={`ti ${showCfMdp ? 'ti-eye-off' : 'ti-eye'} text-base`} />
@@ -298,9 +321,9 @@ export default function LoginPage() {
                   </div>
                 </div>
                 <button type="submit" disabled={loading}
-                  className="text-white py-3 rounded-2xl text-xs font-bold tracking-widest uppercase hover:opacity-90 hover:scale-105 disabled:opacity-50 transition-all duration-300"
+                  className="text-white py-3 rounded-2xl text-xs font-bold tracking-widest uppercase hover:opacity-90 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 transition-all duration-300 flex items-center justify-center gap-2.5"
                   style={gradientStyle}>
-                  {loading ? 'Réinitialisation...' : 'Réinitialiser mon mot de passe →'}
+                  {loading && <Spinner />} {loading ? 'Réinitialisation...' : 'Réinitialiser mon mot de passe →'}
                 </button>
                 <button type="button" onClick={() => { setError(''); setEtape('oublie_email') }}
                   className="text-xs text-gray-400 hover:text-[#0f172a] transition-colors text-center">
@@ -327,6 +350,15 @@ export default function LoginPage() {
           © {new Date().getFullYear()} Extincteurs Nationex
         </p>
       </div>
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 bg-white rounded-xl shadow-xl border border-green-100 px-5 py-3.5">
+          <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-green-50">
+            <i className="ti ti-check text-green-600 text-sm" />
+          </div>
+          <p className="text-sm font-semibold" style={{ color: NAVY }}>{toast}</p>
+        </div>
+      )}
     </div>
   )
 }

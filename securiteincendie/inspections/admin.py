@@ -1,12 +1,18 @@
 from django.contrib import admin
 
+# Register your models here.
+from django.contrib import admin
+
 from .models import (
     Batiment,
-    CertificatExtincteur,
+    Certificat,
     Client,
-    ExtincteurItem,
-    HistoriqueRapportExtincteur,
-    RapportExtincteur,
+    Dispositif,
+    FicheE1,
+    FicheE2,
+    FicheLegende,
+    HistoriqueRapport,
+    Rapport,
 )
 
 
@@ -23,13 +29,28 @@ class BatimentAdmin(admin.ModelAdmin):
     search_fields = ("numero_civique", "rue", "ville")
 
 
-class ExtincteurItemInline(admin.TabularInline):
-    model = ExtincteurItem
+class FicheE1Inline(admin.StackedInline):
+    model = FicheE1
     extra = 0
 
 
-class HistoriqueRapportExtincteurInline(admin.TabularInline):
-    model = HistoriqueRapportExtincteur
+class FicheE2Inline(admin.StackedInline):
+    model = FicheE2
+    extra = 0
+
+
+class FicheLegendeInline(admin.StackedInline):
+    model = FicheLegende
+    extra = 0
+
+
+class DispositifInline(admin.TabularInline):
+    model = Dispositif
+    extra = 0
+
+
+class HistoriqueInline(admin.TabularInline):
+    model = HistoriqueRapport
     extra = 0
     readonly_fields = ("utilisateur", "description", "date_heure")
     can_delete = False
@@ -38,12 +59,12 @@ class HistoriqueRapportExtincteurInline(admin.TabularInline):
         return False
 
 
-@admin.register(RapportExtincteur)
-class RapportExtincteurAdmin(admin.ModelAdmin):
+@admin.register(Rapport)
+class RapportAdmin(admin.ModelAdmin):
     list_display = ("batiment", "statut", "liste_techniciens", "citoyen", "date_inspection", "date_fermeture")
     list_filter = ("statut", "batiment__client")
     filter_horizontal = ("techniciens",)
-    inlines = [ExtincteurItemInline, HistoriqueRapportExtincteurInline]
+    inlines = [FicheE1Inline, FicheE2Inline, FicheLegendeInline, DispositifInline, HistoriqueInline]
 
     def liste_techniciens(self, obj):
         return ", ".join(t.username for t in obj.techniciens.all()) or "—"
@@ -59,7 +80,14 @@ class RapportExtincteurAdmin(admin.ModelAdmin):
             obj.historiser(request.user, "Rapport modifié (admin)")
 
 
-@admin.register(CertificatExtincteur)
-class CertificatExtincteurAdmin(admin.ModelAdmin):
+@admin.register(Certificat)
+class CertificatAdmin(admin.ModelAdmin):
     list_display = ("numero", "rapport", "date_emission", "emis_par")
     readonly_fields = ("numero", "date_emission")
+
+
+@admin.register(HistoriqueRapport)
+class HistoriqueRapportAdmin(admin.ModelAdmin):
+    list_display = ("rapport", "utilisateur", "description", "date_heure")
+    list_filter = ("date_heure",)
+    readonly_fields = ("rapport", "utilisateur", "description", "date_heure")

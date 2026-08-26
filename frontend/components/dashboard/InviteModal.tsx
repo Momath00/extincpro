@@ -6,6 +6,15 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0f172a'
 const ORANGE = '#dc2626'
 
+function Spinner({ size = 17 }: { size?: number }) {
+  return (
+    <span
+      className="inline-block rounded-full animate-spin"
+      style={{ width: size, height: size, border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff' }}
+    />
+  )
+}
+
 const ROLES = [
   { value: 'technicien', label: 'Technicien', icon: 'ti-tool', desc: 'Remplit et ferme les fiches d\'inspection' },
   { value: 'superviseur', label: 'Superviseur', icon: 'ti-shield-check', desc: 'Crée les rapports, gère l\'équipe' },
@@ -146,10 +155,10 @@ export default function InviteModal({ onClose, onInvited }: { onClose: () => voi
           <button
             type="submit"
             disabled={loading}
-            className="text-white py-3 rounded-md text-sm font-bold uppercase tracking-widest disabled:opacity-50 transition-opacity"
+            className="text-white py-3 rounded-md text-sm font-bold uppercase tracking-widest disabled:opacity-50 transition-opacity flex items-center justify-center"
             style={{ background: NAVY }}
           >
-            {loading ? 'Envoi...' : `Inviter le ${ROLES.find(r => r.value === role)?.label.toLowerCase()}`}
+            {loading ? <Spinner /> : `Inviter le ${ROLES.find(r => r.value === role)?.label.toLowerCase()}`}
           </button>
         </form>
       </div>

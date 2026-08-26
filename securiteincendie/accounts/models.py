@@ -18,12 +18,22 @@ class Utilisateur(AbstractUser):
     """
 
     class Role(models.TextChoices):
+        SUPER_ADMIN = "super_admin", "Super admin"
         SUPERVISEUR = "superviseur", "Superviseur"
         TECHNICIEN = "technicien", "Technicien"
         CITOYEN = "citoyen", "Citoyen"
 
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.CITOYEN)
     telephone = models.CharField(max_length=20, blank=True)
+
+    organisation = models.ForeignKey(
+        "organisations.Organisation",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="utilisateurs",
+        help_text="Vide pour un super admin — n'appartient à aucune organisation.",
+    )
 
     # Spécifique au technicien
     permis_recq = models.CharField(
@@ -44,6 +54,9 @@ class Utilisateur(AbstractUser):
         related_name="invitations_envoyees",
     )
     date_creation = models.DateTimeField(auto_now_add=True)
+
+    def est_super_admin(self):
+        return self.role == self.Role.SUPER_ADMIN
 
     def est_superviseur(self):
         return self.role == self.Role.SUPERVISEUR or bool(self.is_superuser)

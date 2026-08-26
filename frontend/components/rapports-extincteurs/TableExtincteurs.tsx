@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0f172a'
@@ -114,6 +114,52 @@ function DateMaskInput({
       maxLength={10}
       className="text-xs border border-gray-200 rounded px-1.5 py-0.5 focus:outline-none focus:border-[#dc2626] bg-white w-[100px]"
     />
+  )
+}
+
+// ── Conteneur scrollable avec indicateur visuel (fondu + flèche) ────────────
+function ScrollableTable({ children }: { children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+
+  function updateFade() {
+    const el = ref.current
+    if (!el) return
+    setCanScrollLeft(el.scrollLeft > 4)
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
+  }
+
+  useEffect(() => {
+    updateFade()
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver(updateFade)
+    ro.observe(el)
+    window.addEventListener('resize', updateFade)
+    return () => { ro.disconnect(); window.removeEventListener('resize', updateFade) }
+  }, [children])
+
+  return (
+    <div className="relative">
+      {canScrollRight && (
+        <>
+          <div className="pointer-events-none absolute top-0 right-0 bottom-0 w-10 z-10"
+            style={{ background: 'linear-gradient(to right, transparent, rgba(255,255,255,0.95))' }} />
+          <div className="pointer-events-none absolute top-1/2 right-1.5 -translate-y-1/2 z-20 w-6 h-6 rounded-full flex items-center justify-center shadow-sm animate-pulse"
+            style={{ background: NAVY }}>
+            <i className="ti ti-chevron-right text-white text-sm" />
+          </div>
+        </>
+      )}
+      {canScrollLeft && (
+        <div className="pointer-events-none absolute top-0 left-0 bottom-0 w-10 z-10"
+          style={{ background: 'linear-gradient(to left, transparent, rgba(255,255,255,0.95))' }} />
+      )}
+      <div ref={ref} onScroll={updateFade} className="overflow-x-auto">
+        {children}
+      </div>
+    </div>
   )
 }
 
@@ -492,7 +538,7 @@ export default function TableExtincteurs({
             {readOnly ? 'Aucun extincteur enregistré.' : 'Aucun extincteur. Cliquez sur « Ajouter une ligne » pour commencer.'}
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <ScrollableTable>
             <table className="w-full text-sm min-w-[1180px]">
               <thead>
                 <tr className="text-[10px] font-bold uppercase tracking-widest text-gray-400 bg-gray-50">
@@ -522,7 +568,7 @@ export default function TableExtincteurs({
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollableTable>
         )}
       </div>
     </div>

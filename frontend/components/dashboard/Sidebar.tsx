@@ -16,9 +16,24 @@ const NAV_GROUPS = [
     label: 'Gestion',
     items: [
       {
+        href: '/superviseur/rapports',
+        label: 'Rapport incendie',
+        icon: 'ti-clipboard-check',
+        module: 'rapport_incendie',
+        children: [
+          { href: '/superviseur/rapports', label: 'Rapports' },
+          { href: '/superviseur/rapports?f=ferme', label: 'Certificats' },
+        ],
+      },
+      {
         href: '/superviseur/rapports-extincteurs',
-        label: 'Rapports extincteurs',
+        label: 'Rapport extincteur',
         icon: 'ti-fire-extinguisher',
+        module: 'rapport_extincteur',
+        children: [
+          { href: '/superviseur/rapports-extincteurs', label: 'Rapports' },
+          { href: '/superviseur/rapports-extincteurs?f=ferme', label: 'Certificats' },
+        ],
       },
       { href: '/superviseur/clients', label: 'Clients', icon: 'ti-building' },
       { href: '/superviseur/batiments', label: 'Bâtiments', icon: 'ti-home' },
@@ -34,6 +49,12 @@ export default function Sidebar({ user, onClose }: { user: any; onClose?: () => 
   const pathname = usePathname()
   const router = useRouter()
   const [openGroup, setOpenGroup] = useState<string | null>(null)
+
+  const modulesActifs: string[] = user?.organisation?.modules_actifs || []
+  const groupesVisibles = NAV_GROUPS.map(group => ({
+    ...group,
+    items: group.items.filter((item: any) => !item.module || modulesActifs.includes(item.module)),
+  })).filter(group => group.items.length > 0)
 
   function logout() {
     localStorage.removeItem('access_token')
@@ -80,7 +101,7 @@ export default function Sidebar({ user, onClose }: { user: any; onClose?: () => 
       </div>
 
       <nav className="flex-1 px-3 pb-4 flex flex-col gap-6 overflow-y-auto sidebar-scroll border-t border-white/10 pt-6">
-        {NAV_GROUPS.map((group, gi) => (
+        {groupesVisibles.map((group, gi) => (
           <div key={group.label}>
             <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-white/50">
               {group.label}

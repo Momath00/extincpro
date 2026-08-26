@@ -3,10 +3,13 @@ from django.db import models
 
 
 class Client(models.Model):
-    """L'entreprise avec qui Extincteurs Nationex travaille.
+    """L'entreprise avec qui l'organisation travaille (ex. Actionéo).
     Regroupe tous les bâtiments et rapports d'une même entreprise cliente."""
 
-    nom = models.CharField(max_length=150, unique=True)
+    organisation = models.ForeignKey(
+        "organisations.Organisation", on_delete=models.CASCADE, related_name="clients"
+    )
+    nom = models.CharField(max_length=150)
     contact_nom = models.CharField(max_length=150, blank=True)
     contact_email = models.EmailField(blank=True)
     contact_telephone = models.CharField(max_length=20, blank=True)
@@ -15,6 +18,7 @@ class Client(models.Model):
 
     class Meta:
         ordering = ["nom"]
+        unique_together = [("organisation", "nom")]
 
     def __str__(self):
         return self.nom
@@ -32,6 +36,9 @@ class Batiment(models.Model):
     rue = models.CharField(max_length=200)
     ville = models.CharField(max_length=100)
     code_postal = models.CharField(max_length=10, blank=True)
+
+    fabricant_reseau = models.CharField(max_length=100, blank=True)
+    modele_systeme = models.CharField(max_length=100, blank=True)
 
     direction = models.CharField(
         max_length=100, blank=True, help_text="Secteur / direction responsable"
@@ -69,10 +76,377 @@ class Batiment(models.Model):
         return f"{self.adresse_complete} ({self.client.nom})"
 
 
+class Rapport(models.Model):
+    """
+    L'enveloppe d'un rapport d'inspection annuel (norme CAN/ULC-S536).
+    Un ou plusieurs techniciens peuvent y être assignés.
+    """
+
+    class Statut(models.TextChoices):
+        OUVERT = "ouvert", "Ouvert"
+        FERME = "ferme", "Fermé"
+
+    batiment = models.ForeignKey(Batiment, on_delete=models.CASCADE, related_name="rapports")
+    cree_par = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="rapports_crees",
+        limit_choices_to={"role": "superviseur"},
+    )
+    techniciens = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name="rapports_assignes",
+        limit_choices_to={"role": "technicien"},
+        blank=True,
+    )
+    citoyen = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="rapports_citoyen",
+        limit_choices_to={"role": "citoyen"},
+        help_text="Le citoyen qui pourra consulter ce rapport et son certificat.",
+    )
+
+    statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.OUVERT)
+
+    date_inspection = models.DateField(
+        null=True, blank=True, help_text="Jour prévu de la visite — sert au filtre 'aujourd'hui' du technicien."
+    )
+    date_prise_effet = models.DateField(null=True, blank=True)
+    date_derniere_sauvegarde = models.DateTimeField(auto_now=True)
+    date_fermeture = models.DateTimeField(null=True, blank=True)
+
+    date_creation = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date_creation"]
+
+    def historiser(self, utilisateur, description):
+        """Enregistre une ligne d'historique — appelé à chaque action importante."""
+        HistoriqueRapport.objects.create(
+            rapport=self, utilisateur=utilisateur, description=description
+        )
+
+    def a_des_defauts(self):
+        """True si au moins un dispositif présente un défaut (colonnes A/B/C/D)."""
+        return any(d.est_defectueux for d in self.dispositifs.all())
+
+    def fermer(self, utilisateur):
+        from django.utils import timezone
+
+        self.statut = self.Statut.FERME
+        self.date_fermeture = timezone.now()
+        self.save()
+        self.historiser(utilisateur, "Rapport fermé")
+
+        # Attestation E1 — signée automatiquement par le technicien qui ferme
+        if hasattr(self, "fiche_e1"):
+            self.fiche_e1.signataire = utilisateur
+            self.fiche_e1.date_signature = timezone.now()
+            self.fiche_e1.save()
+
+        # Génère automatiquement le certificat remis au citoyen
+        if not hasattr(self, "certificat"):
+            Certificat.objects.create(rapport=self, emis_par=utilisateur)
+
+        # Si des dispositifs sont défectueux, le certificat n'est pas encore
+        # conforme — on avertit le citoyen que des réparations sont requises.
+        if self.a_des_defauts() and self.citoyen and self.citoyen.email:
+            from .emailing import envoyer_email_reparations_requises
+
+            envoyer_email_reparations_requises(self)
+
+    def rouvrir(self, utilisateur):
+        self.statut = self.Statut.OUVERT
+        self.date_fermeture = None
+        self.save()
+        self.historiser(utilisateur, "Rapport rouvert")
+
+        # Le rapport va potentiellement être modifié (réparation, mise à jour) —
+        # le certificat déjà envoyé ne reflète plus l'état courant, donc on le
+        # marque comme non envoyé pour permettre de le renvoyer après refermeture.
+        if hasattr(self, "certificat") and self.certificat.certificat_envoye:
+            self.certificat.certificat_envoye = False
+            self.certificat.save()
+            self.historiser(utilisateur, "Certificat marqué comme non envoyé (rapport rouvert)")
+
+    def __str__(self):
+        return f"Rapport {self.batiment.adresse_complete} — {self.get_statut_display()}"
+
+
+class Certificat(models.Model):
+    """Généré automatiquement quand un rapport est fermé — remis au citoyen."""
+
+    rapport = models.OneToOneField(Rapport, on_delete=models.CASCADE, related_name="certificat")
+    numero = models.CharField(max_length=30, unique=True, blank=True)
+    date_emission = models.DateTimeField(auto_now_add=True)
+    fichier_pdf = models.FileField(upload_to="certificats/", blank=True, null=True)
+    certificat_envoye = models.BooleanField(
+        default=False,
+        help_text="True quand le superviseur envoie explicitement le certificat au citoyen.",
+    )
+    emis_par = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="certificats_emis",
+    )
+
+    class Meta:
+        ordering = ["-date_emission"]
+
+    @property
+    def conforme(self):
+        """Recalculé en direct : conforme dès qu'il n'y a plus aucun dispositif défectueux."""
+        return not self.rapport.a_des_defauts()
+
+    def save(self, *args, **kwargs):
+        if not self.numero:
+            from django.utils import timezone
+
+            annee = timezone.now().year
+            compte = Certificat.objects.filter(date_emission__year=annee).count() + 1
+            self.numero = f"CERT-{annee}-{compte:04d}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.numero} — {self.rapport}"
+
+
+class HistoriqueRapport(models.Model):
+    """Une ligne d'audit : qui a fait quoi sur ce rapport, et quand."""
+
+    rapport = models.ForeignKey(Rapport, on_delete=models.CASCADE, related_name="historique")
+    utilisateur = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True
+    )
+    description = models.CharField(max_length=300)
+    date_heure = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date_heure"]
+
+    def __str__(self):
+        return f"{self.date_heure:%Y-%m-%d %H:%M} — {self.description}"
+
+
+class FicheE1(models.Model):
+    """E1 — Rapport annuel de mise à l'essai et d'inspection (champs A à H)."""
+
+    rapport = models.OneToOneField(Rapport, on_delete=models.CASCADE, related_name="fiche_e1")
+
+    fonctionnement_une_etape = models.BooleanField(null=True, blank=True)  # A
+    fonctionnement_deux_etapes = models.BooleanField(null=True, blank=True)  # B
+    inspection_essai_conforme = models.BooleanField(null=True, blank=True)  # C
+    documentation_sur_place = models.BooleanField(null=True, blank=True)  # D
+    reseau_fonctionnel = models.BooleanField(null=True, blank=True)  # E
+    lacunes_constatees = models.BooleanField(null=True, blank=True)  # F
+    commentaires = models.TextField(blank=True)  # G
+    copie_remise_responsable = models.BooleanField(null=True, blank=True)  # H
+
+    # Attestation — remplie automatiquement à la fermeture, pas ressaisie
+    signataire = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="fiches_e1_signees",
+        help_text="Le technicien qui a fermé le rapport — certifie que les renseignements sont exacts et complets.",
+    )
+    date_signature = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Fiche E1 — {self.rapport}"
+
+
+class FicheE2(models.Model):
+    """E2 — Essai du poste de contrôle (sous-sections E2.1 à E2.12).
+    Les champs simples conservent la compatibilité ; `details` stocke le JSON
+    complet de toutes les sous-sections tel que rempli par le technicien."""
+
+    rapport = models.OneToOneField(Rapport, on_delete=models.CASCADE, related_name="fiche_e2")
+
+    localisation = models.CharField(max_length=200, blank=True)
+    description_panneau = models.CharField(max_length=200, blank=True)
+
+    # Pas de fabricant/modèle ici — déjà sur Batiment (fixe, ne change pas d'un rapport à l'autre)
+
+    tension_sous_alimentation = models.CharField(max_length=20, blank=True)
+    tension_pleine_charge = models.CharField(max_length=20, blank=True)
+    courant_charge = models.CharField(max_length=20, blank=True)
+    code_dateur_batterie = models.CharField(max_length=10, blank=True)
+
+    signal_alarme_ok = models.BooleanField(null=True, blank=True)
+    rearmement_ok = models.BooleanField(null=True, blank=True)
+    commutation_alimentation_ok = models.BooleanField(null=True, blank=True)
+
+    details = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "JSON structuré de toutes les sous-sections E2.1 à E2.12. "
+            "Format : { 'e2_1': { 'localisation': '', 'description': '', "
+            "'items': { 'A': 'oui', 'B': 'sans_objet', ... } }, ... }"
+        ),
+    )
+
+    def __str__(self):
+        return f"Fiche E2 — {self.rapport}"
+
+
+class FicheLegende(models.Model):
+    """Légende des types de dispositifs (avant E3) — tableau de référence des
+    abréviations où le technicien précise le type/modèle réellement installé
+    pour chaque code (ex. K → Klaxon → modèle 5601A)."""
+
+    rapport = models.OneToOneField(Rapport, on_delete=models.CASCADE, related_name="fiche_legende")
+    dispositifs = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "JSON par code d'abréviation : { 'PAI': {'type': '', 'modele': ''}, ... }"
+        ),
+    )
+
+    def __str__(self):
+        return f"Légende dispositifs — {self.rapport}"
+
+
+class ResumeSommaire(models.Model):
+    """
+    Vue d'ensemble par étage — le nombre d'étages varie selon le bâtiment,
+    le technicien les ajoute au fur et à mesure. Sert aussi à générer un
+    résumé en langage simple pour le citoyen.
+    """
+
+    rapport = models.OneToOneField(Rapport, on_delete=models.CASCADE, related_name="resume_sommaire")
+    observations_generales = models.TextField(blank=True)
+    resume_citoyen = models.TextField(
+        blank=True,
+        help_text="Résumé en langage simple, sans jargon technique, destiné au citoyen.",
+    )
+
+    def __str__(self):
+        return f"Résumé sommaire — {self.rapport}"
+
+
+class EtageResume(models.Model):
+    """Une ligne du résumé sommaire — un étage réel du bâtiment."""
+
+    class Etat(models.TextChoices):
+        BON = "bon", "Bon"
+        ACCEPTABLE = "acceptable", "Acceptable"
+        A_REVISER = "a_reviser", "À réviser"
+
+    resume = models.ForeignKey(ResumeSommaire, on_delete=models.CASCADE, related_name="etages")
+    nom = models.CharField(max_length=100, help_text="Ex. « Sous-sol », « 3e étage »")
+    description = models.CharField(max_length=300, blank=True)
+    etat = models.CharField(max_length=20, choices=Etat.choices, default=Etat.BON)
+    ordre = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["ordre", "id"]
+
+    def __str__(self):
+        return f"{self.nom} — {self.resume.rapport}"
+
+
+class SectionDispositif(models.Model):
+    """
+    Un regroupement de dispositifs, créé librement par le technicien selon la
+    structure réelle du bâtiment — ex. « 3e étage », « Sous-sol », « Éclairage
+    d'urgence ». Un immeuble à 6 étages avec 4 appartements par étage aura
+    typiquement une section par étage.
+    """
+
+    rapport = models.ForeignKey(Rapport, on_delete=models.CASCADE, related_name="sections")
+    nom = models.CharField(max_length=150)
+    ordre = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["ordre", "id"]
+
+    def __str__(self):
+        return f"{self.nom} — {self.rapport}"
+
+
+class Dispositif(models.Model):
+    """E3 — une ligne de la fiche des dispositifs, rattachée à une section
+    (ex. un détecteur dans l'appartement 312, sous la section « 3e étage »)."""
+
+    class TypeDispositif(models.TextChoices):
+        DETECTEUR_FUMEE = "S", "Détecteur de fumée"
+        DETECTEUR_CHALEUR = "RHT", "Détecteur de chaleur réarmable"
+        DETECTEUR_CHALEUR_NR = "HT", "Détecteur de chaleur non réarmable"
+        AVERTISSEUR_MANUEL = "M", "Avertisseur manuel"
+        CLOCHE = "B", "Cloche"
+        AVERTISSEUR_FUMEE_ELEC = "AFE", "Avertisseur de fumée électrique"
+        ECLAIRAGE_URGENCE = "UN72-6", "Éclairage d'urgence"
+        PANNEAU = "PAI", "Panneau d'alarme incendie"
+        KLAXON = "K", "Klaxon"
+        RESISTANCE_FIN_LIGNE = "FDL", "Résistance de fin de ligne"
+        PIEZO = "PZ", "Piézo"
+        MODULE_ISOLATEUR = "ISO", "Module isolateur"
+        PANNEAU_ANNONCIATEUR = "ANN", "Panneau annonciateur d'alarme"
+        DETECTEUR_FUMEE_GAINE = "DFG", "Détecteur de fumée gaine ventilation"
+        TELEPHONE_URGENCE = "TEL", "Téléphone d'urgence (pompier)"
+        GICLEUR_DEBIT = "IDG", "Gicleur débit"
+        INTERRUPTEUR_VANNE_GICLEUR = "IVG", "Interrupteur vanne gicleur"
+        INTERRUPTEUR_HAUTE_PRESSION = "IHP", "Interrupteur haute pression"
+        INTERRUPTEUR_BASSE_PRESSION = "IBH", "Interrupteur de basse pression"
+        KLAXON_STROBE = "K/S", "Klaxon strobe"
+        MODULE_ADRESSABLE = "MA", "Module adressable"
+
+    class StatutAnnonce(models.TextChoices):
+        DEFECTUEUX = "D", "Défectueux"
+        INSPECTE = "I", "Inspecté"
+        NON_INSPECTE = "NI", "Non inspecté"
+
+    rapport = models.ForeignKey(Rapport, on_delete=models.CASCADE, related_name="dispositifs")
+    section = models.ForeignKey(
+        SectionDispositif,
+        on_delete=models.CASCADE,
+        related_name="dispositifs",
+        null=True,
+        blank=True,
+        help_text="La zone/l'étage auquel ce dispositif appartient.",
+    )
+
+    localisation = models.CharField(
+        max_length=200, help_text="Emplacement précis dans la section — ex. « App. 312 »"
+    )
+    type_dispositif = models.CharField(max_length=10, choices=TypeDispositif.choices, null=True, blank=True, default=None)
+    modele = models.CharField(max_length=100, blank=True)
+
+    installation_correcte = models.BooleanField(null=True, blank=True, default=None)  # colonne A
+    necessite_entretien = models.BooleanField(null=True, blank=True, default=None)  # colonne B
+    alarme_confirmee = models.BooleanField(null=True, blank=True, default=None)  # colonne C
+    annonce_statut = models.CharField(
+        max_length=2, choices=StatutAnnonce.choices, null=True, blank=True, default=None
+    )  # colonne D
+    zone_circuit = models.CharField(max_length=20, blank=True)  # colonne E
+
+    remarque = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        ordering = ["section__ordre", "id"]
+
+    @property
+    def est_defectueux(self):
+        return self.annonce_statut == self.StatutAnnonce.DEFECTUEUX
+
+    def __str__(self):
+        return f"{self.get_type_dispositif_display() or '—'} — {self.localisation}"
+
+
 class RapportExtincteur(models.Model):
     """
-    Rapport de vérification des extincteurs portatifs, effectué par le
-    technicien lors d'une visite.
+    Rapport de vérification des extincteurs portatifs — inspection distincte
+    du rapport du réseau avertisseur, effectuée par le technicien lors de la
+    même visite. Créé automatiquement en même temps que le Rapport principal
+    (lié via `rapport_alarme`), mais peut aussi être créé de façon autonome.
     """
 
     class Statut(models.TextChoices):
@@ -81,6 +455,14 @@ class RapportExtincteur(models.Model):
 
     batiment = models.ForeignKey(
         Batiment, on_delete=models.CASCADE, related_name="rapports_extincteurs"
+    )
+    rapport_alarme = models.ForeignKey(
+        Rapport,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="rapports_extincteurs",
+        help_text="Le rapport du réseau avertisseur créé en même temps, pour la même adresse.",
     )
     cree_par = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -136,6 +518,14 @@ class RapportExtincteur(models.Model):
         self.date_fermeture = None
         self.save()
         self.historiser(utilisateur, "Rapport rouvert")
+
+        # Le rapport va potentiellement être modifié (réparation, mise à jour) —
+        # le certificat déjà envoyé ne reflète plus l'état courant, donc on le
+        # marque comme non envoyé pour permettre de le renvoyer après refermeture.
+        if hasattr(self, "certificat") and self.certificat.certificat_envoye:
+            self.certificat.certificat_envoye = False
+            self.certificat.save()
+            self.historiser(utilisateur, "Certificat marqué comme non envoyé (rapport rouvert)")
 
     def __str__(self):
         return f"Rapport extincteurs {self.batiment.adresse_complete} — {self.get_statut_display()}"
@@ -198,7 +588,7 @@ class ExtincteurItem(models.Model):
 
     class Etat(models.TextChoices):
         DEFECTUEUX = "D", "Défectueux"
-        CONFORME = "C", "Conforme"
+        INSPECTE = "I", "Inspecté"
         NON_INSPECTE = "NI", "Non inspecté"
 
     class Format(models.TextChoices):
@@ -238,6 +628,7 @@ class ExtincteurItem(models.Model):
     format = models.CharField(max_length=10, choices=Format.choices, blank=True)
     type_extincteur = models.CharField(max_length=10, choices=TypeExtincteur.choices, blank=True)
     marque = models.CharField(max_length=10, choices=Marque.choices, blank=True)
+    numero_serie = models.CharField(max_length=100, blank=True)
     prochaine_maintenance = models.DateField(null=True, blank=True)
     prochain_test_hydrostatique = models.DateField(null=True, blank=True)
     remarque = models.CharField(max_length=300, blank=True)
@@ -249,3 +640,106 @@ class ExtincteurItem(models.Model):
 
     def __str__(self):
         return f"Extincteur #{self.ordre} — {self.rapport}"
+
+
+class AppelService(models.Model):
+    """Un appel de service : ouverture d'une intervention sur un bâtiment,
+    assignée à un ou plusieurs techniciens, synchronisée avec pubms."""
+
+    class Statut(models.TextChoices):
+        OUVERT = "ouvert", "Ouvert"
+        ASSIGNE = "assigne", "Assigné"
+        EN_COURS = "en_cours", "En cours"
+        TERMINE = "termine", "Terminé"
+
+    class StatutSync(models.TextChoices):
+        NON_SYNCHRONISE = "non_synchronise", "Non synchronisé"
+        SYNCHRONISE = "synchronise", "Synchronisé"
+        ECHEC = "echec", "Échec de synchronisation"
+
+    numero = models.CharField(max_length=20, unique=True, blank=True)
+    batiment = models.ForeignKey(Batiment, on_delete=models.CASCADE, related_name="appels_service")
+    cree_par = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="appels_service_crees",
+        limit_choices_to={"role": "superviseur"},
+    )
+    techniciens = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name="appels_service_assignes",
+        limit_choices_to={"role": "technicien"},
+        blank=True,
+    )
+    titre = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    date_inspection = models.DateField(null=True, blank=True)
+
+    statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.OUVERT)
+    date_assignation = models.DateTimeField(null=True, blank=True)
+    date_debut = models.DateTimeField(null=True, blank=True)
+    date_terminaison = models.DateTimeField(null=True, blank=True)
+    date_creation = models.DateTimeField(auto_now_add=True)
+
+    pubms_tache_id = models.PositiveIntegerField(null=True, blank=True)
+    pubms_sync_status = models.CharField(max_length=20, choices=StatutSync.choices, default=StatutSync.NON_SYNCHRONISE)
+    pubms_sync_error = models.TextField(blank=True)
+    pubms_sync_tentatives = models.PositiveIntegerField(default=0)
+    date_dernier_sync = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-date_creation"]
+
+    def save(self, *args, **kwargs):
+        if not self.numero:
+            from django.utils import timezone
+
+            annee = timezone.now().year
+            compte = AppelService.objects.filter(date_creation__year=annee).count() + 1
+            self.numero = f"APP-{annee}-{compte:04d}"
+        super().save(*args, **kwargs)
+
+    def historiser(self, utilisateur, description):
+        HistoriqueAppelService.objects.create(appel=self, utilisateur=utilisateur, description=description)
+
+    def synchroniser_vers_pubms(self):
+        """Crée/retrouve la Tache correspondante dans pubms. N'échoue jamais bruyamment."""
+        from .integrations_pubms import creer_tache_pubms
+
+        creer_tache_pubms(self)
+
+    def terminer_depuis_pubms(self):
+        from django.utils import timezone
+
+        self.statut = self.Statut.TERMINE
+        self.date_terminaison = timezone.now()
+        self.save()
+        self.historiser(None, "Fermé automatiquement — Tâche pubms marquée terminée")
+
+    def terminer_manuellement(self, utilisateur):
+        from django.utils import timezone
+
+        self.statut = self.Statut.TERMINE
+        self.date_terminaison = timezone.now()
+        self.save()
+        self.historiser(utilisateur, "Fermé manuellement (contournement — ne reflète pas dans pubms)")
+
+    def __str__(self):
+        return f"{self.numero} — {self.batiment.adresse_complete}"
+
+
+class HistoriqueAppelService(models.Model):
+    """Audit trail d'un appel de service — inclut les entrées système (sync pubms)."""
+
+    appel = models.ForeignKey(AppelService, on_delete=models.CASCADE, related_name="historique")
+    utilisateur = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    description = models.CharField(max_length=300)
+    date_heure = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date_heure"]
+
+    def __str__(self):
+        return f"{self.date_heure:%Y-%m-%d %H:%M} — {self.description}"

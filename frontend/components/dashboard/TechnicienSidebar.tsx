@@ -10,7 +10,8 @@ const NAV_GROUPS = [
   {
     label: 'Rapports',
     items: [
-      { href: '/technicien/rapports-extincteurs', label: 'Rapport Extincteur', icon: 'ti-fire-extinguisher' },
+      { href: '/technicien/rapports', label: 'Mes rapports', icon: 'ti-clipboard-list', module: 'rapport_incendie' },
+      { href: '/technicien/rapports-extincteurs', label: 'Rapport Extincteur', icon: 'ti-fire-extinguisher', module: 'rapport_extincteur' },
     ],
   },
 ]
@@ -18,6 +19,12 @@ const NAV_GROUPS = [
 export default function TechnicienSidebar({ user, onClose }: { user: any; onClose?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
+
+  const modulesActifs: string[] = user?.organisation?.modules_actifs || []
+  const groupesVisibles = NAV_GROUPS.map(group => ({
+    ...group,
+    items: group.items.filter((item: any) => !item.module || modulesActifs.includes(item.module)),
+  })).filter(group => group.items.length > 0)
 
   function logout() {
     localStorage.removeItem('access_token')
@@ -73,7 +80,7 @@ export default function TechnicienSidebar({ user, onClose }: { user: any; onClos
 
       {/* ── Navigation ── */}
       <nav className="flex-1 px-3 pb-4 flex flex-col gap-6 overflow-y-auto sidebar-scroll border-t border-white/10 pt-6">
-        {NAV_GROUPS.map((group) => (
+        {groupesVisibles.map((group) => (
           <div key={group.label}>
             <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-white/50">
               {group.label}
