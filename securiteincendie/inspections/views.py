@@ -10,6 +10,18 @@ from rest_framework.views import APIView
 from securiteincendie.emailing import logo_data_uri, organisation_logo_content
 
 from accounts.models import Utilisateur
+from openpyxl.styles import Font
+
+from .excel_utils import (
+    NAVY,
+    RED,
+    excel_ajuster_largeurs,
+    excel_entete_rapport,
+    excel_ligne_entetes,
+    excel_nom_fichier,
+    excel_reponse,
+    excel_workbook,
+)
 from .models import (
     AppelService,
     Batiment,
@@ -1003,6 +1015,139 @@ class RapportViewSet(viewsets.ModelViewSet):
 </html>"""
         return HttpResponse(html, content_type="text/html; charset=utf-8")
 
+    @action(detail=True, methods=["get"])
+    def excel(self, request, pk=None):
+        rapport = self.get_object()
+        bat = rapport.batiment
+        adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
+        techniciens = ", ".join(
+            t.get_full_name() or t.username for t in rapport.techniciens.all()
+        ) or "—"
+        e1 = rapport.fiche_e1 if hasattr(rapport, "fiche_e1") else None
+        e2 = rapport.fiche_e2 if hasattr(rapport, "fiche_e2") else None
+        legende = rapport.fiche_legende.dispositifs if hasattr(rapport, "fiche_legende") else {}
+        dispositifs = list(rapport.dispositifs.select_related("section").all())
+        type_counts = Counter(d.get_type_dispositif_display() or "—" for d in dispositifs)
+
+        def oui_non(v):
+            return "Oui" if v is True else "Non" if v is False else "—"
+
+        def so_valeur(v):
+            if v == "oui": return "Oui"
+            if v == "non": return "Non"
+            if v == "sans_objet": return "S.O."
+            return v or "—"
+
+        wb = excel_workbook()
+        ws = wb.active
+        ws.title = "Rapport incendie"
+        # Largeurs fixées d'avance : le document empile plusieurs tableaux à
+        # nombre de colonnes différent (E1, E2, légende, E3...), donc on ne
+        # peut pas ajuster automatiquement à la fin sur un seul tableau.
+        for col, largeur in zip("ABCDEFGHI", [40, 60, 20, 20, 20, 20, 16, 16, 30]):
+            ws.column_dimensions[col].width = largeur
+        excel_entete_rapport(
+            ws, organisation_nom=bat.client.organisation.nom, adresse=adresse,
+            date_insp=_date_fr(rapport.date_inspection),
+            statut=rapport.get_statut_display(), techniciens=techniciens,
+        )
+
+        ligne = 7
+
+        # ── E1 — Rapport annuel de mise à l'essai ──────────────────────────
+        if e1:
+            champs_e1 = [
+                ("Fonctionnement en une étape", e1.fonctionnement_une_etape),
+                ("Fonctionnement en deux étapes", e1.fonctionnement_deux_etapes),
+                ("Inspection et mise à l'essai (CAN/ULC-S536)", e1.inspection_essai_conforme),
+                ("Documentation du réseau sur place", e1.documentation_sur_place),
+                ("Réseau fonctionnel", e1.reseau_fonctionnel),
+                ("Lacunes constatées", e1.lacunes_constatees),
+                ("Copie remise au responsable", e1.copie_remise_responsable),
+            ]
+            ws.cell(row=ligne, column=1, value="E1 — Rapport annuel de mise à l'essai").font = Font(bold=True, color=NAVY, size=12)
+            ligne += 1
+            excel_ligne_entetes(ws, ["Champ", "Valeur"], ligne=ligne)
+            for label, val in champs_e1:
+                ligne += 1
+                ws.cell(row=ligne, column=1, value=label)
+                ws.cell(row=ligne, column=2, value=oui_non(val))
+            ligne += 1
+            ws.cell(row=ligne, column=1, value="Commentaires")
+            ws.cell(row=ligne, column=2, value=e1.commentaires or "—")
+            ligne += 2
+
+        # ── E2 — Essai du poste de contrôle ─────────────────────────────────
+        ws.cell(row=ligne, column=1, value="E2 — Essai du poste de contrôle").font = Font(bold=True, color=NAVY, size=12)
+        ligne += 1
+        for key, titre in E2_TITRES.items():
+            sec_data = (e2.details or {}).get(key, {}) if (e2 and e2.details) else {}
+            loc = sec_data.get("localisation", "")
+            sous_titre = f"{titre} ({loc})" if loc else titre
+            ws.cell(row=ligne, column=1, value=sous_titre).font = Font(bold=True, color=RED, size=10.5)
+            ligne += 1
+            if key in ("e2_11", "e2_12"):
+                ws.cell(row=ligne, column=1, value="Remarques")
+                ws.cell(row=ligne, column=2, value=sec_data.get("remarques") or "—")
+                ligne += 2
+                continue
+            items_defs = E2_ITEMS.get(key, [])
+            excel_ligne_entetes(ws, ["", "Élément vérifié", "Résultat"], ligne=ligne)
+            for iid, lbl in items_defs:
+                ligne += 1
+                ws.cell(row=ligne, column=1, value=iid)
+                ws.cell(row=ligne, column=2, value=lbl)
+                ws.cell(row=ligne, column=3, value=so_valeur(sec_data.get(iid)))
+            ligne += 2
+
+        # ── Légende des dispositifs ──────────────────────────────────────────
+        ws.cell(row=ligne, column=1, value="Légende des dispositifs").font = Font(bold=True, color=NAVY, size=12)
+        ligne += 1
+        excel_ligne_entetes(ws, ["Dispositif", "Description", "Type", "N° de modèle"], ligne=ligne)
+        for code, desc in LEGENDE_DISPOSITIFS:
+            ligne += 1
+            infos = legende.get(code) or {}
+            ws.cell(row=ligne, column=1, value=code)
+            ws.cell(row=ligne, column=2, value=desc)
+            ws.cell(row=ligne, column=3, value=infos.get("type") or "—")
+            ws.cell(row=ligne, column=4, value=infos.get("modele") or "—")
+        ligne += 2
+
+        # ── E3 — Inventaire global ───────────────────────────────────────────
+        ws.cell(row=ligne, column=1, value="E3 — Inventaire global").font = Font(bold=True, color=NAVY, size=12)
+        ligne += 1
+        excel_ligne_entetes(ws, ["Type de dispositif", "Quantité"], ligne=ligne)
+        for t, c in sorted(type_counts.items()):
+            ligne += 1
+            ws.cell(row=ligne, column=1, value=t)
+            ws.cell(row=ligne, column=2, value=c)
+        ligne += 1
+        ws.cell(row=ligne, column=1, value="Total").font = Font(bold=True)
+        ws.cell(row=ligne, column=2, value=sum(type_counts.values())).font = Font(bold=True)
+        ligne += 2
+
+        # ── E3 — Détail par section ──────────────────────────────────────────
+        ws.cell(row=ligne, column=1, value="E3 — Détail par section").font = Font(bold=True, color=NAVY, size=12)
+        ligne += 1
+        colonnes_disp = [
+            "Section", "Localisation", "Type", "Installation correcte",
+            "Nécessite entretien", "Alarme confirmée", "Statut", "Zone/Circuit", "Remarque",
+        ]
+        excel_ligne_entetes(ws, colonnes_disp, ligne=ligne)
+        for section in rapport.sections.prefetch_related("dispositifs").all():
+            for d in section.dispositifs.all():
+                ligne += 1
+                valeurs = [
+                    section.nom, d.localisation, d.type_dispositif,
+                    oui_non(d.installation_correcte), oui_non(d.necessite_entretien), oui_non(d.alarme_confirmee),
+                    d.annonce_statut, d.zone_circuit, d.remarque,
+                ]
+                for col, valeur in enumerate(valeurs, start=1):
+                    ws.cell(row=ligne, column=col, value=valeur)
+
+        ws.freeze_panes = "A7"
+        return excel_reponse(wb, excel_nom_fichier("Incendie", adresse))
+
 
 # ── Section (regroupement de dispositifs) ───────────────────────────────
 class SectionDispositifViewSet(viewsets.ModelViewSet):
@@ -1486,6 +1631,47 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
 </body>
 </html>"""
         return HttpResponse(html, content_type="text/html; charset=utf-8")
+
+    @action(detail=True, methods=["get"])
+    def excel(self, request, pk=None):
+        rapport = self.get_object()
+        bat = rapport.batiment
+        adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
+        techniciens = ", ".join(
+            t.get_full_name() or t.username for t in rapport.techniciens.all()
+        ) or "—"
+
+        wb = excel_workbook()
+        ws = wb.active
+        ws.title = "Extincteurs"
+        excel_entete_rapport(
+            ws, organisation_nom=bat.client.organisation.nom, adresse=adresse,
+            date_insp=_date_fr(rapport.date_inspection),
+            statut=rapport.get_statut_display(), techniciens=techniciens,
+        )
+
+        colonnes = [
+            "No", "Étage", "État", "Emplacement", "Date fabrication", "Format",
+            "Type", "Marque", "N° série", "Prochaine maintenance",
+            "Prochain test hydro.", "Remarque",
+        ]
+        ligne = excel_ligne_entetes(ws, colonnes, ligne=6)
+        for it in rapport.extincteurs.all():
+            ligne += 1
+            valeurs = [
+                it.ordre, it.etage, it.etat, it.emplacement,
+                _date_fr(it.date_fabrication), it.get_format_display() if it.format else "",
+                it.get_type_extincteur_display() if it.type_extincteur else "",
+                it.get_marque_display() if it.marque else "", it.numero_serie,
+                _date_fr(it.prochaine_maintenance), _date_fr(it.prochain_test_hydrostatique),
+                it.remarque,
+            ]
+            for col, valeur in enumerate(valeurs, start=1):
+                ws.cell(row=ligne, column=col, value=valeur)
+        excel_ajuster_largeurs(ws, colonnes)
+        ws.freeze_panes = "A7"
+
+        return excel_reponse(wb, excel_nom_fichier("Extincteur", adresse))
 
 
 class ExtincteurItemViewSet(viewsets.ModelViewSet):

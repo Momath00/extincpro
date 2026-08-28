@@ -13,15 +13,47 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
 
-async function downloadHtml(url: string) {
-  const token = localStorage.getItem('access_token')
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-  if (!res.ok) return
-  const html = await res.text()
-  const blob = new Blob([html], { type: 'text/html' })
-  const blobUrl = URL.createObjectURL(blob)
-  window.open(blobUrl, '_blank')
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
+async function downloadHtml(url: string): Promise<boolean> {
+  try {
+    const token = localStorage.getItem('access_token')
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    if (!res.ok) return false
+    const html = await res.text()
+    const blob = new Blob([html], { type: 'text/html' })
+    const blobUrl = URL.createObjectURL(blob)
+    window.open(blobUrl, '_blank')
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function downloadFichier(url: string, nomFichier: string): Promise<boolean> {
+  try {
+    const token = localStorage.getItem('access_token')
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    if (!res.ok) return false
+    const blob = await res.blob()
+    const blobUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = nomFichier
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function SpinnerBouton({ color = '#fff' }: { color?: string }) {
+  return (
+    <div
+      className="w-3.5 h-3.5 rounded-full animate-spin flex-shrink-0"
+      style={{ border: `2px solid ${color}`, borderTopColor: 'transparent' }}
+    />
+  )
 }
 
 // ── Certificat tab ───────────────────────────────────────────────────────────
@@ -210,6 +242,7 @@ export default function SuperviseurRapportDetailPage() {
   const [loading, setLoading] = useState(true)
   const [onglet, setOnglet] = useState<OngletType>('e1')
   const [actionLoading, setActionLoading] = useState(false)
+  const [telechargement, setTelechargement] = useState<string | null>(null)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [confirmFermer, setConfirmFermer] = useState(false)
   const [confirmRouvrir, setConfirmRouvrir] = useState(false)
@@ -399,19 +432,44 @@ export default function SuperviseurRapportDetailPage() {
           {estFerme && (
             <>
               <button
-                onClick={() => downloadHtml(`${API_URL}/api/rapports/${rapport.id}/telecharger/`)}
-                className="text-sm font-bold px-4 py-2.5 rounded-md border-2 flex items-center gap-2 hover:bg-gray-50 transition-colors"
+                onClick={async () => {
+                  setTelechargement('rapport')
+                  const ok = await downloadHtml(`${API_URL}/api/rapports/${rapport.id}/telecharger/`)
+                  if (!ok) showToast('Erreur lors du téléchargement du rapport.', 'error')
+                  setTelechargement(null)
+                }}
+                disabled={telechargement !== null}
+                className="text-sm font-bold px-4 py-2.5 rounded-md border-2 flex items-center gap-2 hover:bg-gray-50 transition-colors disabled:opacity-50"
                 style={{ borderColor: NAVY, color: NAVY }}
               >
-                <i className="ti ti-file-download" /> Rapport
+                {telechargement === 'rapport' ? <SpinnerBouton color={NAVY} /> : <i className="ti ti-file-download" />} Rapport
+              </button>
+              <button
+                onClick={async () => {
+                  setTelechargement('excel')
+                  const ok = await downloadFichier(`${API_URL}/api/rapports/${rapport.id}/excel/`, `Incendie - ${rapport.batiment?.adresse_complete || rapport.id}.xlsx`)
+                  if (!ok) showToast("Erreur lors du téléchargement de l'Excel.", 'error')
+                  setTelechargement(null)
+                }}
+                disabled={telechargement !== null}
+                className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+                style={{ background: '#16a34a' }}
+              >
+                {telechargement === 'excel' ? <SpinnerBouton /> : <i className="ti ti-file-spreadsheet" />} Excel
               </button>
               {rapport.certificat && (
                 <button
-                  onClick={() => downloadHtml(`${API_URL}/api/rapports/${rapport.id}/certificat-pdf/`)}
-                  className="text-sm font-bold px-4 py-2.5 rounded-md border-2 flex items-center gap-2 hover:bg-orange-50 transition-colors"
+                  onClick={async () => {
+                    setTelechargement('certificat')
+                    const ok = await downloadHtml(`${API_URL}/api/rapports/${rapport.id}/certificat-pdf/`)
+                    if (!ok) showToast('Erreur lors du téléchargement du certificat.', 'error')
+                    setTelechargement(null)
+                  }}
+                  disabled={telechargement !== null}
+                  className="text-sm font-bold px-4 py-2.5 rounded-md border-2 flex items-center gap-2 hover:bg-orange-50 transition-colors disabled:opacity-50"
                   style={{ borderColor: ORANGE, color: ORANGE }}
                 >
-                  <i className="ti ti-certificate" /> Certificat
+                  {telechargement === 'certificat' ? <SpinnerBouton color={ORANGE} /> : <i className="ti ti-certificate" />} Certificat
                 </button>
               )}
             </>
