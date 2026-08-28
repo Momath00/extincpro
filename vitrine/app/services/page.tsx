@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 };
 
 const systemesCouverts = [
-  { title: "Inspection sécurité incendie", desc: "Inspection générale de sécurité incendie de vos bâtiments." },
-  { title: "Extincteurs", desc: "Inspection, entretien, recharge et remplacement, suivis pour chaque appareil." },
+  { title: "Inspection incendie", desc: "Inspection générale de sécurité incendie de vos bâtiments." },
+  { title: "Inspection extincteur", desc: "Inspection, entretien, recharge et remplacement, suivis pour chaque appareil." },
   { title: "Éclairage d'urgence", desc: "Test périodique des blocs d'éclairage et de leur autonomie réglementaire." },
   { title: "Gicleurs", desc: "Suivi des inspections de systèmes de gicleurs et de leur conformité." },
 ];
@@ -82,10 +82,10 @@ export default function ServicesPage() {
         <Container>
           <SectionHeading
             kicker="Systèmes couverts"
-            title="Trois systèmes, un seul logiciel"
+            title="Quatre systèmes, un seul logiciel"
             align="center"
           />
-          <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-3">
+          <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {systemesCouverts.map((sys) => (
               <div key={sys.title} className="rounded-xl border border-line bg-paper-2 p-6 text-center">
                 <h3 className="text-base font-semibold text-ink">{sys.title}</h3>

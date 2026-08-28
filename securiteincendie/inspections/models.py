@@ -588,7 +588,7 @@ class ExtincteurItem(models.Model):
 
     class Etat(models.TextChoices):
         DEFECTUEUX = "D", "Défectueux"
-        INSPECTE = "I", "Inspecté"
+        CONFORME = "C", "Conforme"
         NON_INSPECTE = "NI", "Non inspecté"
 
     class Format(models.TextChoices):

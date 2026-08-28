@@ -95,21 +95,60 @@ export default function OrganisationDetailPage() {
     setBusyModule(null)
   }
 
+  /**
+   * Redimensionne l'image dans un <canvas> et la ré-encode — un logo n'a besoin
+   * que de quelques centaines de pixels, donc quasiment tout fichier tient
+   * confortablement sous la limite après ce passage, sans que l'utilisateur
+   * ait à compresser lui-même son image en amont.
+   */
+  function redimensionnerImage(file: File, maxCote: number, type: string, qualite?: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file)
+      const img = new Image()
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        const echelle = Math.min(1, maxCote / Math.max(img.width, img.height))
+        const largeur = Math.max(1, Math.round(img.width * echelle))
+        const hauteur = Math.max(1, Math.round(img.height * echelle))
+        const canvas = document.createElement('canvas')
+        canvas.width = largeur
+        canvas.height = hauteur
+        const ctx = canvas.getContext('2d')
+        if (!ctx) { reject(new Error('canvas indisponible')); return }
+        ctx.drawImage(img, 0, 0, largeur, hauteur)
+        resolve(canvas.toDataURL(type, qualite))
+      }
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Impossible de lire l'image.")) }
+      img.src = url
+    })
+  }
+
   async function handleLogoFile(file: File) {
     setLogoErreur('')
-    if (file.size > 500 * 1024) {
-      setLogoErreur('Image trop volumineuse (500 Ko max).')
+    if (!file.type.startsWith('image/')) {
+      setLogoErreur('Le fichier doit être une image.')
       return
     }
-    const dataUri: string = await new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = reject
-      reader.readAsDataURL(file)
-    })
 
     setUploadingLogo(true)
     try {
+      const LIMITE = 500 * 1024
+      // 1) PNG redimensionné — conserve la transparence, suffisant pour la
+      //    grande majorité des logos (illustrations simples).
+      let dataUri = await redimensionnerImage(file, 300, 'image/png')
+      // 2) Si l'image est très détaillée (ex. photo), repli en JPEG compressé.
+      if (dataUri.length > LIMITE) {
+        dataUri = await redimensionnerImage(file, 300, 'image/jpeg', 0.82)
+      }
+      // 3) Dernier repli — image plus petite encore, JPEG plus compressé.
+      if (dataUri.length > LIMITE) {
+        dataUri = await redimensionnerImage(file, 200, 'image/jpeg', 0.7)
+      }
+      if (dataUri.length > LIMITE) {
+        setLogoErreur('Cette image reste trop volumineuse même après compression — essayez un fichier plus simple.')
+        return
+      }
+
       const res = await fetch(`${API_URL}/api/organisations/${id}/`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
@@ -119,7 +158,7 @@ export default function OrganisationDetailPage() {
       if (!res.ok) { setLogoErreur(data.error || "Erreur lors de l'envoi du logo."); return }
       setOrganisation(data)
     } catch {
-      setLogoErreur('Erreur réseau.')
+      setLogoErreur("Erreur lors du traitement de l'image.")
     } finally {
       setUploadingLogo(false)
     }

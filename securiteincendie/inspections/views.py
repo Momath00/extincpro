@@ -643,6 +643,7 @@ class RapportViewSet(viewsets.ModelViewSet):
                 conf_html += f"<div style='margin-top:6px;font-size:8.5pt;color:#555;font-style:italic;'>Commentaires : {e1.commentaires}</div>"
 
         logo_content = organisation_logo_content(bat.client.organisation, 46)
+        organisation_nom = bat.client.organisation.nom
         emetteur = cert.emis_par.get_full_name() or cert.emis_par.username if cert.emis_par else "—"
         conforme = cert.conforme
         conf_badge_color = "#0d6b4f" if conforme else "#e11324"
@@ -699,7 +700,7 @@ class RapportViewSet(viewsets.ModelViewSet):
   <div class="brand">
     <div class="logo-circle">{logo_content}</div>
     <div class="brand-text">
-      <h1>Protocole Sécurité Incendie</h1>
+      <h1>{organisation_nom}</h1>
       <p>Inspection &amp; Certification — Norme CAN/ULC-S536</p>
     </div>
   </div>
@@ -734,7 +735,7 @@ class RapportViewSet(viewsets.ModelViewSet):
   <div class="sig-block">
     <div class="sig-label">Superviseur / Responsable</div>
     <div class="sig-name">{emetteur}</div>
-    <div style="font-size:8pt;color:#555;">Protocole Sécurité Incendie</div>
+    <div style="font-size:8pt;color:#555;">{organisation_nom}</div>
   </div>
   <div class="sig-block">
     <div class="sig-label">Date d'émission</div>
@@ -743,7 +744,7 @@ class RapportViewSet(viewsets.ModelViewSet):
   </div>
 </div>
 <div class="footer">
-  <div><strong>Protocole Sécurité Incendie</strong> — info@protocolepsi.com</div>
+  <div><strong>{organisation_nom}</strong></div>
   <div>Norme CAN/ULC-S536 — Ce certificat atteste la conformité à la date d'inspection indiquée.</div>
 </div>
 </div>
@@ -910,6 +911,7 @@ class RapportViewSet(viewsets.ModelViewSet):
             )
 
         logo_content = organisation_logo_content(bat.client.organisation, 46)
+        organisation_nom = bat.client.organisation.nom
 
         html = f"""<!DOCTYPE html>
 <html lang="fr">
@@ -952,7 +954,7 @@ class RapportViewSet(viewsets.ModelViewSet):
   <div class="brand">
     <div class="logo-circle">{logo_content}</div>
     <div class="brand-text">
-      <h1>Protocole Sécurité Incendie</h1>
+      <h1>{organisation_nom}</h1>
       <p>Rapport d'inspection annuelle — CAN/ULC-S536</p>
     </div>
   </div>
@@ -993,7 +995,7 @@ class RapportViewSet(viewsets.ModelViewSet):
 {sections_html}
 {cert_html}
 <div class="footer">
-  <div><strong>Protocole Sécurité Incendie</strong> — info@protocolepsi.com</div>
+  <div><strong>{organisation_nom}</strong></div>
   <div>{adresse}</div>
 </div>
 </div>
@@ -1260,6 +1262,7 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
         ) or "<tr><td class='muted'>—</td></tr>"
 
         logo_content = organisation_logo_content(bat.client.organisation, 46)
+        organisation_nom = bat.client.organisation.nom
         emetteur = cert.emis_par.get_full_name() or cert.emis_par.username if cert.emis_par else "—"
 
         html = f"""<!DOCTYPE html>
@@ -1305,7 +1308,7 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
   <div class="brand">
     <div class="logo-circle">{logo_content}</div>
     <div class="brand-text">
-      <h1>Protocole Sécurité Incendie</h1>
+      <h1>{organisation_nom}</h1>
       <p>Inspection &amp; Certification — Extincteurs portatifs</p>
     </div>
   </div>
@@ -1334,7 +1337,7 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
   <div class="sig-block">
     <div class="sig-label">Superviseur / Responsable</div>
     <div class="sig-name">{emetteur}</div>
-    <div style="font-size:8pt;color:#555;">Protocole Sécurité Incendie</div>
+    <div style="font-size:8pt;color:#555;">{organisation_nom}</div>
   </div>
   <div class="sig-block">
     <div class="sig-label">Date d'émission</div>
@@ -1343,7 +1346,7 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
   </div>
 </div>
 <div class="footer">
-  <div><strong>Protocole Sécurité Incendie</strong> — info@protocolepsi.com</div>
+  <div><strong>{organisation_nom}</strong></div>
   <div>Ce certificat atteste la vérification des extincteurs portatifs à la date d'inspection indiquée.</div>
 </div>
 </div>
@@ -1405,6 +1408,7 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
             )
 
         logo_content = organisation_logo_content(bat.client.organisation, 46)
+        organisation_nom = bat.client.organisation.nom
 
         html = f"""<!DOCTYPE html>
 <html lang="fr">
@@ -1446,7 +1450,7 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
   <div class="brand">
     <div class="logo-circle">{logo_content}</div>
     <div class="brand-text">
-      <h1>Protocole Sécurité Incendie</h1>
+      <h1>{organisation_nom}</h1>
       <p>Rapport de vérification — Extincteurs portatifs</p>
     </div>
   </div>
@@ -1475,7 +1479,7 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
 </table>
 {cert_html}
 <div class="footer">
-  <div><strong>Protocole Sécurité Incendie</strong> — info@protocolepsi.com</div>
+  <div><strong>{organisation_nom}</strong></div>
   <div>{adresse}</div>
 </div>
 </div>

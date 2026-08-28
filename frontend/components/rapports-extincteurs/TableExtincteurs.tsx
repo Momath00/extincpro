@@ -77,8 +77,9 @@ function DateMaskInput({
   onCommit: (iso: string | null) => void
 }) {
   const [text, setText] = useState(isoToDisplay(value))
+  const [incomplete, setIncomplete] = useState(false)
 
-  useEffect(() => { setText(isoToDisplay(value)) }, [value])
+  useEffect(() => { setText(isoToDisplay(value)); setIncomplete(false) }, [value])
 
   if (readOnly) {
     return <span className="text-xs text-gray-500">{isoToDisplay(value) || '—'}</span>
@@ -90,9 +91,11 @@ function DateMaskInput({
     if (digits.length > 4) formatted = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
     else if (digits.length > 2) formatted = `${digits.slice(0, 2)}/${digits.slice(2)}`
     setText(formatted)
+    setIncomplete(false)
     if (digits.length === 8) {
       const iso = digitsToIso(digits)
       if (iso) onCommit(iso)
+      else setIncomplete(true) // 8 chiffres mais date invalide (ex. 31/02) — on garde la saisie visible
     } else if (digits.length === 0) {
       onCommit(null)
     }
@@ -100,20 +103,28 @@ function DateMaskInput({
 
   function handleBlur() {
     const digits = text.replace(/\D/g, '')
-    if (digits.length !== 8) setText(isoToDisplay(value))
+    // Saisie commencée mais pas terminée (ni vide, ni complète) — on la garde à
+    // l'écran avec un repère visuel au lieu de l'effacer silencieusement,
+    // sinon l'utilisateur croit avoir enregistré une date qui a disparu.
+    setIncomplete(digits.length > 0 && digits.length < 8)
   }
 
   return (
-    <input
-      type="text"
-      inputMode="numeric"
-      value={text}
-      onChange={handleChange}
-      onBlur={handleBlur}
-      placeholder="JJ/MM/AAAA"
-      maxLength={10}
-      className="text-xs border border-gray-200 rounded px-1.5 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-[100px]"
-    />
+    <div className="inline-flex flex-col">
+      <input
+        type="text"
+        inputMode="numeric"
+        value={text}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        placeholder="JJ/MM/AAAA"
+        maxLength={10}
+        className={`text-xs border rounded px-1.5 py-0.5 focus:outline-none bg-white w-[100px] ${
+          incomplete ? 'border-red-400 focus:border-red-400' : 'border-gray-200 focus:border-[#e11324]'
+        }`}
+      />
+      {incomplete && <span className="text-[10px] text-red-500 mt-0.5">Date incomplète, non enregistrée</span>}
+    </div>
   )
 }
 
@@ -177,19 +188,36 @@ function LigneExtincteur({
 }) {
   const [it, setIt] = useState<any>(item)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [erreurChamp, setErreurChamp] = useState<string | null>(null)
 
   useEffect(() => { setIt(item) }, [item])
 
   async function patchField(field: string, value: any) {
+    const ancienneValeur = it[field]
     const token = localStorage.getItem('access_token')
     const updated = { ...it, [field]: value }
     setIt(updated)
     onUpdate(field, value)
-    await fetch(`${API_URL}/api/extincteurs/${it.id}/`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [field]: value }),
-    })
+    setErreurChamp(null)
+    try {
+      const res = await fetch(`${API_URL}/api/extincteurs/${it.id}/`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value }),
+      })
+      if (!res.ok) {
+        // L'enregistrement a échoué côté serveur — on revient à la dernière
+        // valeur confirmée plutôt que de laisser l'écran mentir sur ce qui
+        // est réellement sauvegardé.
+        setIt((prev: any) => ({ ...prev, [field]: ancienneValeur }))
+        onUpdate(field, ancienneValeur)
+        setErreurChamp("Non enregistré — réessayez.")
+      }
+    } catch {
+      setIt((prev: any) => ({ ...prev, [field]: ancienneValeur }))
+      onUpdate(field, ancienneValeur)
+      setErreurChamp('Erreur réseau — non enregistré.')
+    }
   }
 
   async function supprimer() {
@@ -244,7 +272,7 @@ function LigneExtincteur({
       <select
         value={it.etat || ''}
         onChange={e => patchField('etat', e.target.value || null)}
-        className="text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-full"
+        className="text-xs border border-gray-200 rounded px-1.5 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-full min-w-[64px]"
       >
         <option value="">-</option>
         <option value="D">D</option>
@@ -321,6 +349,18 @@ function LigneExtincteur({
               <button onClick={() => setConfirmDelete(false)}
                 className="px-3 py-1 rounded-md border border-gray-300 font-medium hover:bg-gray-50 transition-colors">
                 Annuler
+              </button>
+            </div>
+          </td>
+        </tr>
+      )}
+      {erreurChamp && (
+        <tr>
+          <td colSpan={readOnly ? 11 : 12}>
+            <div className="flex items-center gap-2 px-4 py-1.5 bg-red-50 text-[11px] border-t border-red-100 text-red-600 font-semibold">
+              <i className="ti ti-alert-triangle text-red-500" /> {erreurChamp}
+              <button onClick={() => setErreurChamp(null)} className="ml-auto text-red-400 hover:text-red-600">
+                <i className="ti ti-x" />
               </button>
             </div>
           </td>
@@ -544,7 +584,7 @@ export default function TableExtincteurs({
                 <tr className="text-[10px] font-bold uppercase tracking-widest text-gray-400 bg-gray-50">
                   <th className="text-center px-2 py-2.5 w-10">No</th>
                   <th className="text-left px-2 py-2.5">Étage</th>
-                  <th className="text-center px-2 py-2.5" title="D=Défectueux, C=Conforme, NI=Non inspecté">État</th>
+                  <th className="text-center px-2 py-2.5 w-16" title="D=Défectueux, C=Conforme, NI=Non inspecté">État</th>
                   <th className="text-left px-2 py-2.5">Emplacement</th>
                   <th className="text-left px-2 py-2.5">Date fabrication</th>
                   <th className="text-left px-2 py-2.5">Format</th>

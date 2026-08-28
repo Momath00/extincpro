@@ -19,6 +19,10 @@ export const metadata: Metadata = {
   },
   description: site.description,
   keywords: [
+    "plateforme incendie",
+    "logiciel incendie",
+    "inspection incendie",
+    "inspection extincteur",
     "inspection sécurité incendie",
     "inspection extincteurs",
     "logiciel inspection extincteur",

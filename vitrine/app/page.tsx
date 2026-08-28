@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { Container, Kicker, PrimaryButton, SecondaryButton, SectionHeading } from "@/components/ui";
 import { ProductPreview } from "@/components/ProductPreview";
+import { Partners } from "@/components/Partners";
 import { site } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -11,8 +12,8 @@ export const metadata: Metadata = {
 };
 
 const systems = [
-  { title: "Inspection sécurité incendie", desc: "Inspection générale de sécurité incendie de vos bâtiments, en un seul système." },
-  { title: "Extincteurs", desc: "Inspection, entretien et conformité de chaque extincteur, bâtiment par bâtiment." },
+  { title: "Inspection incendie", desc: "Inspection générale de sécurité incendie de vos bâtiments, en un seul système." },
+  { title: "Inspection extincteur", desc: "Inspection, entretien et conformité de chaque extincteur, bâtiment par bâtiment." },
   { title: "Éclairage d'urgence", desc: "Vérification périodique des blocs d'éclairage d'urgence et de leur autonomie." },
   { title: "Gicleurs", desc: "Suivi des inspections de systèmes de gicleurs et de leur conformité réglementaire." },
 ];
@@ -68,12 +69,12 @@ export default function HomePage() {
         <div className="glow-red absolute inset-0" />
         <Container className="relative py-24 sm:py-32 lg:py-36">
           <div className="mx-auto max-w-3xl text-center">
-            <Kicker>Logiciel de sécurité incendie</Kicker>
+            <Kicker>Logiciel incendie</Kicker>
             <h1 className="mt-6 text-4xl font-bold tracking-tight text-balance text-white sm:text-5xl lg:text-6xl">
-              La plateforme qui relie le terrain, la conformité et vos clients
+              La plateforme incendie qui relie le terrain, la conformité et vos clients
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/60">
-              {site.name}{" "}centralise l&apos;inspection, les rapports et la
+              {site.name}{" "}centralise l&apos;inspection incendie, les rapports et la
               conformité de vos systèmes de sécurité incendie — extincteurs,
               éclairage d&apos;urgence et gicleurs — du technicien sur le
               terrain jusqu&apos;à la direction.
@@ -248,6 +249,8 @@ export default function HomePage() {
           </div>
         </Container>
       </section>
+
+      <Partners />
 
       {/* CTA */}
       <section className="bg-paper py-24 sm:py-28">
