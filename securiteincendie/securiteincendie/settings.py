@@ -37,6 +37,15 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='ExtincPro <info@extin
 # URL publique du frontend (Next.js) — utilisée dans les liens des courriels
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')
 
+# URL publique et stable du logo, utilisée dans l'en-tête des courriels — un
+# vrai lien externe (pas du base64) est nécessaire, Gmail bloquant souvent les
+# images encodées en base64 dans les courriels reçus. Le dépôt GitHub public
+# sert de repli fiable tant qu'aucun domaine de production n'est déployé.
+EMAIL_LOGO_URL = config(
+    'EMAIL_LOGO_URL',
+    default='https://raw.githubusercontent.com/Momath00/extincpro/main/frontend/public/logo.png',
+)
+
 # Adresse qui reçoit les messages du formulaire de contact public
 CONTACT_EMAIL = config('CONTACT_EMAIL', default='info@extincpro.com')
 

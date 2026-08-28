@@ -46,16 +46,20 @@ def logo_data_uri(size_px: int = 52) -> str:
 
 def logo_img_tag(size_px: int = 44) -> str:
     """
-    <img> pointant vers le logo hébergé par le frontend (FRONTEND_URL/icon-192.png).
-    Les clients courriel (Gmail en tête) bloquent ou cassent souvent les images
-    encodées en base64 (data:) — une vraie URL publique est nécessaire pour un
+    <img> pointant vers une URL publique stable (EMAIL_LOGO_URL). Les clients
+    courriel (Gmail en tête) bloquent ou cassent souvent les images encodées
+    en base64 (data:) — une vraie URL externe est nécessaire pour un
     affichage fiable dans les courriels (contrairement aux PDF, où le base64
     reste préférable pour un rendu autonome hors-ligne).
     """
-    frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/")
-    if frontend_url:
+    logo_url = getattr(settings, "EMAIL_LOGO_URL", "") or (
+        (getattr(settings, "FRONTEND_URL", "").rstrip("/") + "/icon-192.png")
+        if getattr(settings, "FRONTEND_URL", "")
+        else ""
+    )
+    if logo_url:
         return (
-            f'<img src="{frontend_url}/icon-192.png" width="{size_px}" height="{size_px}" '
+            f'<img src="{logo_url}" width="{size_px}" height="{size_px}" '
             f'style="width:{size_px}px;height:{size_px}px;object-fit:cover;display:block;" '
             f'alt="ExtincPro" />'
         )
@@ -76,7 +80,7 @@ def html_template(body: str) -> str:
           <td style="background:#0a0b0d;padding:28px 32px;text-align:center;">
             <table cellpadding="0" cellspacing="0" style="margin:0 auto 10px;">
               <tr><td style="width:44px;height:44px;background:#fff;border-radius:50%;text-align:center;vertical-align:middle;overflow:hidden;">
-                {logo_data_uri(44)}
+                {logo_img_tag(44)}
               </td></tr>
             </table>
             <p style="margin:0;color:#fff;font-size:12px;font-weight:700;letter-spacing:2px;">EXTINC<span style="color:#ff2438;">PRO</span></p>
