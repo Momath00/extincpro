@@ -17,7 +17,7 @@ _LOGO_MAX_SIDE = 160
 
 
 def logo_data_uri(size_px: int = 52) -> str:
-    """Logo encodé en base64 (img data URI, redimensionné), ou repli texte « EN » si absent."""
+    """Logo encodé en base64 (img data URI, redimensionné), ou repli texte « EP » si absent."""
     if size_px not in _LOGO_CACHE:
         path = Path(settings.BASE_DIR).parent / "frontend" / "public" / "logo.png"
         if path.exists():
@@ -35,11 +35,11 @@ def logo_data_uri(size_px: int = 52) -> str:
             b64 = base64.b64encode(raw).decode("ascii")
             _LOGO_CACHE[size_px] = (
                 f'<img src="data:image/png;base64,{b64}" '
-                f'style="width:{size_px}px;height:{size_px}px;object-fit:cover;" alt="Extincteurs Nationex" />'
+                f'style="width:{size_px}px;height:{size_px}px;object-fit:cover;" alt="ExtincPro" />'
             )
         else:
             _LOGO_CACHE[size_px] = (
-                f'<span style="font-size:{size_px // 3}pt;font-weight:900;color:#dc2626;letter-spacing:1px;">EN</span>'
+                f'<span style="font-size:{size_px // 3}pt;font-weight:900;color:#e11324;letter-spacing:1px;">EP</span>'
             )
     return _LOGO_CACHE[size_px]
 
@@ -57,9 +57,9 @@ def logo_img_tag(size_px: int = 44) -> str:
         return (
             f'<img src="{frontend_url}/icon-192.png" width="{size_px}" height="{size_px}" '
             f'style="width:{size_px}px;height:{size_px}px;object-fit:cover;display:block;" '
-            f'alt="Extincteurs Nationex" />'
+            f'alt="ExtincPro" />'
         )
-    return f'<span style="font-size:{size_px // 3}pt;font-weight:900;color:#dc2626;letter-spacing:1px;">EN</span>'
+    return f'<span style="font-size:{size_px // 3}pt;font-weight:900;color:#e11324;letter-spacing:1px;">EP</span>'
 
 
 def html_template(body: str) -> str:
@@ -73,19 +73,19 @@ def html_template(body: str) -> str:
     <tr><td align="center" style="padding:40px 16px;">
       <table role="presentation" style="width:100%;max-width:480px;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
         <tr>
-          <td style="background:#0f172a;padding:28px 32px;text-align:center;">
+          <td style="background:#0a0b0d;padding:28px 32px;text-align:center;">
             <table cellpadding="0" cellspacing="0" style="margin:0 auto 10px;">
               <tr><td style="width:44px;height:44px;background:#fff;border-radius:50%;text-align:center;vertical-align:middle;overflow:hidden;">
-                {logo_img_tag(44)}
+                {logo_data_uri(44)}
               </td></tr>
             </table>
-            <p style="margin:0;color:#fff;font-size:12px;font-weight:700;letter-spacing:2px;">EXTINCTEURS NATIONEX</p>
+            <p style="margin:0;color:#fff;font-size:12px;font-weight:700;letter-spacing:2px;">EXTINC<span style="color:#ff2438;">PRO</span></p>
           </td>
         </tr>
         <tr><td style="background:#fff;padding:32px;">{body}</td></tr>
         <tr>
           <td style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e5e7eb;text-align:center;">
-            <p style="margin:0;color:#94a3b8;font-size:11px;">© {year} Extincteurs Nationex · Courriel confidentiel</p>
+            <p style="margin:0;color:#94a3b8;font-size:11px;">© {year} ExtincPro · Courriel confidentiel</p>
           </td>
         </tr>
       </table>

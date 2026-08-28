@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import InviteModal from '@/components/dashboard/InviteModal'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ORANGE = '#dc2626'
+const NAVY = '#0a0b0d'
+const ORANGE = '#e11324'
 
 const ROLE_BADGE: Record<string, { label: string; bg: string; color: string }> = {
   technicien: { label: 'Technicien', bg: '#fff2e8', color: '#9a4a13' },
@@ -135,7 +135,7 @@ export default function EquipePage() {
         ) : visibles.map(m => {
           const badge = ROLE_BADGE[m.role] || ROLE_BADGE.citoyen
           return (
-            <div key={m.id} className="bg-white rounded-md border border-gray-100 p-4 flex items-center gap-3 hover:shadow-md hover:border-[#dc2626] transition-all duration-200">
+            <div key={m.id} className="bg-white rounded-md border border-gray-100 p-4 flex items-center gap-3 hover:shadow-md hover:border-[#e11324] transition-all duration-200">
               <div
                 className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
                 style={{ background: NAVY }}

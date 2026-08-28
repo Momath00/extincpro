@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ORANGE = '#dc2626'
+const NAVY = '#0a0b0d'
+const ORANGE = '#e11324'
 
 const LEGENDE: { code: string; description: string }[] = [
   { code: 'PAI', description: "Panneau annonciateur d'alarme" },
@@ -127,7 +127,7 @@ export default function OngletLegende({
                         type="text"
                         defaultValue={ligne.type || ''}
                         onBlur={e => e.target.value !== (ligne.type || '') && patchLigne(code, 'type', e.target.value)}
-                        className="w-full min-w-0 text-xs sm:text-sm border border-gray-200 rounded px-1.5 sm:px-2 py-1.5 focus:outline-none focus:border-[#dc2626] bg-white"
+                        className="w-full min-w-0 text-xs sm:text-sm border border-gray-200 rounded px-1.5 sm:px-2 py-1.5 focus:outline-none focus:border-[#e11324] bg-white"
                       />
                     )}
                   </td>
@@ -139,7 +139,7 @@ export default function OngletLegende({
                         type="text"
                         defaultValue={ligne.modele || ''}
                         onBlur={e => e.target.value !== (ligne.modele || '') && patchLigne(code, 'modele', e.target.value)}
-                        className="w-full min-w-0 text-xs sm:text-sm border border-gray-200 rounded px-1.5 sm:px-2 py-1.5 focus:outline-none focus:border-[#dc2626] bg-white"
+                        className="w-full min-w-0 text-xs sm:text-sm border border-gray-200 rounded px-1.5 sm:px-2 py-1.5 focus:outline-none focus:border-[#e11324] bg-white"
                       />
                     )}
                   </td>

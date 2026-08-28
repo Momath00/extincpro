@@ -5,8 +5,8 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ORANGE = '#dc2626'
+const NAVY = '#0a0b0d'
+const ORANGE = '#e11324'
 
 async function downloadHtml(url: string) {
   const token = localStorage.getItem('access_token')
@@ -85,7 +85,7 @@ export default function CitoyenRapportDetailPage() {
 
   return (
     <div className="max-w-2xl">
-      <Link href="/citoyen" className="text-xs text-gray-400 hover:text-[#0f172a] flex items-center gap-1 mb-4">
+      <Link href="/citoyen" className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1 mb-4">
         <i className="ti ti-arrow-left" /> Retour
       </Link>
 

@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ORANGE = '#dc2626'
+const NAVY = '#0a0b0d'
+const ORANGE = '#e11324'
 
 function Toast({ msg, type }: { msg: string; type: 'success' | 'error' }) {
   return (
@@ -139,7 +139,7 @@ export default function OngletE1({
                   <select
                     value={boolToStr(form[key])}
                     onChange={e => { setForm({ ...form, [key]: strToBool(e.target.value) }); setErreurs([]) }}
-                    className="border border-gray-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#dc2626]"
+                    className="border border-gray-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#e11324]"
                   >
                     <option value="">—</option>
                     <option value="true">Oui</option>
@@ -171,7 +171,7 @@ export default function OngletE1({
                   onChange={e => setForm({ ...form, commentaires: e.target.value })}
                   rows={3}
                   placeholder="Saisir vos commentaires..."
-                  className="w-full border border-gray-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#dc2626] resize-none"
+                  className="w-full border border-gray-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#e11324] resize-none"
                 />
               )}
             </div>

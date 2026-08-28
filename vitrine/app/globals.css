@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #0a0b0d;
+  --ink-2: #14161a;
+  --ink-3: #1d2025;
+  --paper: #ffffff;
+  --paper-2: #f5f6f8;
+  --line: #e6e8eb;
+  --line-dark: #2a2d33;
+  --text: #14161a;
+  --text-muted: #565b64;
+  --text-on-dark: #f4f5f6;
+  --text-on-dark-muted: #a2a7b0;
+  --red: #e11324;
+  --red-dark: #a30e1c;
+  --red-bright: #ff2438;
+  --silver: #c9cdd3;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-line: var(--line);
+  --color-red: var(--red);
+  --color-red-dark: var(--red-dark);
+  --color-red-bright: var(--red-bright);
+  --color-silver: var(--silver);
+  --font-sans: var(--font-inter);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--paper);
+  color: var(--text);
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+.container-px {
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
+@media (min-width: 1024px) {
+  .container-px {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+.glow-red {
+  background: radial-gradient(600px circle at 50% 0%, rgba(225, 19, 36, 0.25), transparent 60%);
+}
+
+::selection {
+  background: var(--red);
+  color: #fff;
+}

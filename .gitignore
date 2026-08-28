@@ -15,9 +15,10 @@ staticfiles/
 media/
 
 # Node / Next.js
-frontend/node_modules/
-frontend/.next/
-frontend/npm-debug.log*
+node_modules/
+.next/
+npm-debug.log*
+*.tsbuildinfo
 
 # Docker
 *.log

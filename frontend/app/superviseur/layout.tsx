@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/dashboard/Sidebar'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
+const NAVY = '#0a0b0d'
 
 export default function SuperviseurLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -74,10 +74,10 @@ export default function SuperviseurLayout({ children }: { children: React.ReactN
           <button onClick={() => setMenuOpen(true)} className="text-white p-1.5">
             <i className="ti ti-menu-2 text-xl" />
           </button>
-          <img src="/logo.svg" alt="Extincteurs Nationex" className="h-8 w-auto" />
+          <img src="/logo-mark.png" alt="ExtincPro" className="h-8 w-auto" />
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
-            style={{ background: '#dc2626' }}
+            style={{ background: '#e11324' }}
           >
             {user?.username?.[0]?.toUpperCase() || 'S'}
           </div>

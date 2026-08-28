@@ -4,8 +4,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
-const RED = '#0f172a'
-const ACCENT = '#dc2626'
+const RED = '#0a0b0d'
+const ACCENT = '#e11324'
 
 const NAV_GROUPS = [
   {
@@ -78,20 +78,17 @@ export default function Sidebar({ user, onClose }: { user: any; onClose?: () => 
         <Link href="/superviseur" onClick={onClose} className="inline-flex flex-col items-center gap-2.5">
           <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-lg overflow-hidden">
             <img
-              src="/logo.svg"
-              alt="Extincteurs Nationex"
+              src="/logo-mark.png"
+              alt="ExtincPro"
               className="w-full h-full object-cover"
               onError={(e) => {
                 e.currentTarget.style.display = 'none'
                 const p = e.currentTarget.parentElement
-                if (p) p.innerHTML = `<span style="font-size:18px;font-weight:800;color:${RED};">EN</span>`
+                if (p) p.innerHTML = `<span style="font-size:18px;font-weight:800;color:${RED};">EP</span>`
               }}
             />
           </div>
-          <div>
-            <p className="text-white text-[11px] font-bold tracking-widest uppercase leading-tight">Extincteurs</p>
-            <p className="text-white/60 text-[10px] font-bold tracking-widest uppercase">Nationex</p>
-          </div>
+          <p className="text-white text-sm font-bold tracking-widest uppercase leading-tight">ExtincPro</p>
         </Link>
 
         <div className="mt-3 inline-flex items-center gap-1.5 bg-white/10 rounded-full px-3 py-1">
@@ -129,7 +126,7 @@ export default function Sidebar({ user, onClose }: { user: any; onClose?: () => 
                       style={{
                         background: active || childActive ? ACCENT : 'transparent',
                         color: active || childActive ? '#fff' : 'rgba(255,255,255,0.65)',
-                        boxShadow: active || childActive ? '0 2px 8px rgba(220,38,38,0.35)' : 'none',
+                        boxShadow: active || childActive ? '0 2px 8px rgba(225,19,36,0.35)' : 'none',
                       }}
                     >
                       <i

@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ACCENT = '#dc2626'
+const NAVY = '#0a0b0d'
+const ACCENT = '#e11324'
 
 const STATUT_BADGE: Record<string, { label: string; bg: string; color: string }> = {
   ouvert: { label: 'Ouvert', bg: '#fff2e8', color: '#9a4a13' },
@@ -117,7 +117,7 @@ export default function TechnicienDashboard() {
               <Link
                 key={r.id}
                 href={`/technicien/rapports/${r.id}`}
-                className="flex items-center gap-3 p-3 rounded-md border border-gray-100 hover:shadow-md hover:border-[#dc2626] transition-all duration-200"
+                className="flex items-center gap-3 p-3 rounded-md border border-gray-100 hover:shadow-md hover:border-[#e11324] transition-all duration-200"
               >
                 <div className="w-10 h-10 rounded-md flex-shrink-0 flex items-center justify-center" style={{ background: NAVY }}>
                   <i className="ti ti-building text-white text-sm" />

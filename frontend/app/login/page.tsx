@@ -4,8 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const gradientStyle = { background: 'linear-gradient(135deg, #0f172a, #000000)' }
-const NAVY = '#0f172a'
+const INK = '#0a0b0d'
+const RED = '#e11324'
 
 type Etape = 'login' | 'oublie_email' | 'oublie_code'
 
@@ -22,6 +22,27 @@ function Spinner({ size = 15 }: { size?: number }) {
     />
   )
 }
+
+function Field({
+  icon,
+  toggle,
+  children,
+}: {
+  icon: string
+  toggle?: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <div className="relative">
+      <i className={`ti ${icon} absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-base`} />
+      {children}
+      {toggle}
+    </div>
+  )
+}
+
+const inputClass =
+  'w-full bg-white border border-gray-200 rounded-md pl-10 pr-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-[#e11324] transition-colors placeholder-gray-300'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -155,208 +176,166 @@ export default function LoginPage() {
   }
 
   const headerContent = {
-    login: { title: 'Connexion' },
-    oublie_email: { title: 'Mot de passe oublié' },
-    oublie_code: { title: 'Nouveau mot de passe' },
+    login: { icon: 'ti-lock', title: 'Veuillez vous authentifier' },
+    oublie_email: { icon: 'ti-mail', title: 'Mot de passe oublié' },
+    oublie_code: { icon: 'ti-key', title: 'Nouveau mot de passe' },
   }[etape]
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10 sm:py-16" style={{ background: INK }}>
+      {/* Logo + wordmark — au-dessus de la carte */}
+      <div className="flex flex-col items-center mb-6 sm:mb-8">
+        <img
+          src="/logo-mark.png"
+          alt="ExtincPro"
+          className="h-14 w-auto sm:h-16"
+          onError={(e) => { e.currentTarget.style.display = 'none' }}
+        />
+        <h1 className="mt-3 text-xl font-extrabold tracking-tight text-white sm:text-2xl">
+          EXTINC<span style={{ color: RED }}>PRO</span>
+        </h1>
+        <p className="mt-1 text-[11px] font-semibold uppercase tracking-widest text-white/40">
+          Sécurité incendie
+        </p>
+      </div>
+
       <div className="w-full max-w-sm">
-        <div className="rounded-3xl overflow-hidden shadow-md">
+        <div className="rounded-lg border border-white/10 bg-white p-6 sm:p-8">
+          <h2 className="mb-5 flex items-center gap-2 border-b border-gray-100 pb-4 text-sm font-bold" style={{ color: INK }}>
+            <i className={`ti ${headerContent.icon} text-base`} style={{ color: RED }} />
+            {headerContent.title}
+          </h2>
 
-          {/* Haut dégradé marine → orange */}
-          <div className="px-8 pt-12 pb-16 text-center relative overflow-hidden" style={gradientStyle}>
-            <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center mx-auto mb-4 shadow-xl overflow-hidden relative z-10">
-              <img
-                src="/logo.svg"
-                alt="Extincteurs Nationex"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none'
-                  const p = e.currentTarget.parentElement
-                  if (p) p.innerHTML = `<span style="font-size:28px;font-weight:700;color:${NAVY};">E<span style="color:${NAVY};">N</span></span>`
-                }}
-              />
+          {error && (
+            <div className="bg-red-50 text-red-600 text-xs px-4 py-2.5 rounded-md mb-4 border border-red-100">
+              {error}
             </div>
+          )}
 
-            <h1 className="text-white font-bold text-sm tracking-widest relative z-10 leading-tight">
-              EXTINCPRO
-            </h1>
-          </div>
+          {/* ── Formulaire Login ── */}
+          {etape === 'login' && (
+            <form onSubmit={handleLogin} className="flex flex-col gap-4">
+              <Field icon="ti-user">
+                <input type="text" value={username} onChange={e => setUsername(e.target.value)}
+                  className={inputClass}
+                  placeholder="Nom d'utilisateur" required autoComplete="username" />
+              </Field>
+              <Field
+                icon="ti-lock"
+                toggle={
+                  <button type="button" onClick={() => setShowPassword(v => !v)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0a0b0d] transition-colors">
+                    <i className={`ti ${showPassword ? 'ti-eye-off' : 'ti-eye'} text-base`} />
+                  </button>
+                }
+              >
+                <input type={showPassword ? 'text' : 'password'} value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className={`${inputClass} pr-10`}
+                  placeholder="Mot de passe" required autoComplete="current-password" />
+              </Field>
 
-          {/* Bas blanc */}
-          <div className="bg-white px-8 pt-8 pb-10 -mt-5 rounded-t-3xl relative z-10">
+              <button type="button"
+                onClick={() => { reset(); setEtape('oublie_email') }}
+                className="self-start text-xs font-medium hover:underline" style={{ color: RED }}>
+                J'ai oublié mon mot de passe
+              </button>
 
-            <h2 className="text-center text-sm font-bold tracking-widest uppercase mb-6" style={{ color: NAVY }}>
-              {headerContent.title}
-            </h2>
+              <button type="submit" disabled={loading}
+                className="mt-1 flex items-center justify-center gap-2.5 rounded-md py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                style={{ background: RED }}>
+                {loading ? <Spinner size={16} /> : 'Se connecter'}
+              </button>
+            </form>
+          )}
 
-            {error && (
-              <div className="bg-red-50 text-red-600 text-xs px-4 py-2.5 rounded-xl mb-4 border border-red-100">
-                {error}
-              </div>
-            )}
-            {/* ── Formulaire Login ── */}
-            {etape === 'login' && (
-              <form onSubmit={handleLogin} className="flex flex-col gap-5">
-                <div>
-                  <label className="text-xs font-bold tracking-widest uppercase mb-2 block" style={{ color: NAVY }}>
-                    Nom d'utilisateur
-                  </label>
-                  <input type="text" value={username} onChange={e => setUsername(e.target.value)}
-                    className="w-full border-0 border-b border-gray-200 pb-2 text-sm text-gray-700 focus:outline-none bg-transparent transition-colors placeholder-gray-300"
-                    style={{ borderBottomColor: undefined }}
-                    onFocus={e => (e.currentTarget.style.borderBottomColor = NAVY)}
-                    onBlur={e => (e.currentTarget.style.borderBottomColor = '')}
-                    placeholder="votre nom d'utilisateur" required autoComplete="username" />
-                </div>
-                <div>
-                  <label className="text-xs font-bold tracking-widest uppercase mb-2 block" style={{ color: NAVY }}>
-                    Mot de passe
-                  </label>
-                  <div className="relative">
-                    <input type={showPassword ? 'text' : 'password'} value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      className="w-full border-0 border-b border-gray-200 pb-2 pr-8 text-sm text-gray-700 focus:outline-none bg-transparent transition-colors placeholder-gray-300"
-                      onFocus={e => (e.currentTarget.style.borderBottomColor = NAVY)}
-                      onBlur={e => (e.currentTarget.style.borderBottomColor = '')}
-                      placeholder="••••••••••" required autoComplete="current-password" />
-                    <button type="button" onClick={() => setShowPassword(v => !v)}
-                      className="absolute right-0 bottom-2 text-gray-300 hover:text-[#0f172a] transition-colors">
-                      <i className={`ti ${showPassword ? 'ti-eye-off' : 'ti-eye'} text-base`} />
-                    </button>
-                  </div>
-                </div>
-                <button type="submit" disabled={loading}
-                  className="text-white py-3.5 rounded-2xl text-xs font-bold tracking-widest uppercase hover:opacity-90 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 transition-all duration-300 mt-2 flex items-center justify-center gap-2.5"
-                  style={gradientStyle}>
-                  {loading ? <Spinner size={17} /> : 'Connexion'}
-                </button>
-              </form>
-            )}
+          {/* ── Étape 1 : saisir email ── */}
+          {etape === 'oublie_email' && (
+            <form onSubmit={handleEnvoyerCode} className="flex flex-col gap-4">
+              <p className="text-xs text-gray-500 -mt-1 mb-1">
+                Entrez votre email. Un code de réinitialisation vous sera envoyé.
+              </p>
+              <Field icon="ti-mail">
+                <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                  className={inputClass}
+                  placeholder="votre@email.com" required autoFocus autoComplete="email" />
+              </Field>
+              <button type="submit" disabled={loading}
+                className="flex items-center justify-center gap-2.5 rounded-md py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                style={{ background: RED }}>
+                {loading && <Spinner size={16} />} {loading ? 'Envoi en cours...' : 'Envoyer le code'}
+              </button>
+              <button type="button" onClick={() => { reset(); setEtape('login') }}
+                className="text-xs text-gray-400 hover:text-[#0a0b0d] transition-colors text-center">
+                Retour à la connexion
+              </button>
+            </form>
+          )}
 
-            {/* ── Étape 1 : saisir email ── */}
-            {etape === 'oublie_email' && (
-              <form onSubmit={handleEnvoyerCode} className="flex flex-col gap-5">
-                <p className="text-xs text-gray-400 text-center -mt-2 mb-1">
-                  Entrez votre email. Un code de réinitialisation vous sera envoyé.
-                </p>
-                <div>
-                  <label className="text-xs font-bold tracking-widest uppercase mb-2 block" style={{ color: NAVY }}>
-                    Adresse email
-                  </label>
-                  <div className="relative">
-                    <i className="ti ti-mail absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
-                    <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                      className="w-full bg-white border-2 border-gray-200 rounded-xl pl-10 pr-4 py-3 text-sm text-gray-800 focus:outline-none transition-colors placeholder-gray-300"
-                      onFocus={e => (e.currentTarget.style.borderColor = NAVY)}
-                      onBlur={e => (e.currentTarget.style.borderColor = '')}
-                      placeholder="votre@email.com" required autoFocus autoComplete="email" />
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1.5">Entrez l'email associé à votre compte</p>
-                </div>
-                <button type="submit" disabled={loading}
-                  className="text-white py-3.5 rounded-2xl text-xs font-bold tracking-widest uppercase hover:opacity-90 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 transition-all duration-300 flex items-center justify-center gap-2.5"
-                  style={gradientStyle}>
-                  {loading && <Spinner />} {loading ? 'Envoi en cours...' : 'Envoyer le code'}
-                </button>
-                <button type="button" onClick={() => { reset(); setEtape('login') }}
-                  className="text-xs text-gray-400 hover:text-[#0f172a] transition-colors text-center">
-                  Retour à la connexion
-                </button>
-              </form>
-            )}
-
-            {/* ── Étape 2 : code + nouveau mot de passe ── */}
-            {etape === 'oublie_code' && (
-              <form onSubmit={handleReinitialiser} className="flex flex-col gap-4">
-                <p className="text-xs text-gray-400 text-center -mt-2 mb-1">
-                  Code envoyé à <strong>{email}</strong>. Vérifiez vos emails.
-                </p>
-                <div>
-                  <label className="text-xs font-bold tracking-widest uppercase mb-2 block" style={{ color: NAVY }}>
-                    Code de vérification
-                  </label>
-                  <input type="text" value={code}
-                    onChange={e => setCode(e.target.value.toUpperCase())}
-                    className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-3 text-sm text-center font-mono tracking-[0.4em] font-bold focus:outline-none transition-colors placeholder-gray-300 uppercase"
-                    style={{ color: NAVY }}
-                    onFocus={e => (e.currentTarget.style.borderColor = NAVY)}
-                    onBlur={e => (e.currentTarget.style.borderColor = '')}
-                    placeholder="ABC123" maxLength={6} required autoFocus autoComplete="one-time-code" />
-                </div>
-                <div>
-                  <label className="text-xs font-bold tracking-widest uppercase mb-2 block" style={{ color: NAVY }}>
-                    Nouveau mot de passe
-                  </label>
-                  <div className="relative">
-                    <input type={showNvMdp ? 'text' : 'password'} value={nouveauMdp}
-                      onChange={e => setNouveauMdp(e.target.value)}
-                      className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm text-gray-800 focus:outline-none transition-colors placeholder-gray-300"
-                      onFocus={e => (e.currentTarget.style.borderColor = NAVY)}
-                      onBlur={e => (e.currentTarget.style.borderColor = '')}
-                      placeholder="••••••••" required autoComplete="new-password" />
-                    <button type="button" onClick={() => setShowNvMdp(v => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0f172a] transition-colors">
-                      <i className={`ti ${showNvMdp ? 'ti-eye-off' : 'ti-eye'} text-base`} />
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs font-bold tracking-widest uppercase mb-2 block" style={{ color: NAVY }}>
-                    Confirmer le mot de passe
-                  </label>
-                  <div className="relative">
-                    <input type={showCfMdp ? 'text' : 'password'} value={confirmerMdp}
-                      onChange={e => setConfirmerMdp(e.target.value)}
-                      className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm text-gray-800 focus:outline-none transition-colors placeholder-gray-300"
-                      onFocus={e => (e.currentTarget.style.borderColor = NAVY)}
-                      onBlur={e => (e.currentTarget.style.borderColor = '')}
-                      placeholder="••••••••" required autoComplete="new-password" />
-                    <button type="button" onClick={() => setShowCfMdp(v => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0f172a] transition-colors">
-                      <i className={`ti ${showCfMdp ? 'ti-eye-off' : 'ti-eye'} text-base`} />
-                    </button>
-                  </div>
-                </div>
-                <button type="submit" disabled={loading}
-                  className="text-white py-3 rounded-2xl text-xs font-bold tracking-widest uppercase hover:opacity-90 hover:scale-105 disabled:opacity-50 disabled:hover:scale-100 transition-all duration-300 flex items-center justify-center gap-2.5"
-                  style={gradientStyle}>
-                  {loading && <Spinner />} {loading ? 'Réinitialisation...' : 'Réinitialiser mon mot de passe →'}
-                </button>
-                <button type="button" onClick={() => { setError(''); setEtape('oublie_email') }}
-                  className="text-xs text-gray-400 hover:text-[#0f172a] transition-colors text-center">
-                  Renvoyer un code
-                </button>
-              </form>
-            )}
-
-            {/* Liens bas de page — plus de « Créer une organisation » */}
-            {etape === 'login' && (
-              <div className="flex flex-col items-center gap-2 mt-6">
-                <button type="button"
-                  onClick={() => { reset(); setEtape('oublie_email') }}
-                  className="text-xs text-gray-300 hover:text-[#0f172a] transition-colors uppercase tracking-widest">
-                  Mot de passe oublié ?
-                </button>
-              </div>
-            )}
-
-          </div>
+          {/* ── Étape 2 : code + nouveau mot de passe ── */}
+          {etape === 'oublie_code' && (
+            <form onSubmit={handleReinitialiser} className="flex flex-col gap-4">
+              <p className="text-xs text-gray-500 -mt-1 mb-1">
+                Code envoyé à <strong className="text-gray-700">{email}</strong>. Vérifiez vos emails.
+              </p>
+              <Field icon="ti-key">
+                <input type="text" value={code}
+                  onChange={e => setCode(e.target.value.toUpperCase())}
+                  className={`${inputClass} text-center font-mono tracking-[0.3em] font-bold uppercase`}
+                  placeholder="ABC123" maxLength={6} required autoFocus autoComplete="one-time-code" />
+              </Field>
+              <Field
+                icon="ti-lock"
+                toggle={
+                  <button type="button" onClick={() => setShowNvMdp(v => !v)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0a0b0d] transition-colors">
+                    <i className={`ti ${showNvMdp ? 'ti-eye-off' : 'ti-eye'} text-base`} />
+                  </button>
+                }
+              >
+                <input type={showNvMdp ? 'text' : 'password'} value={nouveauMdp}
+                  onChange={e => setNouveauMdp(e.target.value)}
+                  className={`${inputClass} pr-10`}
+                  placeholder="Nouveau mot de passe" required autoComplete="new-password" />
+              </Field>
+              <Field
+                icon="ti-lock"
+                toggle={
+                  <button type="button" onClick={() => setShowCfMdp(v => !v)}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0a0b0d] transition-colors">
+                    <i className={`ti ${showCfMdp ? 'ti-eye-off' : 'ti-eye'} text-base`} />
+                  </button>
+                }
+              >
+                <input type={showCfMdp ? 'text' : 'password'} value={confirmerMdp}
+                  onChange={e => setConfirmerMdp(e.target.value)}
+                  className={`${inputClass} pr-10`}
+                  placeholder="Confirmer le mot de passe" required autoComplete="new-password" />
+              </Field>
+              <button type="submit" disabled={loading}
+                className="flex items-center justify-center gap-2.5 rounded-md py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                style={{ background: RED }}>
+                {loading && <Spinner size={16} />} {loading ? 'Réinitialisation...' : 'Réinitialiser mon mot de passe'}
+              </button>
+              <button type="button" onClick={() => { setError(''); setEtape('oublie_email') }}
+                className="text-xs text-gray-400 hover:text-[#0a0b0d] transition-colors text-center">
+                Renvoyer un code
+              </button>
+            </form>
+          )}
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
-          © {new Date().getFullYear()} Extincteurs Nationex
+        <p className="text-center text-xs text-white/30 mt-6">
+          © {new Date().getFullYear()} ExtincPro
         </p>
       </div>
 
       {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 bg-white rounded-xl shadow-xl border border-green-100 px-5 py-3.5">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 bg-white rounded-md border border-green-100 px-5 py-3.5">
           <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-green-50">
             <i className="ti ti-check text-green-600 text-sm" />
           </div>
-          <p className="text-sm font-semibold" style={{ color: NAVY }}>{toast}</p>
+          <p className="text-sm font-semibold" style={{ color: INK }}>{toast}</p>
         </div>
       )}
     </div>

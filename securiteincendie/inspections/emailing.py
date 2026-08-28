@@ -35,17 +35,17 @@ def envoyer_email_reparations_requises(rapport) -> None:
   </tr></thead>
   <tbody>{lignes}</tbody>
 </table>
-<div style="background:#fffbeb;border-left:3px solid #dc2626;padding:12px 16px;border-radius:0 8px 8px 0;">
+<div style="background:#fffbeb;border-left:3px solid #e11324;padding:12px 16px;border-radius:0 8px 8px 0;">
   <p style="margin:0;color:#92400e;font-size:13px;line-height:1.5;">
     ⚠️ Votre certificat sera automatiquement marqué <strong>conforme</strong> dès que ces
     éléments auront été corrigés par votre technicien.
   </p>
 </div>
-{f'<p style="margin:24px 0 0;text-align:center;"><a href="{lien}" style="display:inline-block;background:#dc2626;color:#fff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Voir le rapport</a></p>' if lien else ''}"""
+{f'<p style="margin:24px 0 0;text-align:center;"><a href="{lien}" style="display:inline-block;background:#e11324;color:#fff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Voir le rapport</a></p>' if lien else ''}"""
 
     envoyer_email(
         citoyen.email,
-        "Réparations requises avant certificat — Extincteurs Nationex",
+        "Réparations requises avant certificat — ExtincPro",
         html_template(html_body),
     )
 
@@ -61,7 +61,7 @@ def envoyer_email_certificat_disponible(rapport) -> None:
     lien = f"{frontend_url}/citoyen/rapports/{rapport.id}" if frontend_url else ""
 
     conforme = cert.conforme
-    badge_color = "#0d6b4f" if conforme else "#dc2626"
+    badge_color = "#0d6b4f" if conforme else "#e11324"
     badge_bg = "#e9f6f2" if conforme else "#fef2f2"
     badge_texte = "Conforme" if conforme else "Non conforme"
 
@@ -87,11 +87,11 @@ def envoyer_email_certificat_disponible(rapport) -> None:
     </td>
   </tr>
 </table>
-{f'<p style="margin:0;text-align:center;"><a href="{lien}" style="display:inline-block;background:#dc2626;color:#fff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Voir mon rapport</a></p>' if lien else ''}"""
+{f'<p style="margin:0;text-align:center;"><a href="{lien}" style="display:inline-block;background:#e11324;color:#fff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Voir mon rapport</a></p>' if lien else ''}"""
 
     envoyer_email(
         citoyen.email,
-        "Votre rapport et certificat sont disponibles — Extincteurs Nationex",
+        "Votre rapport et certificat sont disponibles — ExtincPro",
         html_template(html_body),
     )
 
@@ -123,10 +123,10 @@ def envoyer_email_certificat_extincteur_disponible(rapport) -> None:
     </td>
   </tr>
 </table>
-{f'<p style="margin:0;text-align:center;"><a href="{lien}" style="display:inline-block;background:#dc2626;color:#fff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Voir mon rapport</a></p>' if lien else ''}"""
+{f'<p style="margin:0;text-align:center;"><a href="{lien}" style="display:inline-block;background:#e11324;color:#fff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Voir mon rapport</a></p>' if lien else ''}"""
 
     envoyer_email(
         citoyen.email,
-        "Votre certificat d'extincteurs est disponible — Extincteurs Nationex",
+        "Votre certificat d'extincteurs est disponible — ExtincPro",
         html_template(html_body),
     )

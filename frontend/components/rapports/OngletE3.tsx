@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ORANGE = '#dc2626'
+const NAVY = '#0a0b0d'
+const ORANGE = '#e11324'
 
 export const TYPE_DISPOSITIF: Record<string, string> = {
   AFE: 'Avertisseur de fumée électrique',
@@ -91,7 +91,7 @@ function LigneDispositif({
         {/* Localisation */}
         <td className="px-3 py-2.5">
           {readOnly ? (
-            <span className="text-sm font-semibold" style={{ color: isDefect ? '#dc2626' : isNI ? '#b45309' : NAVY }}>
+            <span className="text-sm font-semibold" style={{ color: isDefect ? '#e11324' : isNI ? '#b45309' : NAVY }}>
               {d.localisation}
             </span>
           ) : (
@@ -100,7 +100,7 @@ function LigneDispositif({
               defaultValue={d.localisation}
               onBlur={e => patchField('localisation', e.target.value)}
               className="w-full text-sm border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-orange-300 rounded px-1 py-0.5 min-w-[80px] font-medium"
-              style={{ color: isDefect ? '#dc2626' : isNI ? '#b45309' : NAVY }}
+              style={{ color: isDefect ? '#e11324' : isNI ? '#b45309' : NAVY }}
             />
           )}
         </td>
@@ -110,7 +110,7 @@ function LigneDispositif({
           {readOnly ? (
             d.type_dispositif ? (
               <span className="text-xs font-mono font-bold px-1.5 py-0.5 rounded"
-                style={{ background: isDefect ? '#fee2e2' : isNI ? '#fef3c7' : '#f1f5f9', color: isDefect ? '#dc2626' : isNI ? '#b45309' : '#475569' }}>
+                style={{ background: isDefect ? '#fee2e2' : isNI ? '#fef3c7' : '#f1f5f9', color: isDefect ? '#e11324' : isNI ? '#b45309' : '#475569' }}>
                 {d.type_dispositif}
               </span>
             ) : <span className="text-gray-300 text-xs">—</span>
@@ -118,7 +118,7 @@ function LigneDispositif({
             <select
               value={d.type_dispositif || ''}
               onChange={e => patchField('type_dispositif', e.target.value || null)}
-              className="w-full min-w-0 text-xs border border-gray-200 rounded px-1.5 py-1 focus:outline-none focus:border-[#dc2626] bg-white"
+              className="w-full min-w-0 text-xs border border-gray-200 rounded px-1.5 py-1 focus:outline-none focus:border-[#e11324] bg-white"
             >
               <option value="">-</option>
               {Object.keys(TYPE_DISPOSITIF).sort().map(k => (
@@ -140,7 +140,7 @@ function LigneDispositif({
             <select
               value={d.installation_correcte === true ? 'true' : d.installation_correcte === false ? 'false' : ''}
               onChange={e => patchField('installation_correcte', e.target.value === 'true' ? true : e.target.value === 'false' ? false : null)}
-              className="w-full min-w-0 text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#dc2626] bg-white"
+              className="w-full min-w-0 text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
             >
               <option value="">S.O.</option>
               <option value="true">Oui</option>
@@ -161,7 +161,7 @@ function LigneDispositif({
             <select
               value={d.necessite_entretien === true ? 'true' : d.necessite_entretien === false ? 'false' : ''}
               onChange={e => patchField('necessite_entretien', e.target.value === 'true' ? true : e.target.value === 'false' ? false : null)}
-              className="w-full min-w-0 text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#dc2626] bg-white"
+              className="w-full min-w-0 text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
             >
               <option value="">S.O.</option>
               <option value="true">Oui</option>
@@ -182,7 +182,7 @@ function LigneDispositif({
             <select
               value={d.alarme_confirmee === true ? 'true' : d.alarme_confirmee === false ? 'false' : ''}
               onChange={e => patchField('alarme_confirmee', e.target.value === 'true' ? true : e.target.value === 'false' ? false : null)}
-              className="w-full min-w-0 text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#dc2626] bg-white"
+              className="w-full min-w-0 text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
             >
               <option value="">S.O.</option>
               <option value="true">Oui</option>
@@ -198,7 +198,7 @@ function LigneDispositif({
               <span className="text-xs font-mono font-bold px-1.5 py-0.5 rounded"
                 style={{
                   background: d.annonce_statut === 'D' ? '#fee2e2' : d.annonce_statut === 'I' ? '#e9f6f2' : '#fef3c7',
-                  color: d.annonce_statut === 'D' ? '#dc2626' : d.annonce_statut === 'I' ? '#0d6b4f' : '#b45309',
+                  color: d.annonce_statut === 'D' ? '#e11324' : d.annonce_statut === 'I' ? '#0d6b4f' : '#b45309',
                 }}>
                 {d.annonce_statut}
               </span>
@@ -207,7 +207,7 @@ function LigneDispositif({
             <select
               value={d.annonce_statut || ''}
               onChange={e => patchField('annonce_statut', e.target.value || null)}
-              className="w-full min-w-0 text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#dc2626] bg-white"
+              className="w-full min-w-0 text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
             >
               <option value="">-</option>
               <option value="D">D</option>
@@ -370,7 +370,7 @@ function ModalAjoutDispositif({
               onChange={e => setNombreLignesInput(e.target.value)}
               onBlur={() => setNombreLignesInput(String(nombreLignes))}
               placeholder="ex. 7 ou 10"
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]"
+              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
             />
             {nombreLignes > 1 && (
               <p className="text-xs text-gray-400 mt-1">
@@ -390,7 +390,7 @@ function ModalAjoutDispositif({
               placeholder={nombreLignes > 1 ? 'ex. COULOIR (optionnel, sinon numéros seuls)' : 'ex. SOMMET ESC AU 3E ÉTAGE 304'}
               autoFocus
               className={`w-full border rounded-md px-3 py-2.5 text-sm focus:outline-none ${
-                erreurChamp === 'localisation' ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-[#dc2626]'
+                erreurChamp === 'localisation' ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-[#e11324]'
               }`}
             />
             {erreurChamp === 'localisation' && <p className="text-xs text-red-500 mt-1">{erreur}</p>}
@@ -402,7 +402,7 @@ function ModalAjoutDispositif({
             <select
               value={form.type_dispositif}
               onChange={e => setForm({ ...form, type_dispositif: e.target.value })}
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]"
+              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
             >
               <option value="">-</option>
               {Object.entries(TYPE_DISPOSITIF).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => (
@@ -420,7 +420,7 @@ function ModalAjoutDispositif({
               value={form.zone_circuit}
               onChange={e => setForm({ ...form, zone_circuit: e.target.value })}
               placeholder="ex. 7"
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]"
+              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
             />
           </div>
         </div>
@@ -497,7 +497,7 @@ function ModalAjoutSection({
               placeholder="ex. ESCALIER AVANT NORD"
               autoFocus
               className={`w-full border rounded-md px-3 py-2.5 text-sm focus:outline-none ${
-                erreur ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-[#dc2626]'
+                erreur ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-[#e11324]'
               }`}
             />
             {erreur && <p className="text-xs text-red-500 mt-1">{erreur}</p>}
@@ -694,7 +694,7 @@ export default function OngletE3({
         {[
           { label: 'Total', value: total, bg: NAVY, color: '#fff', icon: 'ti-device-desktop-analytics' },
           { label: 'Conformes', value: conformes, bg: '#e9f6f2', color: '#0d6b4f', icon: 'ti-check' },
-          { label: 'Entretien requis', value: entretien, bg: entretien > 0 ? '#fee2e2' : '#f8fafc', color: entretien > 0 ? '#dc2626' : '#94a3b8', icon: 'ti-alert-triangle' },
+          { label: 'Entretien requis', value: entretien, bg: entretien > 0 ? '#fee2e2' : '#f8fafc', color: entretien > 0 ? '#e11324' : '#94a3b8', icon: 'ti-alert-triangle' },
           { label: 'Non inspectés', value: ni, bg: ni > 0 ? '#fef3c7' : '#f8fafc', color: ni > 0 ? '#b45309' : '#94a3b8', icon: 'ti-eye-off' },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-md border border-gray-100 p-3.5 flex items-center gap-3 shadow-sm">
@@ -717,10 +717,10 @@ export default function OngletE3({
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0"
                 style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
-                <i className="ti ti-alert-triangle text-sm" style={{ color: '#dc2626' }} />
+                <i className="ti ti-alert-triangle text-sm" style={{ color: '#e11324' }} />
               </div>
               <div>
-                <p className="text-sm font-bold" style={{ color: '#dc2626' }}>
+                <p className="text-sm font-bold" style={{ color: '#e11324' }}>
                   {defects.length} défaut{defects.length > 1 ? 's' : ''} détecté{defects.length > 1 ? 's' : ''}
                 </p>
                 <p className="text-xs text-red-400">Résumé des anomalies à corriger</p>
@@ -744,7 +744,7 @@ export default function OngletE3({
                       <span className="text-xs text-gray-500 font-medium">{item.sectionNom}</span>
                     </td>
                     <td className="px-3 py-2.5">
-                      <span className="text-sm font-bold" style={{ color: '#dc2626' }}>
+                      <span className="text-sm font-bold" style={{ color: '#e11324' }}>
                         {item.d.localisation}
                       </span>
                     </td>
@@ -846,7 +846,7 @@ export default function OngletE3({
       {!readOnly && (
         <div className="flex justify-end">
           <button onClick={() => setModalSection(true)}
-            className="flex items-center gap-2 border border-gray-200 px-4 py-2 rounded-md text-sm font-bold hover:border-[#0f172a] transition-colors"
+            className="flex items-center gap-2 border border-gray-200 px-4 py-2 rounded-md text-sm font-bold hover:border-[#0a0b0d] transition-colors"
             style={{ color: NAVY }}>
             <i className="ti ti-plus" /> Ajouter une section
           </button>
@@ -872,7 +872,7 @@ export default function OngletE3({
               </label>
               <input type="number" min={1} max={20} value={generateur.nbEtages}
                 onChange={e => setGenerateur({ ...generateur, nbEtages: Math.min(20, Math.max(1, Number(e.target.value))) })}
-                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]" />
+                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
             </div>
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: NAVY }}>
@@ -880,7 +880,7 @@ export default function OngletE3({
               </label>
               <input type="number" min={1} max={50} value={generateur.aptsParEtage}
                 onChange={e => setGenerateur({ ...generateur, aptsParEtage: Math.min(50, Math.max(1, Number(e.target.value))) })}
-                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]" />
+                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
             </div>
           </div>
           <div className="flex gap-6 mb-5">
@@ -892,7 +892,7 @@ export default function OngletE3({
                 <input type="checkbox"
                   checked={(generateur as any)[key]}
                   onChange={e => setGenerateur({ ...generateur, [key]: e.target.checked })}
-                  className="w-4 h-4 rounded accent-[#0f172a]" />
+                  className="w-4 h-4 rounded accent-[#0a0b0d]" />
                 <span className="text-sm text-gray-600">{label}</span>
               </label>
             ))}
@@ -935,7 +935,7 @@ export default function OngletE3({
             <div className="px-4 py-3 border-b flex items-center justify-between"
               style={{ background: nbDefectSection > 0 ? '#fff5f5' : nbNISection > 0 ? '#fffbeb' : '#f2edfa', borderColor: nbDefectSection > 0 ? '#fecaca' : nbNISection > 0 ? '#fde68a' : '#e9e0f8' }}>
               <div className="flex items-center gap-3">
-                <p className="text-sm font-bold" style={{ color: nbDefectSection > 0 ? '#dc2626' : nbNISection > 0 ? '#b45309' : '#4b2f8c' }}>
+                <p className="text-sm font-bold" style={{ color: nbDefectSection > 0 ? '#e11324' : nbNISection > 0 ? '#b45309' : '#4b2f8c' }}>
                   {section.nom}
                 </p>
                 <span className="text-xs text-gray-500">

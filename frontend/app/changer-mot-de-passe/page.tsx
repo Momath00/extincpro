@@ -4,14 +4,35 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const gradientStyle = { background: 'linear-gradient(135deg, #0f172a, #000000)' }
-const NAVY = '#0f172a'
+const INK = '#0a0b0d'
+const RED = '#e11324'
 
 const ROUTES_PAR_ROLE: Record<string, string> = {
   superviseur: '/superviseur',
   technicien: '/technicien',
   citoyen: '/citoyen',
 }
+
+function Field({
+  icon,
+  toggle,
+  children,
+}: {
+  icon: string
+  toggle?: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <div className="relative">
+      <i className={`ti ${icon} absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-base`} />
+      {children}
+      {toggle}
+    </div>
+  )
+}
+
+const inputClass =
+  'w-full bg-white border border-gray-200 rounded-md pl-10 pr-10 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-[#e11324] transition-colors placeholder-gray-300'
 
 export default function ChangerMotDePassePage() {
   const router = useRouter()
@@ -61,110 +82,96 @@ export default function ChangerMotDePassePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10 sm:py-16" style={{ background: INK }}>
+      {/* Logo + wordmark — au-dessus de la carte */}
+      <div className="flex flex-col items-center mb-6 sm:mb-8">
+        <img
+          src="/logo-mark.png"
+          alt="ExtincPro"
+          className="h-14 w-auto sm:h-16"
+          onError={(e) => { e.currentTarget.style.display = 'none' }}
+        />
+        <h1 className="mt-3 text-xl font-extrabold tracking-tight text-white sm:text-2xl">
+          EXTINC<span style={{ color: RED }}>PRO</span>
+        </h1>
+        <p className="mt-1 text-[11px] font-semibold uppercase tracking-widest text-white/40">
+          Sécurité incendie
+        </p>
+      </div>
+
       <div className="w-full max-w-sm">
-        <div className="rounded-3xl overflow-hidden shadow-md">
+        <div className="rounded-lg border border-white/10 bg-white p-6 sm:p-8">
+          <h2 className="mb-2 flex items-center gap-2 border-b border-gray-100 pb-4 text-sm font-bold" style={{ color: INK }}>
+            <i className="ti ti-key text-base" style={{ color: RED }} />
+            Nouveau mot de passe
+          </h2>
+          <p className="text-xs text-gray-500 mb-5 mt-3 leading-relaxed">
+            Votre mot de passe est temporaire. Choisissez-en un nouveau avant de continuer.
+          </p>
 
-          <div className="px-8 pt-12 pb-16 text-center relative overflow-hidden" style={gradientStyle}>
-            <div className="w-24 h-24 rounded-full bg-white flex items-center justify-center mx-auto mb-4 shadow-xl overflow-hidden relative z-10">
-              <img
-                src="/logo.svg"
-                alt="Extincteurs Nationex"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none'
-                  const p = e.currentTarget.parentElement
-                  if (p) p.innerHTML = `<span style="font-size:28px;font-weight:700;color:${NAVY};">E<span style="color:${NAVY};">N</span></span>`
-                }}
-              />
+          {error && (
+            <div className="bg-red-50 text-red-600 text-xs px-4 py-2.5 rounded-md mb-4 border border-red-100">
+              {error}
             </div>
+          )}
 
-            <h1 className="text-white font-bold text-sm tracking-widest relative z-10 leading-tight">
-              EXTINCTEURS<br /><span className="text-white/70">NATIONEX</span>
-            </h1>
-          </div>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <Field
+              icon="ti-lock"
+              toggle={
+                <button type="button" onClick={() => setShowAncien(v => !v)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0a0b0d] transition-colors">
+                  <i className={`ti ${showAncien ? 'ti-eye-off' : 'ti-eye'} text-base`} />
+                </button>
+              }
+            >
+              <input type={showAncien ? 'text' : 'password'} value={ancienMdp}
+                onChange={e => setAncienMdp(e.target.value)}
+                className={inputClass}
+                placeholder="Mot de passe actuel (temporaire)" required autoFocus />
+            </Field>
 
-          <div className="bg-white px-8 pt-8 pb-10 -mt-5 rounded-t-3xl relative z-10">
-            <h2 className="text-center text-sm font-bold tracking-widest uppercase mb-2" style={{ color: NAVY }}>
-              Nouveau mot de passe
-            </h2>
-            <p className="text-xs text-gray-400 text-center mb-6 leading-relaxed">
-              Votre mot de passe est temporaire. Choisissez-en un nouveau avant de continuer.
-            </p>
+            <Field
+              icon="ti-lock"
+              toggle={
+                <button type="button" onClick={() => setShowNouveau(v => !v)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0a0b0d] transition-colors">
+                  <i className={`ti ${showNouveau ? 'ti-eye-off' : 'ti-eye'} text-base`} />
+                </button>
+              }
+            >
+              <input type={showNouveau ? 'text' : 'password'} value={nouveauMdp}
+                onChange={e => setNouveauMdp(e.target.value)}
+                className={inputClass}
+                placeholder="Nouveau mot de passe" required />
+            </Field>
+            <p className="text-[11px] text-gray-400 -mt-2.5">Minimum 8 caractères.</p>
 
-            {error && (
-              <div className="bg-red-50 text-red-600 text-xs px-4 py-2.5 rounded-xl mb-4 border border-red-100">
-                {error}
-              </div>
-            )}
+            <Field
+              icon="ti-lock"
+              toggle={
+                <button type="button" onClick={() => setShowConfirmer(v => !v)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0a0b0d] transition-colors">
+                  <i className={`ti ${showConfirmer ? 'ti-eye-off' : 'ti-eye'} text-base`} />
+                </button>
+              }
+            >
+              <input type={showConfirmer ? 'text' : 'password'} value={confirmerMdp}
+                onChange={e => setConfirmerMdp(e.target.value)}
+                className={inputClass}
+                placeholder="Confirmer le nouveau mot de passe" required />
+            </Field>
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <div>
-                <label className="text-xs font-bold tracking-widest uppercase mb-2 block" style={{ color: NAVY }}>
-                  Mot de passe actuel (temporaire)
-                </label>
-                <div className="relative">
-                  <input type={showAncien ? 'text' : 'password'} value={ancienMdp}
-                    onChange={e => setAncienMdp(e.target.value)}
-                    className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm text-gray-800 focus:outline-none transition-colors placeholder-gray-300"
-                    onFocus={e => (e.currentTarget.style.borderColor = NAVY)}
-                    onBlur={e => (e.currentTarget.style.borderColor = '')}
-                    placeholder="••••••••" required autoFocus />
-                  <button type="button" onClick={() => setShowAncien(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0f172a] transition-colors">
-                    <i className={`ti ${showAncien ? 'ti-eye-off' : 'ti-eye'} text-base`} />
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold tracking-widest uppercase mb-2 block" style={{ color: NAVY }}>
-                  Nouveau mot de passe
-                </label>
-                <div className="relative">
-                  <input type={showNouveau ? 'text' : 'password'} value={nouveauMdp}
-                    onChange={e => setNouveauMdp(e.target.value)}
-                    className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm text-gray-800 focus:outline-none transition-colors placeholder-gray-300"
-                    onFocus={e => (e.currentTarget.style.borderColor = NAVY)}
-                    onBlur={e => (e.currentTarget.style.borderColor = '')}
-                    placeholder="••••••••" required />
-                  <button type="button" onClick={() => setShowNouveau(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0f172a] transition-colors">
-                    <i className={`ti ${showNouveau ? 'ti-eye-off' : 'ti-eye'} text-base`} />
-                  </button>
-                </div>
-                <p className="text-[11px] text-gray-400 mt-1.5">Minimum 8 caractères.</p>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold tracking-widest uppercase mb-2 block" style={{ color: NAVY }}>
-                  Confirmer le nouveau mot de passe
-                </label>
-                <div className="relative">
-                  <input type={showConfirmer ? 'text' : 'password'} value={confirmerMdp}
-                    onChange={e => setConfirmerMdp(e.target.value)}
-                    className="w-full bg-white border-2 border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm text-gray-800 focus:outline-none transition-colors placeholder-gray-300"
-                    onFocus={e => (e.currentTarget.style.borderColor = NAVY)}
-                    onBlur={e => (e.currentTarget.style.borderColor = '')}
-                    placeholder="••••••••" required />
-                  <button type="button" onClick={() => setShowConfirmer(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0f172a] transition-colors">
-                    <i className={`ti ${showConfirmer ? 'ti-eye-off' : 'ti-eye'} text-base`} />
-                  </button>
-                </div>
-              </div>
-
-              <button type="submit" disabled={loading}
-                className="text-white py-3.5 rounded-2xl text-xs font-bold tracking-widest uppercase hover:opacity-90 hover:scale-105 disabled:opacity-50 transition-all duration-300 mt-2"
-                style={gradientStyle}>
-                {loading ? 'Enregistrement...' : 'Continuer →'}
-              </button>
-            </form>
-          </div>
+            <button type="submit" disabled={loading}
+              className="mt-1 flex items-center justify-center gap-2.5 rounded-md py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              style={{ background: RED }}>
+              {loading ? 'Enregistrement...' : 'Continuer →'}
+            </button>
+          </form>
         </div>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
-          © {new Date().getFullYear()} Extincteurs Nationex
+        <p className="text-center text-xs text-white/30 mt-6">
+          © {new Date().getFullYear()} ExtincPro
         </p>
       </div>
     </div>

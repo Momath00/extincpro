@@ -3,8 +3,8 @@
 import { useState } from 'react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ORANGE = '#dc2626'
+const NAVY = '#0a0b0d'
+const ORANGE = '#e11324'
 
 function Spinner({ size = 17 }: { size?: number }) {
   return (
@@ -95,7 +95,7 @@ export default function InviteModal({ onClose, onInvited }: { onClose: () => voi
               value={username}
               onChange={e => setUsername(e.target.value)}
               placeholder="jean_dupont"
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]"
+              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
               required
             />
           </div>
@@ -109,7 +109,7 @@ export default function InviteModal({ onClose, onInvited }: { onClose: () => voi
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="jean@entreprise.com"
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]"
+              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
               required
             />
           </div>

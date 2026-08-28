@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ACCENT = '#dc2626'
+const NAVY = '#0a0b0d'
+const ACCENT = '#e11324'
 
 export default function NouvelleOrganisationPage() {
   const router = useRouter()
@@ -57,7 +57,7 @@ export default function NouvelleOrganisationPage() {
             value={nom}
             onChange={e => setNom(e.target.value)}
             placeholder="Ex. Protection Incendie Laurentides"
-            className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]"
+            className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
             autoFocus
           />
         </div>
@@ -69,7 +69,7 @@ export default function NouvelleOrganisationPage() {
             value={adresse}
             onChange={e => setAdresse(e.target.value)}
             placeholder="Ex. 123 rue Principale, Montréal, QC"
-            className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]"
+            className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
           />
         </div>
 

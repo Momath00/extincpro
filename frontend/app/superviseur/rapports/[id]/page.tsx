@@ -10,8 +10,8 @@ import OngletE3 from '@/components/rapports/OngletE3'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ORANGE = '#dc2626'
+const NAVY = '#0a0b0d'
+const ORANGE = '#e11324'
 
 async function downloadHtml(url: string) {
   const token = localStorage.getItem('access_token')
@@ -61,7 +61,7 @@ function CertificatTab({
             className="inline-block mt-3 text-xs font-black uppercase tracking-widest px-4 py-1.5 rounded-full"
             style={{
               background: cert.conforme ? '#e9f6f2' : '#fef2f2',
-              color: cert.conforme ? '#0d6b4f' : '#dc2626',
+              color: cert.conforme ? '#0d6b4f' : '#e11324',
             }}
           >
             {cert.conforme ? 'Conforme' : 'Non conforme'}
@@ -330,7 +330,7 @@ export default function SuperviseurRapportDetailPage() {
       )}
 
       <Link href="/superviseur/rapports"
-        className="text-xs text-gray-400 hover:text-[#0f172a] flex items-center gap-1 mb-4">
+        className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1 mb-4">
         <i className="ti ti-arrow-left" /> Retour aux rapports
       </Link>
 
@@ -456,7 +456,7 @@ export default function SuperviseurRapportDetailPage() {
           : <span className="text-xs text-gray-300 italic">Aucun technicien assigné</span>}
         <button
           onClick={() => setModalMode('technicien')}
-          className="text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-200 hover:border-[#dc2626] transition-colors flex items-center gap-1"
+          className="text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-200 hover:border-[#e11324] transition-colors flex items-center gap-1"
           style={{ color: NAVY }}
         >
           <i className="ti ti-edit text-[11px]" /> Réassigner
@@ -474,7 +474,7 @@ export default function SuperviseurRapportDetailPage() {
         )}
         <button
           onClick={() => setModalMode('citoyen')}
-          className="text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-200 hover:border-[#dc2626] transition-colors flex items-center gap-1"
+          className="text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-200 hover:border-[#e11324] transition-colors flex items-center gap-1"
           style={{ color: NAVY }}
         >
           <i className="ti ti-edit text-[11px]" /> Réassigner

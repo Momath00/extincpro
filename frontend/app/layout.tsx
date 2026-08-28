@@ -13,19 +13,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Extincteurs Nationex",
+  title: "ExtincPro",
   description: "Gestion des rapports de vérification et certificats d'extincteurs portatifs",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Nationex",
+    title: "ExtincPro",
   },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#0f172a",
+  themeColor: "#0a0b0d",
 };
 
 export default function RootLayout({

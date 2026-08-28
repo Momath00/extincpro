@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ORANGE = '#dc2626'
+const NAVY = '#0a0b0d'
+const ORANGE = '#e11324'
 
 export const FORMAT_CHOICES: Record<string, string> = {
   '2.5lb': '2.5 lb',
@@ -112,7 +112,7 @@ function DateMaskInput({
       onBlur={handleBlur}
       placeholder="JJ/MM/AAAA"
       maxLength={10}
-      className="text-xs border border-gray-200 rounded px-1.5 py-0.5 focus:outline-none focus:border-[#dc2626] bg-white w-[100px]"
+      className="text-xs border border-gray-200 rounded px-1.5 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-[100px]"
     />
   )
 }
@@ -235,7 +235,7 @@ function LigneExtincteur({
         <span className="text-xs font-mono font-bold px-1.5 py-0.5 rounded"
           style={{
             background: it.etat === 'D' ? '#fee2e2' : it.etat === 'C' ? '#dcfce7' : '#fef3c7',
-            color: it.etat === 'D' ? '#dc2626' : it.etat === 'C' ? '#16a34a' : '#b45309',
+            color: it.etat === 'D' ? '#e11324' : it.etat === 'C' ? '#16a34a' : '#b45309',
           }}>
           {it.etat}
         </span>
@@ -244,7 +244,7 @@ function LigneExtincteur({
       <select
         value={it.etat || ''}
         onChange={e => patchField('etat', e.target.value || null)}
-        className="text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#dc2626] bg-white w-full"
+        className="text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-full"
       >
         <option value="">-</option>
         <option value="D">D</option>
@@ -261,7 +261,7 @@ function LigneExtincteur({
       <select
         value={it[field] || ''}
         onChange={e => patchField(field, e.target.value)}
-        className="text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#dc2626] bg-white w-full"
+        className="text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-full"
       >
         <option value="">—</option>
         {Object.entries(choices).map(([k, v]) => (
@@ -401,7 +401,7 @@ export default function TableExtincteurs({
         {[
           { label: 'Total', value: total, bg: NAVY, color: '#fff', icon: 'ti-fire-extinguisher' },
           { label: 'Conformes', value: inspectes, bg: '#dcfce7', color: '#16a34a', icon: 'ti-check' },
-          { label: 'Défectueux', value: defectueux, bg: defectueux > 0 ? '#fee2e2' : '#f8fafc', color: defectueux > 0 ? '#dc2626' : '#94a3b8', icon: 'ti-alert-triangle' },
+          { label: 'Défectueux', value: defectueux, bg: defectueux > 0 ? '#fee2e2' : '#f8fafc', color: defectueux > 0 ? '#e11324' : '#94a3b8', icon: 'ti-alert-triangle' },
           { label: 'Non inspectés', value: ni, bg: ni > 0 ? '#fef3c7' : '#f8fafc', color: ni > 0 ? '#b45309' : '#94a3b8', icon: 'ti-eye-off' },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-md border border-gray-100 p-3.5 flex items-center gap-3 shadow-sm">
@@ -424,10 +424,10 @@ export default function TableExtincteurs({
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0"
                 style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
-                <i className="ti ti-alert-triangle text-sm" style={{ color: '#dc2626' }} />
+                <i className="ti ti-alert-triangle text-sm" style={{ color: '#e11324' }} />
               </div>
               <div>
-                <p className="text-sm font-bold" style={{ color: '#dc2626' }}>
+                <p className="text-sm font-bold" style={{ color: '#e11324' }}>
                   {defects.length} extincteur{defects.length > 1 ? 's' : ''} défectueux
                 </p>
                 <p className="text-xs text-red-400">Résumé des anomalies à corriger</p>
@@ -454,7 +454,7 @@ export default function TableExtincteurs({
                       <span className="text-xs text-gray-500">{it.etage || '—'}</span>
                     </td>
                     <td className="px-3 py-2.5">
-                      <span className="text-sm font-bold" style={{ color: '#dc2626' }}>{it.emplacement || '—'}</span>
+                      <span className="text-sm font-bold" style={{ color: '#e11324' }}>{it.emplacement || '—'}</span>
                     </td>
                     <td className="px-3 py-2.5">
                       <span className="text-xs text-gray-500">{it.remarque || '—'}</span>
@@ -524,7 +524,7 @@ export default function TableExtincteurs({
       {!readOnly && (
         <div className="flex justify-end">
           <button onClick={ajouterLigne} disabled={adding}
-            className="flex items-center gap-2 border border-gray-200 px-4 py-2 rounded-md text-sm font-bold hover:border-[#0f172a] transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 border border-gray-200 px-4 py-2 rounded-md text-sm font-bold hover:border-[#0a0b0d] transition-colors disabled:opacity-50"
             style={{ color: NAVY }}>
             <i className="ti ti-plus" /> {adding ? 'Ajout...' : 'Ajouter une ligne'}
           </button>

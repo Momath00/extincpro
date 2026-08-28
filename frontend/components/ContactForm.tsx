@@ -3,8 +3,8 @@
 import { useState } from 'react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ORANGE = '#dc2626'
+const NAVY = '#0a0b0d'
+const ORANGE = '#e11324'
 
 export default function ContactForm() {
   const [prenom, setPrenom] = useState('')
@@ -75,7 +75,7 @@ export default function ContactForm() {
           <input
             type="text" value={prenom} onChange={e => setPrenom(e.target.value)}
             placeholder="Jean" required
-            className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]"
+            className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
           />
         </div>
         <div>
@@ -85,7 +85,7 @@ export default function ContactForm() {
           <input
             type="text" value={nom} onChange={e => setNom(e.target.value)}
             placeholder="Dupont" required
-            className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]"
+            className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
           />
         </div>
       </div>
@@ -96,7 +96,7 @@ export default function ContactForm() {
         <input
           type="email" value={email} onChange={e => setEmail(e.target.value)}
           placeholder="jean.dupont@courriel.com" required
-          className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]"
+          className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
         />
       </div>
       <div className="mb-6">
@@ -106,7 +106,7 @@ export default function ContactForm() {
         <textarea
           value={message} onChange={e => setMessage(e.target.value)}
           placeholder="Votre message..." required rows={5} minLength={10}
-          className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626] resize-none"
+          className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324] resize-none"
         />
       </div>
       <button

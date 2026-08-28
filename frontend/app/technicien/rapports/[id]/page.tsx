@@ -9,8 +9,8 @@ import OngletLegende from '@/components/rapports/OngletLegende'
 import OngletE3 from '@/components/rapports/OngletE3'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ORANGE = '#dc2626'
+const NAVY = '#0a0b0d'
+const ORANGE = '#e11324'
 
 const STATUT_BADGE: Record<string, { label: string; bg: string; color: string }> = {
   ouvert: { label: 'Ouvert', bg: '#fff2e8', color: '#9a4a13' },
@@ -109,7 +109,7 @@ export default function TechnicienRapportDetailPage() {
 
   return (
     <div>
-      <Link href="/technicien/rapports" className="text-xs text-gray-400 hover:text-[#0f172a] flex items-center gap-1 mb-4">
+      <Link href="/technicien/rapports" className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1 mb-4">
         <i className="ti ti-arrow-left" /> Retour aux rapports
       </Link>
 

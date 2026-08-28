@@ -34,10 +34,13 @@ export default function PublicNavbar() {
       <div className="max-w-6xl mx-auto px-4 flex items-center justify-between h-16">
         <Link href="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
           <img
-            src="/logo.svg"
-            alt="Extincteurs Nationex"
+            src="/logo-mark.png"
+            alt="ExtincPro"
             className="w-auto h-9"
           />
+          <span className="text-lg font-extrabold tracking-tight text-[#0a0b0d]">
+            Extinc<span className="text-[#e11324]">Pro</span>
+          </span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-8 text-sm font-bold">
@@ -45,7 +48,7 @@ export default function PublicNavbar() {
             <a
               key={item.href}
               href={item.href}
-              className="py-1 text-[#0f172a] hover:text-[#dc2626]"
+              className="py-1 text-[#0a0b0d] hover:text-[#e11324]"
             >
               {item.label}
             </a>
@@ -55,7 +58,7 @@ export default function PublicNavbar() {
         <div className="hidden md:flex items-center gap-3">
           <Link
             href="/login"
-            className="text-sm font-bold text-white bg-[#dc2626] px-5 py-2.5 rounded-md hover:bg-[#e35c0f]"
+            className="text-sm font-bold text-white bg-[#e11324] px-5 py-2.5 rounded-md hover:bg-[#ff2438]"
           >
             Se connecter
           </Link>
@@ -68,12 +71,12 @@ export default function PublicNavbar() {
           onClick={() => setOpen(v => !v)}
         >
           {open ? (
-            <i className="ti ti-x text-xl text-[#0f172a]" />
+            <i className="ti ti-x text-xl text-[#0a0b0d]" />
           ) : (
             <>
-              <span className="block w-6 h-0.5 bg-[#0f172a]" />
-              <span className="block w-6 h-0.5 bg-[#0f172a]" />
-              <span className="block w-6 h-0.5 bg-[#0f172a]" />
+              <span className="block w-6 h-0.5 bg-[#0a0b0d]" />
+              <span className="block w-6 h-0.5 bg-[#0a0b0d]" />
+              <span className="block w-6 h-0.5 bg-[#0a0b0d]" />
             </>
           )}
         </button>
@@ -87,7 +90,7 @@ export default function PublicNavbar() {
                 key={item.href}
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className="py-3 text-sm font-bold text-[#0f172a] border-b border-gray-100 last:border-b-0"
+                className="py-3 text-sm font-bold text-[#0a0b0d] border-b border-gray-100 last:border-b-0"
               >
                 {item.label}
               </a>
@@ -96,7 +99,7 @@ export default function PublicNavbar() {
               <Link
                 href="/login"
                 onClick={() => setOpen(false)}
-                className="text-center text-sm font-bold text-white bg-[#dc2626] rounded-md py-2.5"
+                className="text-center text-sm font-bold text-white bg-[#e11324] rounded-md py-2.5"
               >
                 Se connecter
               </Link>

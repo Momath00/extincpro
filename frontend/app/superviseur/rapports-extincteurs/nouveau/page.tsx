@@ -6,8 +6,8 @@ import Link from 'next/link'
 import { clientColor } from '@/lib/clientColor'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ORANGE = '#dc2626'
+const NAVY = '#0a0b0d'
+const ORANGE = '#e11324'
 
 export default function NouveauRapportExtincteurPage() {
   const router = useRouter()
@@ -99,7 +99,7 @@ export default function NouveauRapportExtincteurPage() {
 
   return (
     <div className="max-w-2xl">
-      <Link href="/superviseur/rapports-extincteurs" className="text-xs text-gray-400 hover:text-[#0f172a] flex items-center gap-1 mb-4">
+      <Link href="/superviseur/rapports-extincteurs" className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1 mb-4">
         <i className="ti ti-arrow-left" /> Retour aux rapports
       </Link>
       <h1 className="text-2xl font-bold mb-1" style={{ color: NAVY }}>Nouveau rapport extincteur</h1>
@@ -155,7 +155,7 @@ export default function NouveauRapportExtincteurPage() {
             <select
               value={batimentId}
               onChange={e => setBatimentId(e.target.value)}
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]"
+              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
               required
             >
               <option value="">— Sélectionner —</option>
@@ -173,7 +173,7 @@ export default function NouveauRapportExtincteurPage() {
           <select
             value={citoyenId}
             onChange={e => setCitoyenId(e.target.value)}
-            className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]"
+            className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
           >
             <option value="">— Aucun —</option>
             {citoyens.map((c: any) => (
@@ -225,7 +225,7 @@ export default function NouveauRapportExtincteurPage() {
             type="date"
             value={dateInspection}
             onChange={e => setDateInspection(e.target.value)}
-            className="w-full sm:w-64 border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]"
+            className="w-full sm:w-64 border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
           />
         </div>
 
@@ -237,7 +237,7 @@ export default function NouveauRapportExtincteurPage() {
             type="text"
             value={numeroJob}
             onChange={e => setNumeroJob(e.target.value)}
-            className="w-full sm:w-64 border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]"
+            className="w-full sm:w-64 border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
           />
         </div>
 

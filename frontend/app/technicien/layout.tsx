@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import TechnicienSidebar from '@/components/dashboard/TechnicienSidebar'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ORANGE = '#dc2626'
+const NAVY = '#0a0b0d'
+const ORANGE = '#e11324'
 
 export default function TechnicienLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -75,7 +75,7 @@ export default function TechnicienLayout({ children }: { children: React.ReactNo
           <button onClick={() => setMenuOpen(true)} className="text-white p-1.5">
             <i className="ti ti-menu-2 text-xl" />
           </button>
-          <img src="/logo.svg" alt="Extincteurs Nationex" className="h-8 w-auto" />
+          <img src="/logo-mark.png" alt="ExtincPro" className="h-8 w-auto" />
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
             style={{ background: ORANGE }}

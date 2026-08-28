@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import { clientColor } from '@/lib/clientColor'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ORANGE = '#dc2626'
+const NAVY = '#0a0b0d'
+const ORANGE = '#e11324'
 
 const TYPE_LABELS: Record<string, string> = {
   residentiel: 'Résidentiel',
@@ -71,7 +71,7 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
           <div>
             <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>Client</label>
             <select value={clientId} onChange={e => setClientId(e.target.value)} required
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]">
+              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]">
               <option value="">— Sélectionner —</option>
               {clients.map((c: any) => <option key={c.id} value={c.id}>{c.nom}</option>)}
             </select>
@@ -81,12 +81,12 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
             <div>
               <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>No civique</label>
               <input value={numeroCivique} onChange={e => setNumeroCivique(e.target.value)} placeholder="9940" required
-                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]" />
+                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
             </div>
             <div className="col-span-2">
               <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>Rue</label>
               <input value={rue} onChange={e => setRue(e.target.value)} placeholder="St Laurent" required
-                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]" />
+                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
             </div>
           </div>
 
@@ -94,12 +94,12 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
             <div>
               <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>Ville</label>
               <input value={ville} onChange={e => setVille(e.target.value)} placeholder="Montréal" required
-                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]" />
+                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
             </div>
             <div>
               <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>Code postal</label>
               <input value={codePostal} onChange={e => setCodePostal(e.target.value)} placeholder="H2C 2L7"
-                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]" />
+                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
             </div>
           </div>
 
@@ -107,12 +107,12 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
             <div>
               <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>Direction / secteur</label>
               <input value={direction} onChange={e => setDirection(e.target.value)} placeholder="Secteur Nord"
-                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]" />
+                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
             </div>
             <div>
               <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>Type</label>
               <select value={typeApplication} onChange={e => setTypeApplication(e.target.value)}
-                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]">
+                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]">
                 <option value="residentiel">Résidentiel</option>
                 <option value="commercial">Commercial</option>
                 <option value="industriel">Industriel</option>
@@ -123,7 +123,7 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
           <div>
             <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>Citoyen propriétaire <span className="text-gray-300 normal-case font-normal">(optionnel)</span></label>
             <select value={proprietaireId} onChange={e => setProprietaireId(e.target.value)}
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]">
+              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]">
               <option value="">— Aucun —</option>
               {citoyens.map((c: any) => <option key={c.id} value={c.id}>{c.username} — {c.email}</option>)}
             </select>
@@ -258,7 +258,7 @@ export default function BatimentsPage() {
           {visibles.map((b: any) => {
             const col = clientColor(b.client)
             return (
-              <div key={b.id} className="bg-white rounded-md border border-gray-100 p-4 flex items-start gap-3 hover:shadow-md hover:border-[#dc2626] transition-all duration-200">
+              <div key={b.id} className="bg-white rounded-md border border-gray-100 p-4 flex items-start gap-3 hover:shadow-md hover:border-[#e11324] transition-all duration-200">
                 <i className="ti ti-building text-xl flex-shrink-0 mt-0.5" style={{ color: col.bg }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold truncate" style={{ color: NAVY }}>{b.adresse_complete}</p>

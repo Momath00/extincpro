@@ -6,8 +6,8 @@ import Link from 'next/link'
 import InviteModal from '@/components/dashboard/InviteModal'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const RED = '#0f172a'
-const ACCENT = '#dc2626'
+const RED = '#0a0b0d'
+const ACCENT = '#e11324'
 
 const STATUT_BADGE: Record<string, { label: string; bg: string; color: string }> = {
   ouvert: { label: 'Ouvert', bg: '#fef2f2', color: '#9a4a13' },
@@ -83,7 +83,7 @@ export default function SuperviseurDashboard() {
         <div className="flex gap-2 w-full sm:w-auto">
           <button
             onClick={() => setInviteOpen(true)}
-            className="flex-1 sm:flex-none text-center border border-gray-200 px-4 py-2.5 rounded-md text-sm font-bold hover:border-[#0f172a] transition-colors"
+            className="flex-1 sm:flex-none text-center border border-gray-200 px-4 py-2.5 rounded-md text-sm font-bold hover:border-[#0a0b0d] transition-colors"
             style={{ color: RED }}
           >
             <i className="ti ti-user-plus mr-1" /> Inviter
@@ -105,9 +105,9 @@ export default function SuperviseurDashboard() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         {[
-          { label: 'Rapports ouverts', value: ouverts, icon: 'ti-file-alert', bg: '#fef2f2', color: '#dc2626' },
+          { label: 'Rapports ouverts', value: ouverts, icon: 'ti-file-alert', bg: '#fef2f2', color: '#e11324' },
           { label: 'Rapports fermés', value: fermes, icon: 'ti-file-check', bg: '#f0fdf4', color: '#16a34a' },
-          { label: 'Clients actifs', value: nbClients, icon: 'ti-building', bg: '#f1f5f9', color: '#0f172a' },
+          { label: 'Clients actifs', value: nbClients, icon: 'ti-building', bg: '#f1f5f9', color: '#0a0b0d' },
           { label: 'Techniciens actifs', value: nbTechniciens, icon: 'ti-tool', bg: '#fffbeb', color: '#b45309' },
           { label: 'Citoyens enregistrés', value: nbCitoyens, icon: 'ti-users', bg: '#f8fafc', color: '#475569' },
         ].map(stat => (

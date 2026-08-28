@@ -9,8 +9,13 @@ from rest_framework.response import Response
 
 from securiteincendie.emailing import envoyer_email, html_template
 
-from .models import Module, Organisation, OrganisationModule
-from .serializers import CreerSuperviseurSerializer, OrganisationCreateSerializer, OrganisationSerializer
+from .models import DemandeEssai, Module, Organisation, OrganisationModule
+from .serializers import (
+    CreerSuperviseurSerializer,
+    DemandeEssaiSerializer,
+    OrganisationCreateSerializer,
+    OrganisationSerializer,
+)
 
 Utilisateur = get_user_model()
 
@@ -89,11 +94,11 @@ class OrganisationViewSet(viewsets.ModelViewSet):
 
         prenom = data.get("first_name") or data["username"]
         html_body = f"""
-<h2 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#0f172a;">Bienvenue sur ExtincPro !</h2>
+<h2 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#0a0b0d;">Bienvenue sur ExtincPro !</h2>
 <p style="margin:0 0 24px;color:#64748b;font-size:14px;line-height:1.6;">
-  Bonjour <strong style="color:#0f172a;">{prenom}</strong>,<br>
-  votre organisation <strong style="color:#0f172a;">{organisation.nom}</strong> a été créée sur la
-  plateforme. Vous êtes désormais <strong style="color:#dc2626;">Superviseur</strong> — vous pouvez
+  Bonjour <strong style="color:#0a0b0d;">{prenom}</strong>,<br>
+  votre organisation <strong style="color:#0a0b0d;">{organisation.nom}</strong> a été créée sur la
+  plateforme. Vous êtes désormais <strong style="color:#e11324;">Superviseur</strong> — vous pouvez
   inviter votre équipe (techniciens, citoyens) une fois connecté(e).
 </p>
 <table role="presentation" cellpadding="0" cellspacing="0"
@@ -101,17 +106,17 @@ class OrganisationViewSet(viewsets.ModelViewSet):
   <tr>
     <td style="padding:14px 20px;border-bottom:1px solid #e2e8f0;">
       <span style="display:block;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">Nom d'utilisateur</span>
-      <span style="font-size:14px;font-weight:700;color:#0f172a;">{data['username']}</span>
+      <span style="font-size:14px;font-weight:700;color:#0a0b0d;">{data['username']}</span>
     </td>
   </tr>
   <tr>
     <td style="padding:14px 20px;">
       <span style="display:block;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Mot de passe temporaire</span>
-      <code style="display:inline-block;background:#fff2e8;color:#dc2626;font-size:18px;font-weight:800;letter-spacing:3px;padding:8px 16px;border-radius:8px;border:2px solid #fed7aa;">{mdp_temp}</code>
+      <code style="display:inline-block;background:#fff2e8;color:#e11324;font-size:18px;font-weight:800;letter-spacing:3px;padding:8px 16px;border-radius:8px;border:2px solid #fed7aa;">{mdp_temp}</code>
     </td>
   </tr>
 </table>
-<div style="background:#fffbeb;border-left:3px solid #dc2626;padding:12px 16px;border-radius:0 8px 8px 0;">
+<div style="background:#fffbeb;border-left:3px solid #e11324;padding:12px 16px;border-radius:0 8px 8px 0;">
   <p style="margin:0;color:#92400e;font-size:13px;line-height:1.5;">
     ⚠️ Ce mot de passe est <strong>temporaire</strong>. Vous serez invité(e) à le modifier dès votre première connexion.
   </p>
@@ -173,3 +178,29 @@ class OrganisationViewSet(viewsets.ModelViewSet):
         lien.save()
 
         return Response(OrganisationSerializer(organisation).data)
+
+
+class DemandeEssaiViewSet(viewsets.ModelViewSet):
+    """Demandes d'essai reçues via le formulaire de contact du site vitrine
+    — consultées et traitées par le super admin depuis la plateforme."""
+
+    permission_classes = [permissions.IsAuthenticated, EstSuperAdmin]
+    queryset = DemandeEssai.objects.select_related("organisation_creee").all()
+    serializer_class = DemandeEssaiSerializer
+    http_method_names = ["get", "patch", "head", "options"]
+
+    def partial_update(self, request, *args, **kwargs):
+        demande = self.get_object()
+        champs = []
+        if "statut" in request.data:
+            valeurs_valides = {c for c, _ in DemandeEssai.Statut.choices}
+            if request.data["statut"] not in valeurs_valides:
+                return Response({"error": "Statut invalide."}, status=status.HTTP_400_BAD_REQUEST)
+            demande.statut = request.data["statut"]
+            champs.append("statut")
+        if "note_interne" in request.data:
+            demande.note_interne = request.data["note_interne"]
+            champs.append("note_interne")
+        if champs:
+            demande.save(update_fields=champs)
+        return Response(DemandeEssaiSerializer(demande).data)

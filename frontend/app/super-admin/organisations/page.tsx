@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ACCENT = '#dc2626'
+const NAVY = '#0a0b0d'
+const ACCENT = '#e11324'
 
 export default function OrganisationsPage() {
   const router = useRouter()
@@ -116,9 +116,9 @@ export default function OrganisationsPage() {
                   <td className="px-5 py-3.5">
                     <span
                       className="text-xs px-2.5 py-1 rounded-full font-semibold inline-flex items-center gap-1.5"
-                      style={{ background: o.est_active ? '#f0fdf4' : '#fef2f2', color: o.est_active ? '#16a34a' : '#dc2626' }}
+                      style={{ background: o.est_active ? '#f0fdf4' : '#fef2f2', color: o.est_active ? '#16a34a' : '#e11324' }}
                     >
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: o.est_active ? '#16a34a' : '#dc2626' }} />
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: o.est_active ? '#16a34a' : '#e11324' }} />
                       {o.est_active ? 'Active' : 'Inactive'}
                     </span>
                   </td>

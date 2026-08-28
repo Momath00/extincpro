@@ -5,26 +5,29 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ACCENT = '#dc2626'
+const NAVY = '#0a0b0d'
+const ACCENT = '#e11324'
 
 export default function SuperAdminDashboard() {
   const router = useRouter()
   const [organisations, setOrganisations] = useState<any[]>([])
+  const [demandes, setDemandes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
     if (!token) { router.push('/login'); return }
 
-    fetch(`${API_URL}/api/organisations/`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => {
-        if (res.status === 401) { router.push('/login'); return null }
-        return res.json()
-      })
-      .then(data => {
-        if (!data) return
-        setOrganisations(Array.isArray(data) ? data : (data.results || []))
+    Promise.all([
+      fetch(`${API_URL}/api/organisations/`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => (res.status === 401 ? null : res.json())),
+      fetch(`${API_URL}/api/demandes-essai/`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => (res.ok ? res.json() : [])),
+    ])
+      .then(([orgData, demandesData]) => {
+        if (orgData === null) { router.push('/login'); return }
+        setOrganisations(Array.isArray(orgData) ? orgData : (orgData?.results || []))
+        setDemandes(Array.isArray(demandesData) ? demandesData : (demandesData?.results || []))
         setLoading(false)
       })
       .catch(() => setLoading(false))
@@ -41,6 +44,7 @@ export default function SuperAdminDashboard() {
   const actives = organisations.filter(o => o.est_active).length
   const inactives = organisations.length - actives
   const totalUtilisateurs = organisations.reduce((acc, o) => acc + (o.nb_utilisateurs || 0), 0)
+  const nouvellesDemandes = demandes.filter(d => d.statut === 'nouveau').length
 
   return (
     <div>
@@ -58,22 +62,34 @@ export default function SuperAdminDashboard() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         {[
-          { label: 'Organisations', value: organisations.length, icon: 'ti-building-skyscraper', bg: '#f1f5f9', color: NAVY },
+          { label: 'Organisations', value: organisations.length, icon: 'ti-building-skyscraper', bg: '#f1f5f9', color: NAVY, href: '/super-admin/organisations' },
           { label: 'Actives', value: actives, icon: 'ti-circle-check', bg: '#f0fdf4', color: '#16a34a' },
-          { label: 'Inactives', value: inactives, icon: 'ti-circle-x', bg: '#fef2f2', color: '#dc2626' },
-        ].map(stat => (
-          <div key={stat.label} className="bg-white rounded-lg p-5 border border-gray-100 shadow-sm">
-            <div className="flex justify-between items-center mb-3">
-              <div className="w-9 h-9 rounded-md flex items-center justify-center" style={{ background: stat.bg }}>
-                <i className={`ti ${stat.icon} text-base`} style={{ color: stat.color }} />
+          { label: 'Inactives', value: inactives, icon: 'ti-circle-x', bg: '#fef2f2', color: '#e11324' },
+          { label: "Nouvelles demandes", value: nouvellesDemandes, icon: 'ti-inbox', bg: nouvellesDemandes > 0 ? '#fef2f2' : '#f1f5f9', color: nouvellesDemandes > 0 ? ACCENT : NAVY, href: '/super-admin/demandes', pulse: nouvellesDemandes > 0 },
+        ].map(stat => {
+          const content = (
+            <>
+              <div className="flex justify-between items-center mb-3">
+                <div className="w-9 h-9 rounded-md flex items-center justify-center relative" style={{ background: stat.bg }}>
+                  <i className={`ti ${stat.icon} text-base`} style={{ color: stat.color }} />
+                  {stat.pulse && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full animate-pulse" style={{ background: ACCENT }} />
+                  )}
+                </div>
               </div>
-            </div>
-            <p className="text-3xl font-bold" style={{ color: NAVY }}>{stat.value}</p>
-            <p className="text-xs text-gray-400 uppercase tracking-widest mt-1">{stat.label}</p>
-          </div>
-        ))}
+              <p className="text-3xl font-bold" style={{ color: NAVY }}>{stat.value}</p>
+              <p className="text-xs text-gray-400 uppercase tracking-widest mt-1">{stat.label}</p>
+            </>
+          )
+          const className = "bg-white rounded-lg p-5 border border-gray-100 shadow-sm block" + (stat.href ? " hover:shadow-md hover:-translate-y-0.5 transition-all" : "")
+          return stat.href ? (
+            <Link key={stat.label} href={stat.href} className={className}>{content}</Link>
+          ) : (
+            <div key={stat.label} className={className}>{content}</div>
+          )
+        })}
       </div>
 
       <div className="bg-white rounded-md border border-gray-100 overflow-hidden">
@@ -108,7 +124,7 @@ export default function SuperAdminDashboard() {
               </div>
               <span
                 className="text-xs px-2.5 py-1 rounded-full font-semibold flex-shrink-0"
-                style={{ background: o.est_active ? '#f0fdf4' : '#fef2f2', color: o.est_active ? '#16a34a' : '#dc2626' }}
+                style={{ background: o.est_active ? '#f0fdf4' : '#fef2f2', color: o.est_active ? '#16a34a' : '#e11324' }}
               >
                 {o.est_active ? 'Active' : 'Inactive'}
               </span>

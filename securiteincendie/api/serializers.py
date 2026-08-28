@@ -101,7 +101,25 @@ class ReinitialiserMotDePasseSerializer(serializers.Serializer):
 
 # ── Formulaire de contact public (landing page) ─────────────────────────
 class ContactSerializer(serializers.Serializer):
-    nom = serializers.CharField(max_length=100)
-    prenom = serializers.CharField(max_length=100)
-    email = serializers.EmailField()
-    message = serializers.CharField(max_length=3000, min_length=10)
+    nom = serializers.CharField(
+        max_length=100,
+        error_messages={"blank": "Le nom est requis.", "max_length": "Le nom est trop long (100 caractères max)."},
+    )
+    prenom = serializers.CharField(
+        max_length=100,
+        error_messages={"blank": "Le prénom est requis.", "max_length": "Le prénom est trop long (100 caractères max)."},
+    )
+    email = serializers.EmailField(
+        error_messages={"invalid": "Adresse courriel invalide.", "blank": "Le courriel est requis."},
+    )
+    message = serializers.CharField(
+        max_length=3000,
+        min_length=10,
+        error_messages={
+            "min_length": "Le message doit contenir au moins 10 caractères.",
+            "max_length": "Le message est trop long (3000 caractères max).",
+            "blank": "Le message est requis.",
+        },
+    )
+    entreprise = serializers.CharField(max_length=150, required=False, allow_blank=True)
+    telephone = serializers.CharField(max_length=30, required=False, allow_blank=True)

@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.utils.text import slugify
 from rest_framework import serializers
 
-from .models import Module, Organisation, OrganisationModule
+from .models import DemandeEssai, Module, Organisation, OrganisationModule
 
 Utilisateur = get_user_model()
 
@@ -84,3 +84,33 @@ class OrganisationCreateSerializer(serializers.Serializer):
             [OrganisationModule(organisation=organisation, module=m) for m in Module.objects.all()]
         )
         return organisation
+
+
+class DemandeEssaiSerializer(serializers.ModelSerializer):
+    organisation_creee_nom = serializers.CharField(source="organisation_creee.nom", read_only=True)
+
+    class Meta:
+        model = DemandeEssai
+        fields = [
+            "id",
+            "nom_complet",
+            "entreprise",
+            "email",
+            "telephone",
+            "message",
+            "statut",
+            "organisation_creee",
+            "organisation_creee_nom",
+            "note_interne",
+            "date_creation",
+            "date_maj",
+        ]
+        read_only_fields = ["date_creation", "date_maj", "organisation_creee_nom"]
+
+
+class DemandeEssaiCreateSerializer(serializers.ModelSerializer):
+    """Utilisé par le formulaire de contact public — aucun champ interne exposé."""
+
+    class Meta:
+        model = DemandeEssai
+        fields = ["nom_complet", "entreprise", "email", "telephone", "message"]

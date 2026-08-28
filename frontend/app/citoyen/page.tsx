@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ACCENT = '#dc2626'
+const NAVY = '#0a0b0d'
+const ACCENT = '#e11324'
 
 function StatutBadge({ statut, certificatEnvoye, conforme }: { statut: string; certificatEnvoye?: boolean; conforme?: boolean }) {
   if (statut === 'ferme') {
@@ -93,7 +93,7 @@ export default function CitoyenPage() {
             <Link
               key={r.id}
               href={`/citoyen/rapports/${r.id}`}
-              className="bg-white rounded-md border border-gray-100 p-4 hover:shadow-md hover:border-[#dc2626] transition-all duration-200"
+              className="bg-white rounded-md border border-gray-100 p-4 hover:shadow-md hover:border-[#e11324] transition-all duration-200"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">

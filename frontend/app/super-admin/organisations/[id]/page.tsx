@@ -5,8 +5,8 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ACCENT = '#dc2626'
+const NAVY = '#0a0b0d'
+const ACCENT = '#e11324'
 
 function Switch({ actif, onClick, busy }: { actif: boolean; onClick: () => void; busy: boolean }) {
   return (
@@ -207,9 +207,9 @@ export default function OrganisationDetailPage() {
           </div>
           <span
             className="text-xs px-3 py-1.5 rounded-full font-bold flex-shrink-0 flex items-center gap-1.5"
-            style={{ background: organisation.est_active ? '#f0fdf4' : '#fef2f2', color: organisation.est_active ? '#16a34a' : '#dc2626' }}
+            style={{ background: organisation.est_active ? '#f0fdf4' : '#fef2f2', color: organisation.est_active ? '#16a34a' : '#e11324' }}
           >
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: organisation.est_active ? '#16a34a' : '#dc2626' }} />
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: organisation.est_active ? '#16a34a' : '#e11324' }} />
             {organisation.est_active ? 'Active' : 'Inactive'}
           </span>
         </div>
@@ -236,7 +236,7 @@ export default function OrganisationDetailPage() {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 mb-5 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: organisation.est_active ? '#f0fdf4' : '#fef2f2' }}>
-            <i className="ti ti-power text-base" style={{ color: organisation.est_active ? '#16a34a' : '#dc2626' }} />
+            <i className="ti ti-power text-base" style={{ color: organisation.est_active ? '#16a34a' : '#e11324' }} />
           </div>
           <div>
             <p className="text-sm font-semibold" style={{ color: NAVY }}>Accès à la plateforme</p>
@@ -328,7 +328,7 @@ export default function OrganisationDetailPage() {
                   type="checkbox"
                   checked={selectionnes.includes(u.id)}
                   onChange={() => toggleSelection(u.id)}
-                  className="w-4 h-4 flex-shrink-0 accent-[#dc2626]"
+                  className="w-4 h-4 flex-shrink-0 accent-[#e11324]"
                 />
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
@@ -389,21 +389,21 @@ export default function OrganisationDetailPage() {
                 <div className="flex gap-2">
                   <input
                     type="text" placeholder="Prénom" value={formPrenom} onChange={e => setFormPrenom(e.target.value)}
-                    className="w-1/2 border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#dc2626]"
+                    className="w-1/2 border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324]"
                   />
                   <input
                     type="text" placeholder="Nom" value={formNom} onChange={e => setFormNom(e.target.value)}
-                    className="w-1/2 border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#dc2626]"
+                    className="w-1/2 border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324]"
                   />
                 </div>
                 <input
                   type="text" placeholder="Nom d'utilisateur *" value={formUsername} onChange={e => setFormUsername(e.target.value)}
-                  className="border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#dc2626]"
+                  className="border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324]"
                   autoFocus
                 />
                 <input
                   type="email" placeholder="Email *" value={formEmail} onChange={e => setFormEmail(e.target.value)}
-                  className="border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#dc2626]"
+                  className="border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324]"
                 />
 
                 {formErreur && (

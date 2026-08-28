@@ -97,15 +97,15 @@ LEGENDE_EXTINCTEURS = [
 
 def _val_oui_non(v):
     if v is True:  return '<span style="color:#0d6b4f;font-weight:700;">Oui</span>'
-    if v is False: return '<span style="color:#dc2626;font-weight:700;">Non</span>'
+    if v is False: return '<span style="color:#e11324;font-weight:700;">Non</span>'
     return '<span style="color:#9ca3af;">—</span>'
 
 
 def _val_so(v):
     if v == "oui":        return '<span style="color:#0d6b4f;font-weight:700;">Oui</span>'
-    if v == "non":        return '<span style="color:#dc2626;font-weight:700;">Non</span>'
+    if v == "non":        return '<span style="color:#e11324;font-weight:700;">Non</span>'
     if v == "sans_objet": return '<span style="color:#6b7280;">S.O.</span>'
-    if v:                 return f'<span style="color:#102a43;">{v}</span>'
+    if v:                 return f'<span style="color:#0a0b0d;">{v}</span>'
     return '<span style="color:#9ca3af;">—</span>'
 
 
@@ -630,7 +630,7 @@ class RapportViewSet(viewsets.ModelViewSet):
         def conf_item(condition, label):
             ok = condition and bool(condition)
             icon = "✔" if ok else "✖"
-            color = "#0d6b4f" if ok else "#dc2626"
+            color = "#0d6b4f" if ok else "#e11324"
             return f"<div class='conf-item'><span style='color:{color};font-weight:900;font-size:11pt;flex-shrink:0;'>{icon}</span><span>{label}</span></div>"
 
         conf_html = ""
@@ -645,7 +645,7 @@ class RapportViewSet(viewsets.ModelViewSet):
         logo_content = logo_data_uri(46)
         emetteur = cert.emis_par.get_full_name() or cert.emis_par.username if cert.emis_par else "—"
         conforme = cert.conforme
-        conf_badge_color = "#0d6b4f" if conforme else "#dc2626"
+        conf_badge_color = "#0d6b4f" if conforme else "#e11324"
         conf_badge_bg = "#e9f6f2" if conforme else "#fef2f2"
         conf_badge_texte = "CONFORME" if conforme else "NON CONFORME"
 
@@ -658,41 +658,41 @@ class RapportViewSet(viewsets.ModelViewSet):
   @page {{ margin: 18mm 15mm; }}
   *{{ box-sizing:border-box; margin:0; padding:0; }}
   body{{ font-family:Arial,Helvetica,sans-serif; font-size:10pt; color:#111; background:#fff; }}
-  .header{{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #102a43; padding-bottom:12px; margin-bottom:18px; }}
+  .header{{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #0a0b0d; padding-bottom:12px; margin-bottom:18px; }}
   .brand{{ display:flex; align-items:center; gap:12px; }}
-  .logo-circle{{ width:52px; height:52px; border-radius:50%; background:#102a43; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }}
-  .brand-text h1{{ font-size:13pt; font-weight:900; color:#102a43; text-transform:uppercase; letter-spacing:1px; }}
+  .logo-circle{{ width:52px; height:52px; border-radius:50%; background:#0a0b0d; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }}
+  .brand-text h1{{ font-size:13pt; font-weight:900; color:#0a0b0d; text-transform:uppercase; letter-spacing:1px; }}
   .brand-text p{{ font-size:8pt; color:#555; margin-top:1px; }}
   .cert-badge{{ text-align:right; }}
   .cert-num{{ font-size:15pt; font-weight:900; color:#ff6b1a; letter-spacing:1px; }}
   .cert-label{{ font-size:7.5pt; color:#777; text-transform:uppercase; letter-spacing:1px; margin-top:2px; }}
-  .title-banner{{ background:#102a43; color:#fff; text-align:center; padding:10px 0; border-radius:4px; margin-bottom:18px; }}
+  .title-banner{{ background:#0a0b0d; color:#fff; text-align:center; padding:10px 0; border-radius:4px; margin-bottom:18px; }}
   .title-banner h2{{ font-size:12pt; font-weight:700; letter-spacing:2px; text-transform:uppercase; }}
   .title-banner p{{ font-size:8pt; color:rgba(255,255,255,0.7); margin-top:3px; letter-spacing:1px; }}
   .info-grid{{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px; }}
   .info-card{{ border:1px solid #e5e7eb; border-radius:6px; padding:10px 14px; }}
   .card-title{{ font-size:7pt; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:#ff6b1a; margin-bottom:6px; }}
-  .card-main{{ font-size:11pt; font-weight:700; color:#102a43; line-height:1.3; }}
+  .card-main{{ font-size:11pt; font-weight:700; color:#0a0b0d; line-height:1.3; }}
   .card-sub{{ font-size:8.5pt; color:#555; margin-top:2px; }}
-  .sec-title{{ font-size:8pt; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:#102a43; border-bottom:1.5px solid #102a43; padding-bottom:4px; margin-bottom:8px; margin-top:16px; }}
+  .sec-title{{ font-size:8pt; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:#0a0b0d; border-bottom:1.5px solid #0a0b0d; padding-bottom:4px; margin-bottom:8px; margin-top:16px; }}
   table{{ width:100%; border-collapse:collapse; font-size:9pt; }}
-  th{{ background:#f1f5f9; color:#102a43; font-weight:700; padding:6px 10px; text-align:left; font-size:8pt; text-transform:uppercase; }}
+  th{{ background:#f1f5f9; color:#0a0b0d; font-weight:700; padding:6px 10px; text-align:left; font-size:8pt; text-transform:uppercase; }}
   td{{ padding:5px 10px; border-bottom:1px solid #f1f5f9; color:#111; }}
   .center{{ text-align:center; }} .bold{{ font-weight:700; }} .muted{{ color:#9ca3af; font-style:italic; }}
-  .conf-box{{ border:1.5px solid #102a43; border-radius:6px; padding:12px 16px; background:#f8fafc; }}
+  .conf-box{{ border:1.5px solid #0a0b0d; border-radius:6px; padding:12px 16px; background:#f8fafc; }}
   .conf-item{{ display:flex; align-items:flex-start; gap:8px; margin-bottom:6px; font-size:9pt; }}
   .conf-item:last-child{{ margin-bottom:0; }}
   .sig-row{{ display:flex; gap:24px; margin-top:18px; }}
   .sig-block{{ flex:1; border-top:1.5px solid #111; padding-top:6px; }}
   .sig-label{{ font-size:7.5pt; color:#777; text-transform:uppercase; letter-spacing:1px; }}
-  .sig-name{{ font-size:10pt; font-weight:700; color:#102a43; margin-top:2px; }}
+  .sig-name{{ font-size:10pt; font-weight:700; color:#0a0b0d; margin-top:2px; }}
   .footer{{ margin-top:24px; padding-top:10px; border-top:1px solid #e5e7eb; display:flex; justify-content:space-between; font-size:7.5pt; color:#9ca3af; }}
   @media print{{ body{{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }} .no-print{{ display:none!important; }} }}
 </style>
 </head>
 <body>
 <div class="no-print" style="text-align:right;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
-  <button onclick="window.print()" style="background:#102a43;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">Imprimer / Enregistrer PDF</button>
+  <button onclick="window.print()" style="background:#0a0b0d;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">Imprimer / Enregistrer PDF</button>
 </div>
 <div style="padding:20px 24px;">
 <div class="header">
@@ -704,7 +704,7 @@ class RapportViewSet(viewsets.ModelViewSet):
     </div>
   </div>
   <div class="cert-badge">
-    <div style="font-size:11pt; font-weight:700; color:#102a43;">{date_insp}</div>
+    <div style="font-size:11pt; font-weight:700; color:#0a0b0d;">{date_insp}</div>
     <div class="cert-label">Date d'inspection</div>
     <div style="font-size:8pt;color:#555;margin-top:3px;">Certificat N° {cert.numero}</div>
   </div>
@@ -715,7 +715,7 @@ class RapportViewSet(viewsets.ModelViewSet):
 </div>
 <div style="text-align:center;margin-bottom:18px;">
   <span style="display:inline-block;background:{conf_badge_bg};color:{conf_badge_color};border:1.5px solid {conf_badge_color};font-weight:900;font-size:12pt;letter-spacing:2px;padding:8px 28px;border-radius:100px;">{conf_badge_texte}</span>
-  {'<p style="margin-top:6px;font-size:8pt;color:#dc2626;">Des réparations sont requises avant que ce certificat ne soit conforme.</p>' if not conforme else ''}
+  {'<p style="margin-top:6px;font-size:8pt;color:#e11324;">Des réparations sont requises avant que ce certificat ne soit conforme.</p>' if not conforme else ''}
 </div>
 <div class="info-card" style="text-align:center;margin-bottom:18px;">
   <div class="card-title">Adresse inspectée</div>
@@ -895,7 +895,7 @@ class RapportViewSet(viewsets.ModelViewSet):
         cert_html = ""
         if hasattr(rapport, "certificat"):
             c = rapport.certificat
-            badge_color = "#0d6b4f" if c.conforme else "#dc2626"
+            badge_color = "#0d6b4f" if c.conforme else "#e11324"
             badge_bg = "#e9f6f2" if c.conforme else "#fef2f2"
             badge_texte = "Conforme" if c.conforme else "Non conforme"
             cert_html = (
@@ -920,12 +920,12 @@ class RapportViewSet(viewsets.ModelViewSet):
   @page {{ margin: 18mm 15mm; }}
   *{{ box-sizing:border-box; margin:0; padding:0; }}
   body{{ font-family:Arial,Helvetica,sans-serif; font-size:10pt; color:#000; background:#fff; }}
-  .header{{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #102a43; padding-bottom:12px; margin-bottom:18px; }}
+  .header{{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #0a0b0d; padding-bottom:12px; margin-bottom:18px; }}
   .brand{{ display:flex; align-items:center; gap:12px; }}
-  .logo-circle{{ width:52px; height:52px; border-radius:50%; background:#102a43; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }}
-  .brand-text h1{{ font-size:13pt; font-weight:900; color:#102a43; text-transform:uppercase; }}
+  .logo-circle{{ width:52px; height:52px; border-radius:50%; background:#0a0b0d; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }}
+  .brand-text h1{{ font-size:13pt; font-weight:900; color:#0a0b0d; text-transform:uppercase; }}
   .brand-text p{{ font-size:8pt; color:#444; margin-top:1px; }}
-  .title-banner{{ background:#102a43; color:#fff; text-align:center; padding:10px 0; border-radius:4px; margin-bottom:18px; }}
+  .title-banner{{ background:#0a0b0d; color:#fff; text-align:center; padding:10px 0; border-radius:4px; margin-bottom:18px; }}
   .title-banner h2{{ font-size:12pt; font-weight:700; letter-spacing:2px; text-transform:uppercase; }}
   .title-banner p{{ font-size:8pt; color:rgba(255,255,255,0.8); margin-top:3px; }}
   .info-grid{{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:18px; }}
@@ -945,7 +945,7 @@ class RapportViewSet(viewsets.ModelViewSet):
 </head>
 <body>
 <div class="no-print" style="text-align:right;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
-  <button onclick="window.print()" style="background:#102a43;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">Imprimer / Enregistrer PDF</button>
+  <button onclick="window.print()" style="background:#0a0b0d;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">Imprimer / Enregistrer PDF</button>
 </div>
 <div style="padding:20px 24px;">
 <div class="header">
@@ -1271,34 +1271,34 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
   @page {{ margin: 18mm 15mm; }}
   *{{ box-sizing:border-box; margin:0; padding:0; }}
   body{{ font-family:Arial,Helvetica,sans-serif; font-size:10pt; color:#111; background:#fff; }}
-  .header{{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #102a43; padding-bottom:12px; margin-bottom:18px; }}
+  .header{{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #0a0b0d; padding-bottom:12px; margin-bottom:18px; }}
   .brand{{ display:flex; align-items:center; gap:12px; }}
-  .logo-circle{{ width:52px; height:52px; border-radius:50%; background:#102a43; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }}
-  .brand-text h1{{ font-size:13pt; font-weight:900; color:#102a43; text-transform:uppercase; letter-spacing:1px; }}
+  .logo-circle{{ width:52px; height:52px; border-radius:50%; background:#0a0b0d; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }}
+  .brand-text h1{{ font-size:13pt; font-weight:900; color:#0a0b0d; text-transform:uppercase; letter-spacing:1px; }}
   .brand-text p{{ font-size:8pt; color:#555; margin-top:1px; }}
   .cert-badge{{ text-align:right; }}
-  .title-banner{{ background:#102a43; color:#fff; text-align:center; padding:10px 0; border-radius:4px; margin-bottom:18px; }}
+  .title-banner{{ background:#0a0b0d; color:#fff; text-align:center; padding:10px 0; border-radius:4px; margin-bottom:18px; }}
   .title-banner h2{{ font-size:12pt; font-weight:700; letter-spacing:2px; text-transform:uppercase; }}
   .title-banner p{{ font-size:8pt; color:rgba(255,255,255,0.7); margin-top:3px; letter-spacing:1px; }}
   .info-card{{ border:1px solid #e5e7eb; border-radius:6px; padding:10px 14px; }}
   .card-title{{ font-size:7pt; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:#ff6b1a; margin-bottom:6px; }}
-  .card-main{{ font-size:11pt; font-weight:700; color:#102a43; line-height:1.3; }}
-  .sec-title{{ font-size:8pt; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:#102a43; border-bottom:1.5px solid #102a43; padding-bottom:4px; margin-bottom:8px; margin-top:16px; }}
+  .card-main{{ font-size:11pt; font-weight:700; color:#0a0b0d; line-height:1.3; }}
+  .sec-title{{ font-size:8pt; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:#0a0b0d; border-bottom:1.5px solid #0a0b0d; padding-bottom:4px; margin-bottom:8px; margin-top:16px; }}
   table{{ width:100%; border-collapse:collapse; font-size:9pt; }}
-  th{{ background:#f1f5f9; color:#102a43; font-weight:700; padding:6px 10px; text-align:left; font-size:8pt; text-transform:uppercase; }}
+  th{{ background:#f1f5f9; color:#0a0b0d; font-weight:700; padding:6px 10px; text-align:left; font-size:8pt; text-transform:uppercase; }}
   td{{ padding:5px 10px; border-bottom:1px solid #f1f5f9; color:#111; }}
   .center{{ text-align:center; }} .bold{{ font-weight:700; }} .muted{{ color:#9ca3af; font-style:italic; }}
   .sig-row{{ display:flex; gap:24px; margin-top:18px; }}
   .sig-block{{ flex:1; border-top:1.5px solid #111; padding-top:6px; }}
   .sig-label{{ font-size:7.5pt; color:#777; text-transform:uppercase; letter-spacing:1px; }}
-  .sig-name{{ font-size:10pt; font-weight:700; color:#102a43; margin-top:2px; }}
+  .sig-name{{ font-size:10pt; font-weight:700; color:#0a0b0d; margin-top:2px; }}
   .footer{{ margin-top:24px; padding-top:10px; border-top:1px solid #e5e7eb; display:flex; justify-content:space-between; font-size:7.5pt; color:#9ca3af; }}
   @media print{{ body{{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }} .no-print{{ display:none!important; }} }}
 </style>
 </head>
 <body>
 <div class="no-print" style="text-align:right;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
-  <button onclick="window.print()" style="background:#102a43;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">Imprimer / Enregistrer PDF</button>
+  <button onclick="window.print()" style="background:#0a0b0d;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">Imprimer / Enregistrer PDF</button>
 </div>
 <div style="padding:20px 24px;">
 <div class="header">
@@ -1310,7 +1310,7 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
     </div>
   </div>
   <div class="cert-badge">
-    <div style="font-size:11pt; font-weight:700; color:#102a43;">{date_insp}</div>
+    <div style="font-size:11pt; font-weight:700; color:#0a0b0d;">{date_insp}</div>
     <div style="font-size:7.5pt;color:#777;text-transform:uppercase;letter-spacing:1px;">Date d'inspection</div>
     <div style="font-size:8pt;color:#555;margin-top:3px;">Certificat N° {cert.numero}</div>
   </div>
@@ -1415,16 +1415,16 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
   @page {{ margin: 14mm 12mm; }}
   *{{ box-sizing:border-box; margin:0; padding:0; }}
   body{{ font-family:Arial,Helvetica,sans-serif; font-size:9pt; color:#000; background:#fff; }}
-  .header{{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #102a43; padding-bottom:10px; margin-bottom:14px; }}
+  .header{{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #0a0b0d; padding-bottom:10px; margin-bottom:14px; }}
   .brand{{ display:flex; align-items:center; gap:12px; }}
-  .logo-circle{{ width:46px; height:46px; border-radius:50%; background:#102a43; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }}
-  .brand-text h1{{ font-size:12pt; font-weight:900; color:#102a43; text-transform:uppercase; }}
+  .logo-circle{{ width:46px; height:46px; border-radius:50%; background:#0a0b0d; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }}
+  .brand-text h1{{ font-size:12pt; font-weight:900; color:#0a0b0d; text-transform:uppercase; }}
   .brand-text p{{ font-size:7.5pt; color:#444; margin-top:1px; }}
   .info-grid{{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:18px; }}
   .info-card{{ border:1px solid #ccc; border-radius:4px; padding:8px 12px; }}
   .card-title{{ font-size:7pt; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:#555; margin-bottom:4px; }}
   .card-main{{ font-size:10pt; font-weight:700; color:#000; }}
-  .title-banner{{ background:#102a43; color:#fff; text-align:center; padding:8px 0; border-radius:4px; margin-bottom:12px; }}
+  .title-banner{{ background:#0a0b0d; color:#fff; text-align:center; padding:8px 0; border-radius:4px; margin-bottom:12px; }}
   .title-banner h2{{ font-size:11pt; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; }}
   .sec-title{{ font-size:8.5pt; font-weight:700; text-transform:uppercase; color:#000; border-bottom:2px solid #000; padding-bottom:3px; margin-bottom:6px; margin-top:14px; }}
   table{{ width:100%; border-collapse:collapse; font-size:8pt; }}
@@ -1439,7 +1439,7 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
 </head>
 <body>
 <div class="no-print" style="text-align:right;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
-  <button onclick="window.print()" style="background:#102a43;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">Imprimer / Enregistrer PDF</button>
+  <button onclick="window.print()" style="background:#0a0b0d;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">Imprimer / Enregistrer PDF</button>
 </div>
 <div style="padding:16px 20px;">
 <div class="header">

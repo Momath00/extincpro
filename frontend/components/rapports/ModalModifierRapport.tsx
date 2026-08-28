@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ORANGE = '#dc2626'
+const NAVY = '#0a0b0d'
+const ORANGE = '#e11324'
 
 /**
  * Modal partagée — réassigner les techniciens, le citoyen, ou corriger
@@ -159,7 +159,7 @@ export default function ModalModifierRapport({
             <select
               value={selectedCitoyenId}
               onChange={e => setSelectedCitoyenId(e.target.value)}
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]"
+              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
             >
               <option value="">— Aucun —</option>
               {citoyens.map((c: any) => (
@@ -182,7 +182,7 @@ export default function ModalModifierRapport({
                     type="text"
                     value={adresse.numero_civique}
                     onChange={e => setAdresse({ ...adresse, numero_civique: e.target.value })}
-                    className="w-full border border-gray-200 rounded-md px-2.5 py-2 text-sm focus:outline-none focus:border-[#dc2626]"
+                    className="w-full border border-gray-200 rounded-md px-2.5 py-2 text-sm focus:outline-none focus:border-[#e11324]"
                   />
                 </div>
                 <div className="col-span-2">
@@ -191,7 +191,7 @@ export default function ModalModifierRapport({
                     type="text"
                     value={adresse.rue}
                     onChange={e => setAdresse({ ...adresse, rue: e.target.value })}
-                    className="w-full border border-gray-200 rounded-md px-2.5 py-2 text-sm focus:outline-none focus:border-[#dc2626]"
+                    className="w-full border border-gray-200 rounded-md px-2.5 py-2 text-sm focus:outline-none focus:border-[#e11324]"
                   />
                 </div>
               </div>
@@ -201,7 +201,7 @@ export default function ModalModifierRapport({
                   type="text"
                   value={adresse.ville}
                   onChange={e => setAdresse({ ...adresse, ville: e.target.value })}
-                  className="w-full border border-gray-200 rounded-md px-2.5 py-2 text-sm focus:outline-none focus:border-[#dc2626]"
+                  className="w-full border border-gray-200 rounded-md px-2.5 py-2 text-sm focus:outline-none focus:border-[#e11324]"
                 />
               </div>
               <div>
@@ -210,7 +210,7 @@ export default function ModalModifierRapport({
                   type="text"
                   value={adresse.code_postal}
                   onChange={e => setAdresse({ ...adresse, code_postal: e.target.value })}
-                  className="w-full border border-gray-200 rounded-md px-2.5 py-2 text-sm focus:outline-none focus:border-[#dc2626]"
+                  className="w-full border border-gray-200 rounded-md px-2.5 py-2 text-sm focus:outline-none focus:border-[#e11324]"
                 />
               </div>
             </div>

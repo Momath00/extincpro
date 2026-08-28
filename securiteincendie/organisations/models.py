@@ -50,3 +50,35 @@ class OrganisationModule(models.Model):
 
     def __str__(self):
         return f"{self.organisation.nom} — {self.module.nom} ({'actif' if self.actif else 'inactif'})"
+
+
+class DemandeEssai(models.Model):
+    """Une demande d'essai gratuit soumise via le formulaire de contact du
+    site vitrine — capturée en plus du courriel de notification, pour que
+    le super-admin puisse la suivre et la traiter depuis la plateforme."""
+
+    class Statut(models.TextChoices):
+        NOUVEAU = "nouveau", "Nouveau"
+        CONTACTE = "contacte", "Contacté"
+        CONVERTI = "converti", "Converti"
+        REJETE = "rejete", "Rejeté"
+
+    nom_complet = models.CharField(max_length=200)
+    entreprise = models.CharField(max_length=150, blank=True)
+    email = models.EmailField()
+    telephone = models.CharField(max_length=30, blank=True)
+    message = models.TextField()
+    statut = models.CharField(max_length=20, choices=Statut.choices, default=Statut.NOUVEAU)
+    organisation_creee = models.ForeignKey(
+        Organisation, on_delete=models.SET_NULL, null=True, blank=True,
+        help_text="Renseigné une fois la demande convertie en organisation cliente.",
+    )
+    note_interne = models.TextField(blank=True)
+    date_creation = models.DateTimeField(auto_now_add=True)
+    date_maj = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date_creation"]
+
+    def __str__(self):
+        return f"{self.nom_complet} ({self.entreprise or 'sans entreprise'}) — {self.get_statut_display()}"

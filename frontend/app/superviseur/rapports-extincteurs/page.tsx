@@ -6,8 +6,8 @@ import Link from 'next/link'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ORANGE = '#dc2626'
+const NAVY = '#0a0b0d'
+const ORANGE = '#e11324'
 
 function RapportsExtincteursListContent() {
   const router = useRouter()
@@ -157,7 +157,7 @@ function RapportsExtincteursListContent() {
             value={recherche}
             onChange={e => setRecherche(e.target.value)}
             placeholder="Rechercher adresse, client..."
-            className="w-full pl-8 pr-8 py-2 text-sm border border-gray-100 rounded-md focus:outline-none focus:border-[#dc2626] bg-white"
+            className="w-full pl-8 pr-8 py-2 text-sm border border-gray-100 rounded-md focus:outline-none focus:border-[#e11324] bg-white"
           />
           {recherche && (
             <button onClick={() => setRecherche('')}
@@ -209,7 +209,7 @@ function RapportsExtincteursListContent() {
                         style={{ color: ferme ? '#0d6b4f' : '#9a4a13' }} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold truncate group-hover:text-[#dc2626] transition-colors" style={{ color: NAVY }}>
+                      <p className="text-sm font-semibold truncate group-hover:text-[#e11324] transition-colors" style={{ color: NAVY }}>
                         {r.batiment?.adresse_complete || '—'}
                       </p>
                       {r.date_inspection && (
@@ -221,7 +221,7 @@ function RapportsExtincteursListContent() {
                     <button
                       onClick={e => { e.preventDefault(); e.stopPropagation(); setModif({ rapport: r, mode: 'adresse' }) }}
                       title="Corriger l'adresse"
-                      className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-[#dc2626] hover:bg-orange-50 transition-colors"
+                      className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-[#e11324] hover:bg-orange-50 transition-colors"
                     >
                       <i className="ti ti-pencil text-xs" />
                     </button>
@@ -239,7 +239,7 @@ function RapportsExtincteursListContent() {
                     <button
                       onClick={e => { e.preventDefault(); e.stopPropagation(); setModif({ rapport: r, mode: 'citoyen' }) }}
                       title="Modifier le citoyen assigné"
-                      className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-[#dc2626] hover:bg-orange-50 transition-colors"
+                      className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-[#e11324] hover:bg-orange-50 transition-colors"
                     >
                       <i className="ti ti-pencil text-xs" />
                     </button>
@@ -259,7 +259,7 @@ function RapportsExtincteursListContent() {
                     <button
                       onClick={e => { e.preventDefault(); e.stopPropagation(); setModif({ rapport: r, mode: 'technicien' }) }}
                       title="Réassigner les techniciens"
-                      className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-[#dc2626] hover:bg-orange-50 transition-colors"
+                      className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-[#e11324] hover:bg-orange-50 transition-colors"
                     >
                       <i className="ti ti-pencil text-xs" />
                     </button>

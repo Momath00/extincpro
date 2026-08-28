@@ -33,7 +33,7 @@ html {
 .sidebar-scroll {
   scroll-behavior: smooth;
   scrollbar-width: auto;
-  scrollbar-color: #dc2626 rgba(255, 255, 255, 0.06);
+  scrollbar-color: #e11324 rgba(255, 255, 255, 0.06);
 }
 
 .sidebar-scroll::-webkit-scrollbar {
@@ -45,7 +45,7 @@ html {
 }
 
 .sidebar-scroll::-webkit-scrollbar-thumb {
-  background-color: #dc2626;
+  background-color: #e11324;
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;
@@ -53,6 +53,6 @@ html {
 }
 
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-  background-color: #ef4444;
+  background-color: #ff2438;
   background-clip: padding-box;
 }

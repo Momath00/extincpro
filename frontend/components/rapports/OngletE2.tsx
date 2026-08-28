@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
 import { E2_STRUCTURE } from '@/lib/e2Structure'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ORANGE = '#dc2626'
+const NAVY = '#0a0b0d'
+const ORANGE = '#e11324'
 
 function Toast({ msg, type }: { msg: string; type: 'success' | 'error' }) {
   return (
@@ -139,7 +139,7 @@ export default function OngletE2({
                     value={sectionData.localisation || ''}
                     onChange={e => updateSectionField(sectionActive, 'localisation', e.target.value)}
                     placeholder="ex. Rez-de-chaussée, local 101"
-                    className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]"
+                    className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
                   />
                 )}
               </div>
@@ -157,7 +157,7 @@ export default function OngletE2({
                     value={sectionData.description || ''}
                     onChange={e => updateSectionField(sectionActive, 'description', e.target.value)}
                     placeholder="ex. Panneau VIGILANT XL"
-                    className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626]"
+                    className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
                   />
                 )}
               </div>
@@ -177,7 +177,7 @@ export default function OngletE2({
                   onChange={e => updateSectionField(sectionActive, 'remarques', e.target.value)}
                   placeholder={section.items[0]?.placeholder || 'Saisir vos remarques...'}
                   rows={5}
-                  className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#dc2626] resize-none"
+                  className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324] resize-none"
                 />
               )}
             </div>
@@ -201,7 +201,7 @@ export default function OngletE2({
                         <select
                           value={sectionData[item.id] || ''}
                           onChange={e => updateSectionField(sectionActive, item.id, e.target.value)}
-                          className="border border-gray-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#dc2626]"
+                          className="border border-gray-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#e11324]"
                         >
                           <option value="">—</option>
                           <option value="oui">Oui</option>
@@ -221,7 +221,7 @@ export default function OngletE2({
                           value={sectionData[item.id] || ''}
                           onChange={e => updateSectionField(sectionActive, item.id, e.target.value)}
                           placeholder={item.placeholder || ''}
-                          className="w-full border border-gray-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#dc2626]"
+                          className="w-full border border-gray-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#e11324]"
                         />
                       )
                     )}

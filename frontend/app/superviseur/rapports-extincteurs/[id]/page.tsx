@@ -7,8 +7,8 @@ import TableExtincteurs from '@/components/rapports-extincteurs/TableExtincteurs
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-const NAVY = '#0f172a'
-const ORANGE = '#dc2626'
+const NAVY = '#0a0b0d'
+const ORANGE = '#e11324'
 
 async function downloadHtml(url: string) {
   const token = localStorage.getItem('access_token')
@@ -46,7 +46,7 @@ function CertificatTab({
   return (
     <div className="max-w-lg">
       <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
-        <div className="px-8 py-10 text-center" style={{ background: 'linear-gradient(135deg,#0f172a,#000000)' }}>
+        <div className="px-8 py-10 text-center" style={{ background: 'linear-gradient(135deg,#0a0b0d,#000000)' }}>
           <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
             <i className="ti ti-certificate text-white text-3xl" />
           </div>
@@ -243,7 +243,7 @@ export default function SuperviseurRapportExtincteurDetailPage() {
       )}
 
       <Link href="/superviseur/rapports-extincteurs"
-        className="text-xs text-gray-400 hover:text-[#0f172a] flex items-center gap-1 mb-4">
+        className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1 mb-4">
         <i className="ti ti-arrow-left" /> Retour aux rapports
       </Link>
 
@@ -361,7 +361,7 @@ export default function SuperviseurRapportExtincteurDetailPage() {
           : <span className="text-xs text-gray-300 italic">Aucun technicien assigné</span>}
         <button
           onClick={() => setModalMode('technicien')}
-          className="text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-200 hover:border-[#dc2626] transition-colors flex items-center gap-1"
+          className="text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-200 hover:border-[#e11324] transition-colors flex items-center gap-1"
           style={{ color: NAVY }}
         >
           <i className="ti ti-edit text-[11px]" /> Réassigner
@@ -379,7 +379,7 @@ export default function SuperviseurRapportExtincteurDetailPage() {
         )}
         <button
           onClick={() => setModalMode('citoyen')}
-          className="text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-200 hover:border-[#dc2626] transition-colors flex items-center gap-1"
+          className="text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-200 hover:border-[#e11324] transition-colors flex items-center gap-1"
           style={{ color: NAVY }}
         >
           <i className="ti ti-edit text-[11px]" /> Réassigner

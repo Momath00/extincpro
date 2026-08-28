@@ -1,10 +1,12 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
-const RED = '#0f172a'
-const ACCENT = '#dc2626'
+const RED = '#0a0b0d'
+const ACCENT = '#e11324'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 const NAV_GROUPS = [
   {
@@ -15,6 +17,7 @@ const NAV_GROUPS = [
     label: 'Plateforme',
     items: [
       { href: '/super-admin/organisations', label: 'Organisations', icon: 'ti-building-skyscraper' },
+      { href: '/super-admin/demandes', label: "Demandes d'essai", icon: 'ti-inbox', badgeKey: 'demandes' },
     ],
   },
 ]
@@ -22,6 +25,20 @@ const NAV_GROUPS = [
 export default function SuperAdminSidebar({ user, onClose }: { user: any; onClose?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
+  const [nbNouvellesDemandes, setNbNouvellesDemandes] = useState(0)
+
+  useEffect(() => {
+    const token = localStorage.getItem('access_token')
+    if (!token) return
+    fetch(`${API_URL}/api/demandes-essai/`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (!data) return
+        const liste = Array.isArray(data) ? data : (data.results || [])
+        setNbNouvellesDemandes(liste.filter((d: any) => d.statut === 'nouveau').length)
+      })
+      .catch(() => {})
+  }, [])
 
   function logout() {
     localStorage.removeItem('access_token')
@@ -39,8 +56,17 @@ export default function SuperAdminSidebar({ user, onClose }: { user: any; onClos
             <i className="ti ti-x text-lg" />
           </button>
         )}
-        <div className="w-14 h-14 rounded-full mx-auto mb-2 flex items-center justify-center" style={{ background: ACCENT }}>
-          <i className="ti ti-shield-lock text-white text-2xl" />
+        <div className="w-14 h-14 rounded-full bg-white mx-auto mb-2 flex items-center justify-center overflow-hidden shadow-lg">
+          <img
+            src="/logo-mark.png"
+            alt="ExtincPro"
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none'
+              const p = e.currentTarget.parentElement
+              if (p) p.innerHTML = `<span style="font-size:18px;font-weight:800;color:${RED};">EP</span>`
+            }}
+          />
         </div>
         <p className="text-white text-sm font-bold tracking-wide">EXTINCPRO</p>
         <p className="text-white/40 text-[10px] font-semibold uppercase tracking-widest mt-0.5">Super admin</p>
@@ -55,6 +81,7 @@ export default function SuperAdminSidebar({ user, onClose }: { user: any; onClos
             <div className="flex flex-col gap-0.5">
               {group.items.map(item => {
                 const active = pathname === item.href || pathname.startsWith(item.href + '/')
+                const badge = (item as any).badgeKey === 'demandes' ? nbNouvellesDemandes : 0
                 return (
                   <Link
                     key={item.href}
@@ -64,11 +91,19 @@ export default function SuperAdminSidebar({ user, onClose }: { user: any; onClos
                     style={{
                       background: active ? ACCENT : 'transparent',
                       color: active ? '#fff' : 'rgba(255,255,255,0.65)',
-                      boxShadow: active ? '0 2px 8px rgba(220,38,38,0.35)' : 'none',
+                      boxShadow: active ? '0 2px 8px rgba(225,19,36,0.35)' : 'none',
                     }}
                   >
                     <i className={`ti ${item.icon} text-base`} />
-                    {item.label}
+                    <span className="flex-1 text-left">{item.label}</span>
+                    {badge > 0 && (
+                      <span
+                        className="flex-shrink-0 rounded-full text-[10px] font-bold px-1.5 py-0.5 min-w-[18px] text-center shadow-sm animate-pulse"
+                        style={{ background: '#fff', color: ACCENT }}
+                      >
+                        {badge}
+                      </span>
+                    )}
                   </Link>
                 )
               })}
