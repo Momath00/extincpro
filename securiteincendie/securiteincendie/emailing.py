@@ -51,9 +51,13 @@ def organisation_logo_content(organisation, size_px: int = 46) -> str:
     ExtincPro par défaut."""
     logo = getattr(organisation, "logo", "") if organisation else ""
     if logo and logo.startswith("data:image/"):
+        # Hauteur fixe, largeur libre (jusqu'à un plafond) — le logo garde son
+        # ratio naturel au lieu d'être écrasé dans un cadre carré ou circulaire
+        # qui ne convient qu'à l'écusson ExtincPro.
         return (
             f'<img src="{logo}" '
-            f'style="width:{size_px}px;height:{size_px}px;object-fit:contain;" alt="{organisation.nom}" />'
+            f'style="height:{size_px}px;max-width:{size_px * 3}px;width:auto;object-fit:contain;" '
+            f'alt="{organisation.nom}" />'
         )
     return logo_data_uri(size_px)
 

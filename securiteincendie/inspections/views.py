@@ -673,7 +673,8 @@ class RapportViewSet(viewsets.ModelViewSet):
   body{{ font-family:Arial,Helvetica,sans-serif; font-size:10pt; color:#111; background:#fff; }}
   .header{{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #0a0b0d; padding-bottom:12px; margin-bottom:18px; }}
   .brand{{ display:flex; align-items:center; gap:12px; }}
-  .logo-circle{{ width:52px; height:52px; border-radius:50%; background:#0a0b0d; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }}
+  .logo-box{{ height:52px; max-width:170px; display:flex; align-items:center; flex-shrink:0; }}
+  .logo-box img{{ max-height:100%; max-width:100%; }}
   .brand-text h1{{ font-size:13pt; font-weight:900; color:#0a0b0d; text-transform:uppercase; letter-spacing:1px; }}
   .brand-text p{{ font-size:8pt; color:#555; margin-top:1px; }}
   .cert-badge{{ text-align:right; }}
@@ -710,7 +711,7 @@ class RapportViewSet(viewsets.ModelViewSet):
 <div style="padding:20px 24px;">
 <div class="header">
   <div class="brand">
-    <div class="logo-circle">{logo_content}</div>
+    <div class="logo-box">{logo_content}</div>
     <div class="brand-text">
       <h1>{organisation_nom}</h1>
       <p>Inspection &amp; Certification — Norme CAN/ULC-S536</p>
@@ -936,7 +937,8 @@ class RapportViewSet(viewsets.ModelViewSet):
   body{{ font-family:Arial,Helvetica,sans-serif; font-size:10pt; color:#000; background:#fff; }}
   .header{{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #0a0b0d; padding-bottom:12px; margin-bottom:18px; }}
   .brand{{ display:flex; align-items:center; gap:12px; }}
-  .logo-circle{{ width:52px; height:52px; border-radius:50%; background:#0a0b0d; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }}
+  .logo-box{{ height:52px; max-width:170px; display:flex; align-items:center; flex-shrink:0; }}
+  .logo-box img{{ max-height:100%; max-width:100%; }}
   .brand-text h1{{ font-size:13pt; font-weight:900; color:#0a0b0d; text-transform:uppercase; }}
   .brand-text p{{ font-size:8pt; color:#444; margin-top:1px; }}
   .title-banner{{ background:#0a0b0d; color:#fff; text-align:center; padding:10px 0; border-radius:4px; margin-bottom:18px; }}
@@ -964,7 +966,7 @@ class RapportViewSet(viewsets.ModelViewSet):
 <div style="padding:20px 24px;">
 <div class="header">
   <div class="brand">
-    <div class="logo-circle">{logo_content}</div>
+    <div class="logo-box">{logo_content}</div>
     <div class="brand-text">
       <h1>{organisation_nom}</h1>
       <p>Rapport d'inspection annuelle — CAN/ULC-S536</p>
@@ -1421,7 +1423,8 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
   body{{ font-family:Arial,Helvetica,sans-serif; font-size:10pt; color:#111; background:#fff; }}
   .header{{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #0a0b0d; padding-bottom:12px; margin-bottom:18px; }}
   .brand{{ display:flex; align-items:center; gap:12px; }}
-  .logo-circle{{ width:52px; height:52px; border-radius:50%; background:#0a0b0d; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }}
+  .logo-box{{ height:52px; max-width:170px; display:flex; align-items:center; flex-shrink:0; }}
+  .logo-box img{{ max-height:100%; max-width:100%; }}
   .brand-text h1{{ font-size:13pt; font-weight:900; color:#0a0b0d; text-transform:uppercase; letter-spacing:1px; }}
   .brand-text p{{ font-size:8pt; color:#555; margin-top:1px; }}
   .cert-badge{{ text-align:right; }}
@@ -1451,7 +1454,7 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
 <div style="padding:20px 24px;">
 <div class="header">
   <div class="brand">
-    <div class="logo-circle">{logo_content}</div>
+    <div class="logo-box">{logo_content}</div>
     <div class="brand-text">
       <h1>{organisation_nom}</h1>
       <p>Inspection &amp; Certification — Extincteurs portatifs</p>
@@ -1566,7 +1569,8 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
   body{{ font-family:Arial,Helvetica,sans-serif; font-size:9pt; color:#000; background:#fff; }}
   .header{{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #0a0b0d; padding-bottom:10px; margin-bottom:14px; }}
   .brand{{ display:flex; align-items:center; gap:12px; }}
-  .logo-circle{{ width:46px; height:46px; border-radius:50%; background:#0a0b0d; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }}
+  .logo-box{{ height:46px; max-width:150px; display:flex; align-items:center; flex-shrink:0; }}
+  .logo-box img{{ max-height:100%; max-width:100%; }}
   .brand-text h1{{ font-size:12pt; font-weight:900; color:#0a0b0d; text-transform:uppercase; }}
   .brand-text p{{ font-size:7.5pt; color:#444; margin-top:1px; }}
   .info-grid{{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:18px; }}
@@ -1593,7 +1597,7 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
 <div style="padding:16px 20px;">
 <div class="header">
   <div class="brand">
-    <div class="logo-circle">{logo_content}</div>
+    <div class="logo-box">{logo_content}</div>
     <div class="brand-text">
       <h1>{organisation_nom}</h1>
       <p>Rapport de vérification — Extincteurs portatifs</p>

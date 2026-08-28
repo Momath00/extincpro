@@ -15,6 +15,7 @@ from .serializers import (
     DemandeEssaiSerializer,
     OrganisationCreateSerializer,
     OrganisationSerializer,
+    valider_logo,
 )
 
 Utilisateur = get_user_model()
@@ -57,10 +58,9 @@ class OrganisationViewSet(viewsets.ModelViewSet):
             champs.append("adresse")
         if "logo" in request.data:
             logo = request.data["logo"] or ""
-            if logo and not logo.startswith("data:image/"):
-                return Response({"error": "Le logo doit être une image encodée en data URI."}, status=status.HTTP_400_BAD_REQUEST)
-            if len(logo) > 700_000:
-                return Response({"error": "Le logo est trop volumineux (700 Ko max)."}, status=status.HTTP_400_BAD_REQUEST)
+            erreur = valider_logo(logo)
+            if erreur:
+                return Response({"error": erreur}, status=status.HTTP_400_BAD_REQUEST)
             organisation.logo = logo
             champs.append("logo")
         if champs:
