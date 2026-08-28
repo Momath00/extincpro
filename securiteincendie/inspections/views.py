@@ -7,7 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from securiteincendie.emailing import logo_data_uri
+from securiteincendie.emailing import logo_data_uri, organisation_logo_content
 
 from accounts.models import Utilisateur
 from .models import (
@@ -642,7 +642,7 @@ class RapportViewSet(viewsets.ModelViewSet):
             if e1.commentaires:
                 conf_html += f"<div style='margin-top:6px;font-size:8.5pt;color:#555;font-style:italic;'>Commentaires : {e1.commentaires}</div>"
 
-        logo_content = logo_data_uri(46)
+        logo_content = organisation_logo_content(bat.client.organisation, 46)
         emetteur = cert.emis_par.get_full_name() or cert.emis_par.username if cert.emis_par else "—"
         conforme = cert.conforme
         conf_badge_color = "#0d6b4f" if conforme else "#e11324"
@@ -909,7 +909,7 @@ class RapportViewSet(viewsets.ModelViewSet):
                 f'</div>'
             )
 
-        logo_content = logo_data_uri(46)
+        logo_content = organisation_logo_content(bat.client.organisation, 46)
 
         html = f"""<!DOCTYPE html>
 <html lang="fr">
@@ -1259,7 +1259,7 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
             for t in techniciens
         ) or "<tr><td class='muted'>—</td></tr>"
 
-        logo_content = logo_data_uri(46)
+        logo_content = organisation_logo_content(bat.client.organisation, 46)
         emetteur = cert.emis_par.get_full_name() or cert.emis_par.username if cert.emis_par else "—"
 
         html = f"""<!DOCTYPE html>
@@ -1404,7 +1404,7 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
                 f'</div>'
             )
 
-        logo_content = logo_data_uri(46)
+        logo_content = organisation_logo_content(bat.client.organisation, 46)
 
         html = f"""<!DOCTYPE html>
 <html lang="fr">

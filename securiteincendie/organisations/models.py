@@ -9,6 +9,11 @@ class Organisation(models.Model):
     nom = models.CharField(max_length=150, unique=True)
     slug = models.SlugField(max_length=160, unique=True)
     adresse = models.CharField(max_length=300, blank=True)
+    logo = models.TextField(
+        blank=True, default="",
+        help_text="Logo de l'organisation, en data URI base64 — affiché sur ses rapports et "
+                   "certificats (ExtincPro fournit le logiciel, chaque organisation garde sa marque).",
+    )
     est_active = models.BooleanField(
         default=True,
         help_text="Coupe-circuit global — désactive l'accès à la plateforme pour toute l'organisation.",

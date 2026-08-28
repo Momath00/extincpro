@@ -55,6 +55,14 @@ class OrganisationViewSet(viewsets.ModelViewSet):
         if "adresse" in request.data:
             organisation.adresse = request.data["adresse"]
             champs.append("adresse")
+        if "logo" in request.data:
+            logo = request.data["logo"] or ""
+            if logo and not logo.startswith("data:image/"):
+                return Response({"error": "Le logo doit être une image encodée en data URI."}, status=status.HTTP_400_BAD_REQUEST)
+            if len(logo) > 700_000:
+                return Response({"error": "Le logo est trop volumineux (700 Ko max)."}, status=status.HTTP_400_BAD_REQUEST)
+            organisation.logo = logo
+            champs.append("logo")
         if champs:
             organisation.save(update_fields=champs)
         return Response(OrganisationSerializer(organisation).data)

@@ -44,6 +44,20 @@ def logo_data_uri(size_px: int = 52) -> str:
     return _LOGO_CACHE[size_px]
 
 
+def organisation_logo_content(organisation, size_px: int = 46) -> str:
+    """Logo à afficher sur un rapport/certificat : celui de l'organisation
+    cliente si elle en a défini un (ExtincPro fournit le logiciel, chaque
+    organisation garde sa propre marque sur ses documents), sinon le logo
+    ExtincPro par défaut."""
+    logo = getattr(organisation, "logo", "") if organisation else ""
+    if logo and logo.startswith("data:image/"):
+        return (
+            f'<img src="{logo}" '
+            f'style="width:{size_px}px;height:{size_px}px;object-fit:contain;" alt="{organisation.nom}" />'
+        )
+    return logo_data_uri(size_px)
+
+
 def logo_img_tag(size_px: int = 44) -> str:
     """
     <img> pointant vers une URL publique stable (EMAIL_LOGO_URL). Les clients

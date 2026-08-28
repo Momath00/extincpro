@@ -84,10 +84,14 @@ export default function OrganisationsPage() {
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-3">
                       <div
-                        className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center text-white text-xs font-bold shadow-sm transition-transform group-hover:scale-105"
-                        style={{ background: `linear-gradient(135deg, ${NAVY}, #1e293b)` }}
+                        className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center text-white text-xs font-bold shadow-sm transition-transform group-hover:scale-105 overflow-hidden"
+                        style={{ background: o.logo ? '#fff' : `linear-gradient(135deg, ${NAVY}, #1e293b)`, border: o.logo ? '1px solid #f1f5f9' : 'none' }}
                       >
-                        {o.nom[0]?.toUpperCase()}
+                        {o.logo ? (
+                          <img src={o.logo} alt={o.nom} className="w-full h-full object-contain p-0.5" />
+                        ) : (
+                          o.nom[0]?.toUpperCase()
+                        )}
                       </div>
                       <div className="min-w-0">
                         <p className="font-semibold" style={{ color: NAVY }}>{o.nom}</p>

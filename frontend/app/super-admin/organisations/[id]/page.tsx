@@ -44,6 +44,9 @@ export default function OrganisationDetailPage() {
   const [busyUtilisateur, setBusyUtilisateur] = useState<number | null>(null)
   const [busySelection, setBusySelection] = useState(false)
 
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [logoErreur, setLogoErreur] = useState('')
+
   const [modalOuvert, setModalOuvert] = useState(false)
   const [formUsername, setFormUsername] = useState('')
   const [formEmail, setFormEmail] = useState('')
@@ -90,6 +93,51 @@ export default function OrganisationDetailPage() {
     })
     if (res.ok) setOrganisation(await res.json())
     setBusyModule(null)
+  }
+
+  async function handleLogoFile(file: File) {
+    setLogoErreur('')
+    if (file.size > 500 * 1024) {
+      setLogoErreur('Image trop volumineuse (500 Ko max).')
+      return
+    }
+    const dataUri: string = await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+
+    setUploadingLogo(true)
+    try {
+      const res = await fetch(`${API_URL}/api/organisations/${id}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ logo: dataUri }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setLogoErreur(data.error || "Erreur lors de l'envoi du logo."); return }
+      setOrganisation(data)
+    } catch {
+      setLogoErreur('Erreur réseau.')
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
+  async function retirerLogo() {
+    setUploadingLogo(true)
+    setLogoErreur('')
+    try {
+      const res = await fetch(`${API_URL}/api/organisations/${id}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ logo: '' }),
+      })
+      if (res.ok) setOrganisation(await res.json())
+    } finally {
+      setUploadingLogo(false)
+    }
   }
 
   async function toggleStatutOrganisation() {
@@ -189,12 +237,28 @@ export default function OrganisationDetailPage() {
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 mb-5">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div className="flex items-center gap-4 min-w-0">
-            <div
-              className="w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center text-white text-xl font-bold shadow-md"
-              style={{ background: `linear-gradient(135deg, ${NAVY}, #1e293b)` }}
+            <label
+              className="relative w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center text-white text-xl font-bold shadow-md overflow-hidden cursor-pointer group"
+              style={{ background: organisation.logo ? '#fff' : `linear-gradient(135deg, ${NAVY}, #1e293b)`, border: organisation.logo ? '1px solid #f1f5f9' : 'none' }}
+              title="Changer le logo de l'organisation"
             >
-              {organisation.nom[0]?.toUpperCase()}
-            </div>
+              {organisation.logo ? (
+                <img src={organisation.logo} alt={organisation.nom} className="w-full h-full object-contain p-1" />
+              ) : (
+                organisation.nom[0]?.toUpperCase()
+              )}
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                {uploadingLogo ? (
+                  <div className="w-4 h-4 border-2 rounded-full animate-spin border-white border-t-transparent" />
+                ) : (
+                  <i className="ti ti-camera text-white text-lg" />
+                )}
+              </div>
+              <input
+                type="file" accept="image/*" className="hidden" disabled={uploadingLogo}
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); e.target.value = '' }}
+              />
+            </label>
             <div className="min-w-0">
               <h1 className="text-2xl font-bold truncate" style={{ color: NAVY }}>{organisation.nom}</h1>
               <p className="text-gray-400 text-sm mt-0.5">{organisation.slug}</p>
@@ -203,6 +267,13 @@ export default function OrganisationDetailPage() {
                   <i className="ti ti-map-pin text-[11px]" /> {organisation.adresse}
                 </p>
               )}
+              <p className="text-gray-300 text-[11px] mt-1.5">
+                {organisation.logo ? 'Logo affiché sur les rapports et certificats de cette organisation. ' : "Aucun logo — le logo ExtincPro par défaut est utilisé sur ses documents. "}
+                {organisation.logo && (
+                  <button onClick={retirerLogo} disabled={uploadingLogo} className="text-red-500 hover:underline disabled:opacity-50">Retirer</button>
+                )}
+              </p>
+              {logoErreur && <p className="text-red-500 text-[11px] mt-1">{logoErreur}</p>}
             </div>
           </div>
           <span

@@ -24,6 +24,7 @@ class OrganisationSerializer(serializers.ModelSerializer):
             "nom",
             "slug",
             "adresse",
+            "logo",
             "est_active",
             "date_creation",
             "modules",
@@ -37,6 +38,16 @@ class OrganisationSerializer(serializers.ModelSerializer):
 
     def get_nb_utilisateurs(self, obj):
         return obj.utilisateurs.count()
+
+    def validate_logo(self, value):
+        if not value:
+            return value
+        if not value.startswith("data:image/"):
+            raise serializers.ValidationError("Le logo doit être une image encodée en data URI.")
+        # ~700 Ko encodé (~500 Ko réels) — assez pour un logo, trop petit pour un abus de stockage.
+        if len(value) > 700_000:
+            raise serializers.ValidationError("Le logo est trop volumineux (700 Ko max).")
+        return value
 
 
 class CreerSuperviseurSerializer(serializers.Serializer):
