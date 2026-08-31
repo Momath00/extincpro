@@ -5,6 +5,7 @@ from accounts.models import Utilisateur
 from .models import (
     AppelService,
     Batiment,
+    BoyauItem,
     Certificat,
     CertificatExtincteur,
     Client,
@@ -297,6 +298,19 @@ class ExtincteurItemSerializer(serializers.ModelSerializer):
         read_only_fields = ["rapport"]
 
 
+class BoyauItemSerializer(serializers.ModelSerializer):
+    longueur_display = serializers.CharField(source="get_longueur_display", read_only=True)
+    etat_display = serializers.CharField(source="get_etat_display", read_only=True)
+
+    class Meta:
+        model = BoyauItem
+        fields = [
+            "id", "rapport", "ordre", "etage", "etat", "etat_display", "emplacement",
+            "longueur", "longueur_display", "date_fabrication", "prochain_test_hydrostatique", "remarque",
+        ]
+        read_only_fields = ["rapport"]
+
+
 class CertificatExtincteurSerializer(serializers.ModelSerializer):
     class Meta:
         model = CertificatExtincteur
@@ -343,12 +357,13 @@ class RapportExtincteurListSerializer(serializers.ModelSerializer):
 class RapportExtincteurDetailSerializer(RapportExtincteurListSerializer):
     cree_par = UtilisateurSerializer(read_only=True)
     extincteurs = ExtincteurItemSerializer(many=True, read_only=True)
+    boyaux = BoyauItemSerializer(many=True, read_only=True)
     historique = HistoriqueRapportExtincteurSerializer(many=True, read_only=True)
     certificat = CertificatExtincteurSerializer(read_only=True)
 
     class Meta(RapportExtincteurListSerializer.Meta):
         fields = RapportExtincteurListSerializer.Meta.fields + [
-            "cree_par", "extincteurs", "historique", "certificat",
+            "cree_par", "extincteurs", "boyaux", "historique", "certificat",
         ]
 
 

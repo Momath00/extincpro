@@ -25,6 +25,7 @@ from .excel_utils import (
 from .models import (
     AppelService,
     Batiment,
+    BoyauItem,
     Client,
     Dispositif,
     ExtincteurItem,
@@ -40,6 +41,7 @@ from .serializers import (
     AppelServiceDetailSerializer,
     AppelServiceListSerializer,
     BatimentSerializer,
+    BoyauItemSerializer,
     ClientSerializer,
     DispositifSerializer,
     ExtincteurItemSerializer,
@@ -1373,6 +1375,26 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
         rapport.historiser(request.user, "Extincteur ajouté")
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @action(detail=True, methods=["get", "post"])
+    def boyaux(self, request, pk=None):
+        rapport = self.get_object()
+
+        if request.method == "GET":
+            return Response(BoyauItemSerializer(rapport.boyaux.all(), many=True).data)
+
+        if rapport.statut == RapportExtincteur.Statut.FERME and not request.user.est_superviseur():
+            return Response(
+                {"error": "Ce rapport est fermé, impossible d'ajouter un boyau."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = BoyauItemSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        ordre = serializer.validated_data.get("ordre") or (rapport.boyaux.count() + 1)
+        serializer.save(rapport=rapport, ordre=ordre)
+        rapport.historiser(request.user, "Boyau ajouté")
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
     @action(detail=True, methods=["get"])
     def historique(self, request, pk=None):
         rapport = self.get_object()
@@ -1527,20 +1549,42 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
                 f"<tr{bg}>"
                 f"<td class='center'>{it.ordre}</td>"
                 f"<td>{it.etage or '—'}</td>"
-                f"<td class='center bold'{etat_style}>{it.etat or '—'}</td>"
                 f"<td>{it.emplacement or '—'}</td>"
-                f"<td class='center'>{_date_fr(it.date_fabrication)}</td>"
-                f"<td class='center'>{it.get_format_display() if it.format else '—'}</td>"
                 f"<td class='center'>{it.get_type_extincteur_display() if it.type_extincteur else '—'}</td>"
+                f"<td class='center'>{it.get_format_display() if it.format else '—'}</td>"
                 f"<td>{it.get_marque_display() if it.marque else '—'}</td>"
                 f"<td>{it.numero_serie or '—'}</td>"
-                f"<td class='center'>{_date_fr(it.prochaine_maintenance)}</td>"
-                f"<td class='center'>{_date_fr(it.prochain_test_hydrostatique)}</td>"
+                f"<td class='center'>{it.date_fabrication or '—'}</td>"
+                f"<td class='center'>{it.prochaine_maintenance or '—'}</td>"
+                f"<td class='center'>{it.prochain_test_hydrostatique or '—'}</td>"
+                f"<td class='center bold'{etat_style}>{it.etat or '—'}</td>"
                 f"<td>{it.remarque or ''}</td>"
                 f"</tr>"
             )
         if not item_rows:
             item_rows = "<tr><td colspan='12' class='muted center'>Aucun extincteur enregistré</td></tr>"
+
+        boyaux = list(rapport.boyaux.all())
+        boyau_rows = ""
+        for b in boyaux:
+            is_defect = b.etat == BoyauItem.Etat.DEFECTUEUX
+            is_ni = not is_defect and b.etat == "NI"
+            bg = ' style="background:#fef2f2;"' if is_defect else ' style="background:#fef3c7;"' if is_ni else ""
+            etat_style = ' style="color:#cc0000;"' if is_defect else ' style="color:#b45309;"' if is_ni else ""
+            boyau_rows += (
+                f"<tr{bg}>"
+                f"<td class='center'>{b.ordre}</td>"
+                f"<td>{b.etage or '—'}</td>"
+                f"<td class='center bold'{etat_style}>{b.etat or '—'}</td>"
+                f"<td>{b.emplacement or '—'}</td>"
+                f"<td class='center'>{b.get_longueur_display() if b.longueur else '—'}</td>"
+                f"<td class='center'>{b.date_fabrication or '—'}</td>"
+                f"<td class='center'>{b.prochain_test_hydrostatique or '—'}</td>"
+                f"<td>{b.remarque or ''}</td>"
+                f"</tr>"
+            )
+        if not boyau_rows:
+            boyau_rows = "<tr><td colspan='8' class='muted center'>Aucun boyau enregistré</td></tr>"
 
         cert_html = ""
         if hasattr(rapport, "certificat"):
@@ -1620,11 +1664,19 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
 <div class="sec-title">Détail des extincteurs</div>
 <table>
   <thead><tr>
-    <th>No</th><th>Étage</th><th title="D=Défectueux, I=Inspecté, NI=Non inspecté">État</th><th>Emplacement</th><th>Date fabrication</th><th>Format</th>
-    <th>Type</th><th>Marque</th><th>N° série</th><th>Prochaine maintenance</th>
-    <th>Prochain test hydro.</th><th>Remarque</th>
+    <th>No</th><th>Étage</th><th>Emplacement</th><th>Type</th><th>Format</th><th>Marque</th><th>N° série</th>
+    <th>Date fabrication</th><th>Prochaine maintenance</th><th>Prochain test hydro.</th>
+    <th title="D=Défectueux, C=Conforme, NI=Non inspecté">État</th><th>Remarque</th>
   </tr></thead>
   <tbody>{item_rows}</tbody>
+</table>
+<div class="sec-title">Détail des boyaux d'incendie</div>
+<table>
+  <thead><tr>
+    <th>No</th><th>Étage</th><th title="D=Défectueux, C=Conforme, NI=Non inspecté">État</th><th>Emplacement</th>
+    <th>Longueur</th><th>Année fabrication</th><th>Prochain test hydro.</th><th>Remarque</th>
+  </tr></thead>
+  <tbody>{boyau_rows}</tbody>
 </table>
 {cert_html}
 <div class="footer">
@@ -1655,25 +1707,48 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
         )
 
         colonnes = [
-            "No", "Étage", "État", "Emplacement", "Date fabrication", "Format",
-            "Type", "Marque", "N° série", "Prochaine maintenance",
-            "Prochain test hydro.", "Remarque",
+            "No", "Étage", "Emplacement", "Type", "Format", "Marque", "N° série",
+            "Date fabrication", "Prochaine maintenance", "Prochain test hydro.",
+            "État", "Remarque",
         ]
         ligne = excel_ligne_entetes(ws, colonnes, ligne=6)
         for it in rapport.extincteurs.all():
             ligne += 1
             valeurs = [
-                it.ordre, it.etage, it.etat, it.emplacement,
-                _date_fr(it.date_fabrication), it.get_format_display() if it.format else "",
+                it.ordre, it.etage, it.emplacement,
                 it.get_type_extincteur_display() if it.type_extincteur else "",
+                it.get_format_display() if it.format else "",
                 it.get_marque_display() if it.marque else "", it.numero_serie,
-                _date_fr(it.prochaine_maintenance), _date_fr(it.prochain_test_hydrostatique),
-                it.remarque,
+                it.date_fabrication, it.prochaine_maintenance, it.prochain_test_hydrostatique,
+                it.etat, it.remarque,
             ]
             for col, valeur in enumerate(valeurs, start=1):
                 ws.cell(row=ligne, column=col, value=valeur)
         excel_ajuster_largeurs(ws, colonnes)
         ws.freeze_panes = "A7"
+
+        ws2 = wb.create_sheet("Boyaux")
+        excel_entete_rapport(
+            ws2, organisation_nom=bat.client.organisation.nom, adresse=adresse,
+            date_insp=_date_fr(rapport.date_inspection),
+            statut=rapport.get_statut_display(), techniciens=techniciens,
+        )
+        colonnes_boyaux = [
+            "No", "Étage", "État", "Emplacement", "Longueur",
+            "Année fabrication", "Prochain test hydro.", "Remarque",
+        ]
+        ligne2 = excel_ligne_entetes(ws2, colonnes_boyaux, ligne=6)
+        for b in rapport.boyaux.all():
+            ligne2 += 1
+            valeurs2 = [
+                b.ordre, b.etage, b.etat, b.emplacement,
+                b.get_longueur_display() if b.longueur else "",
+                b.date_fabrication, b.prochain_test_hydrostatique, b.remarque,
+            ]
+            for col, valeur in enumerate(valeurs2, start=1):
+                ws2.cell(row=ligne2, column=col, value=valeur)
+        excel_ajuster_largeurs(ws2, colonnes_boyaux)
+        ws2.freeze_panes = "A7"
 
         return excel_reponse(wb, excel_nom_fichier("Extincteur", adresse))
 
@@ -1687,6 +1762,27 @@ class ExtincteurItemViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         qs = ExtincteurItem.objects.select_related("rapport").filter(rapport__batiment__client__organisation=user.organisation)
+        if user.est_technicien():
+            qs = qs.filter(rapport__techniciens=user)
+        return qs.distinct()
+
+    def perform_update(self, serializer):
+        item = self.get_object()
+        if item.rapport.statut == RapportExtincteur.Statut.FERME and not self.request.user.est_superviseur():
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("Le rapport associé est fermé.")
+        serializer.save()
+
+
+class BoyauItemViewSet(viewsets.ModelViewSet):
+    """Accès direct à une ligne de boyau — pour la corriger ou la supprimer."""
+
+    serializer_class = BoyauItemSerializer
+    permission_classes = [permissions.IsAuthenticated, EstSuperviseurOuTechnicien, EstModuleRapportExtincteurActif]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = BoyauItem.objects.select_related("rapport").filter(rapport__batiment__client__organisation=user.organisation)
         if user.est_technicien():
             qs = qs.filter(rapport__techniciens=user)
         return qs.distinct()

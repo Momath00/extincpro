@@ -10,10 +10,12 @@ export const FORMAT_CHOICES: Record<string, string> = {
   '2.5lb': '2.5 lb',
   '5lb': '5 lb',
   '10lb': '10 lb',
+  '13.25lb': '13.25 lb',
   '20lb': '20 lb',
   '2.5kg': '2.5 kg',
   '5kg': '5 kg',
   '10kg': '10 kg',
+  '6L': '6 L',
   autre: 'Autre',
 }
 
@@ -24,6 +26,8 @@ export const TYPE_CHOICES: Record<string, string> = {
   EAU: 'Eau',
   AFFF: 'Mousse (AFFF)',
   K: 'Produits chimiques humides (K)',
+  halotron: 'Halotron',
+  fe36: 'FE36',
   autre: 'Autre',
 }
 
@@ -34,6 +38,7 @@ export const MARQUE_CHOICES: Record<string, string> = {
   ansul: 'Ansul',
   general: 'General',
   flag: 'Flag',
+  strikefirst: 'Strike First',
   autre: 'Autre',
 }
 
@@ -46,85 +51,41 @@ const LEGENDE = [
   ['MT', 'Maintenance requise, voir (Notes)'],
 ]
 
-// ── Date JJ/MM/AAAA — conversions avec l'ISO (yyyy-mm-dd) stocké en base ────
-function isoToDisplay(iso: string) {
-  if (!iso) return ''
-  const [y, m, d] = iso.split('-')
-  if (!y || !m || !d) return ''
-  return `${d}/${m}/${y}`
-}
-
-function digitsToIso(digits: string): string | null {
-  if (digits.length !== 8) return null
-  const d = Number(digits.slice(0, 2))
-  const m = Number(digits.slice(2, 4))
-  const y = Number(digits.slice(4, 8))
-  if (m < 1 || m > 12) return null
-  const joursDansMois = new Date(y, m, 0).getDate()
-  if (d < 1 || d > joursDansMois) return null
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${y}-${pad(m)}-${pad(d)}`
-}
-
-// ── Saisie de date auto-formatée JJ/MM/AAAA (insertion des "/" en tapant) ───
-function DateMaskInput({
+// ── Saisie d'année auto-formatée AAAA (4 chiffres, pas de jour/mois) ────────
+function AnneeMaskInput({
   value,
   readOnly,
   onCommit,
 }: {
   value: string
   readOnly: boolean
-  onCommit: (iso: string | null) => void
+  onCommit: (annee: string | null) => void
 }) {
-  const [text, setText] = useState(isoToDisplay(value))
-  const [incomplete, setIncomplete] = useState(false)
+  const [text, setText] = useState(value || '')
 
-  useEffect(() => { setText(isoToDisplay(value)); setIncomplete(false) }, [value])
+  useEffect(() => { setText(value || '') }, [value])
 
   if (readOnly) {
-    return <span className="text-xs text-gray-500">{isoToDisplay(value) || '—'}</span>
+    return <span className="text-xs text-gray-500">{value || '—'}</span>
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const digits = e.target.value.replace(/\D/g, '').slice(0, 8)
-    let formatted = digits
-    if (digits.length > 4) formatted = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`
-    else if (digits.length > 2) formatted = `${digits.slice(0, 2)}/${digits.slice(2)}`
-    setText(formatted)
-    setIncomplete(false)
-    if (digits.length === 8) {
-      const iso = digitsToIso(digits)
-      if (iso) onCommit(iso)
-      else setIncomplete(true) // 8 chiffres mais date invalide (ex. 31/02) — on garde la saisie visible
-    } else if (digits.length === 0) {
-      onCommit(null)
-    }
-  }
-
-  function handleBlur() {
-    const digits = text.replace(/\D/g, '')
-    // Saisie commencée mais pas terminée (ni vide, ni complète) — on la garde à
-    // l'écran avec un repère visuel au lieu de l'effacer silencieusement,
-    // sinon l'utilisateur croit avoir enregistré une date qui a disparu.
-    setIncomplete(digits.length > 0 && digits.length < 8)
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 4)
+    setText(digits)
+    if (digits.length === 4) onCommit(digits)
+    else if (digits.length === 0) onCommit(null)
   }
 
   return (
-    <div className="inline-flex flex-col">
-      <input
-        type="text"
-        inputMode="numeric"
-        value={text}
-        onChange={handleChange}
-        onBlur={handleBlur}
-        placeholder="JJ/MM/AAAA"
-        maxLength={10}
-        className={`text-xs border rounded px-1.5 py-0.5 focus:outline-none bg-white w-[100px] ${
-          incomplete ? 'border-red-400 focus:border-red-400' : 'border-gray-200 focus:border-[#e11324]'
-        }`}
-      />
-      {incomplete && <span className="text-[10px] text-red-500 mt-0.5">Date incomplète, non enregistrée</span>}
-    </div>
+    <input
+      type="text"
+      inputMode="numeric"
+      value={text}
+      onChange={handleChange}
+      placeholder="AAAA"
+      maxLength={4}
+      className="text-xs border border-gray-200 rounded px-1.5 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-[70px]"
+    />
   )
 }
 
@@ -245,11 +206,11 @@ function LigneExtincteur({
     )
   )
 
-  const dateInput = (field: string) => (
-    <DateMaskInput
+  const anneeInput = (field: string) => (
+    <AnneeMaskInput
       value={it[field] || ''}
       readOnly={readOnly}
-      onCommit={iso => patchField(field, iso)}
+      onCommit={annee => patchField(field, annee)}
     />
   )
 
@@ -316,14 +277,14 @@ function LigneExtincteur({
       >
         <td className="px-2 py-2 text-center text-xs text-gray-400">{it.ordre}</td>
         <td className="px-2 py-2">{textInput('etage', 'Étage', 'w-full min-w-[70px]')}</td>
-        <td className="px-2 py-2">{etatInput()}</td>
         <td className="px-2 py-2">{textInput('emplacement', 'Emplacement', 'w-full min-w-[110px]')}</td>
-        <td className="px-2 py-2">{dateInput('date_fabrication')}</td>
-        <td className="px-2 py-2">{selectInput('format', FORMAT_CHOICES)}</td>
         <td className="px-2 py-2">{selectInput('type_extincteur', TYPE_CHOICES)}</td>
+        <td className="px-2 py-2">{selectInput('format', FORMAT_CHOICES)}</td>
         <td className="px-2 py-2">{selectInput('marque', MARQUE_CHOICES)}</td>
-        <td className="px-2 py-2">{dateInput('prochaine_maintenance')}</td>
-        <td className="px-2 py-2">{dateInput('prochain_test_hydrostatique')}</td>
+        <td className="px-2 py-2">{anneeInput('date_fabrication')}</td>
+        <td className="px-2 py-2">{anneeInput('prochaine_maintenance')}</td>
+        <td className="px-2 py-2">{anneeInput('prochain_test_hydrostatique')}</td>
+        <td className="px-2 py-2">{etatInput()}</td>
         <td className="px-2 py-2">{textInput('remarque', 'Remarque...', 'w-full min-w-[120px]')}</td>
         {!readOnly && (
           <td className="px-2 py-2 text-center">
@@ -584,14 +545,14 @@ export default function TableExtincteurs({
                 <tr className="text-[10px] font-bold uppercase tracking-widest text-gray-400 bg-gray-50">
                   <th className="text-center px-2 py-2.5 w-10">No</th>
                   <th className="text-left px-2 py-2.5">Étage</th>
-                  <th className="text-center px-2 py-2.5 w-16" title="D=Défectueux, C=Conforme, NI=Non inspecté">État</th>
                   <th className="text-left px-2 py-2.5">Emplacement</th>
-                  <th className="text-left px-2 py-2.5">Date fabrication</th>
-                  <th className="text-left px-2 py-2.5">Format</th>
                   <th className="text-left px-2 py-2.5">Type</th>
+                  <th className="text-left px-2 py-2.5">Format</th>
                   <th className="text-left px-2 py-2.5">Marque</th>
+                  <th className="text-left px-2 py-2.5">Date fabrication</th>
                   <th className="text-left px-2 py-2.5">Prochaine maintenance</th>
                   <th className="text-left px-2 py-2.5">Prochain test hydro.</th>
+                  <th className="text-center px-2 py-2.5 w-16" title="D=Défectueux, C=Conforme, NI=Non inspecté">État</th>
                   <th className="text-left px-2 py-2.5">Remarque</th>
                   {!readOnly && <th className="px-2 py-2.5 w-10" />}
                 </tr>
