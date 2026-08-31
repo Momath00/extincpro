@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     AppelServiceViewSet,
     BatimentViewSet,
+    BoyauItemViewSet,
     ClientViewSet,
     DispositifViewSet,
     ExtincteurItemViewSet,
@@ -21,6 +22,7 @@ router.register(r"sections", SectionDispositifViewSet, basename="section")
 router.register(r"dispositifs", DispositifViewSet, basename="dispositif")
 router.register(r"rapports-extincteurs", RapportExtincteurViewSet, basename="rapport-extincteur")
 router.register(r"extincteurs", ExtincteurItemViewSet, basename="extincteur")
+router.register(r"boyaux", BoyauItemViewSet, basename="boyau")
 router.register(r"appels-service", AppelServiceViewSet, basename="appel-service")
 
 # Routes générées, à titre de référence :

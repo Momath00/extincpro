@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import TableExtincteurs from '@/components/rapports-extincteurs/TableExtincteurs'
+import TableBoyaux from '@/components/rapports-extincteurs/TableBoyaux'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -113,7 +114,12 @@ export default function TechnicienRapportExtincteurDetailPage() {
         ))}
       </div>
 
-      {onglet === 'extincteurs' && <TableExtincteurs rapport={rapport} readOnly={readOnly} onRefresh={charger} />}
+      {onglet === 'extincteurs' && (
+        <div className="flex flex-col gap-8">
+          <TableExtincteurs rapport={rapport} readOnly={readOnly} onRefresh={charger} />
+          <TableBoyaux rapport={rapport} readOnly={readOnly} onRefresh={charger} />
+        </div>
+      )}
 
       {onglet === 'historique' && (
         <div className="bg-white rounded-md border border-gray-100 p-5">

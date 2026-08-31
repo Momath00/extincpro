@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import TableExtincteurs from '@/components/rapports-extincteurs/TableExtincteurs'
+import TableBoyaux from '@/components/rapports-extincteurs/TableBoyaux'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -461,7 +462,12 @@ export default function SuperviseurRapportExtincteurDetailPage() {
         ))}
       </div>
 
-      {onglet === 'extincteurs' && <TableExtincteurs rapport={rapport} readOnly={false} onRefresh={charger} />}
+      {onglet === 'extincteurs' && (
+        <div className="flex flex-col gap-8">
+          <TableExtincteurs rapport={rapport} readOnly={false} onRefresh={charger} />
+          <TableBoyaux rapport={rapport} readOnly={false} onRefresh={charger} />
+        </div>
+      )}
 
       {onglet === 'certificat' && estFerme && (
         <CertificatTab rapport={rapport} onEnvoyer={envoyerCertificat} actionLoading={actionLoading} />

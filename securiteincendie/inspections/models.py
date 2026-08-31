@@ -595,10 +595,12 @@ class ExtincteurItem(models.Model):
         LB2_5 = "2.5lb", "2.5 lb"
         LB5 = "5lb", "5 lb"
         LB10 = "10lb", "10 lb"
+        LB13_25 = "13.25lb", "13.25 lb"
         LB20 = "20lb", "20 lb"
         KG2_5 = "2.5kg", "2.5 kg"
         KG5 = "5kg", "5 kg"
         KG10 = "10kg", "10 kg"
+        L6 = "6L", "6 L"
         AUTRE = "autre", "Autre"
 
     class TypeExtincteur(models.TextChoices):
@@ -608,6 +610,8 @@ class ExtincteurItem(models.Model):
         EAU = "EAU", "Eau"
         MOUSSE = "AFFF", "Mousse (AFFF)"
         K = "K", "Produits chimiques humides (K)"
+        HALOTRON = "halotron", "Halotron"
+        FE36 = "fe36", "FE36"
         AUTRE = "autre", "Autre"
 
     class Marque(models.TextChoices):
@@ -617,6 +621,7 @@ class ExtincteurItem(models.Model):
         ANSUL = "ansul", "Ansul"
         GENERAL = "general", "General"
         FLAG = "flag", "Flag"
+        STRIKE_FIRST = "strikefirst", "Strike First"
         AUTRE = "autre", "Autre"
 
     rapport = models.ForeignKey(RapportExtincteur, on_delete=models.CASCADE, related_name="extincteurs")
@@ -624,13 +629,15 @@ class ExtincteurItem(models.Model):
     etage = models.CharField(max_length=100, blank=True)
     etat = models.CharField(max_length=2, choices=Etat.choices, null=True, blank=True, default=None)
     emplacement = models.CharField(max_length=200, blank=True)
-    date_fabrication = models.DateField(null=True, blank=True)
+    # Année seulement (pas de jour/mois) — les étiquettes d'extincteurs n'indiquent
+    # que l'année de fabrication, de prochaine maintenance et de test hydrostatique.
+    date_fabrication = models.CharField(max_length=4, blank=True)
     format = models.CharField(max_length=10, choices=Format.choices, blank=True)
     type_extincteur = models.CharField(max_length=10, choices=TypeExtincteur.choices, blank=True)
-    marque = models.CharField(max_length=10, choices=Marque.choices, blank=True)
+    marque = models.CharField(max_length=15, choices=Marque.choices, blank=True)
     numero_serie = models.CharField(max_length=100, blank=True)
-    prochaine_maintenance = models.DateField(null=True, blank=True)
-    prochain_test_hydrostatique = models.DateField(null=True, blank=True)
+    prochaine_maintenance = models.CharField(max_length=4, blank=True)
+    prochain_test_hydrostatique = models.CharField(max_length=4, blank=True)
     remarque = models.CharField(max_length=300, blank=True)
 
     ordre = models.PositiveIntegerField(default=0)
@@ -640,6 +647,42 @@ class ExtincteurItem(models.Model):
 
     def __str__(self):
         return f"Extincteur #{self.ordre} — {self.rapport}"
+
+
+class BoyauItem(models.Model):
+    """Une ligne du tableau de vérification des boyaux d'incendie, rattachée
+    au même rapport que les extincteurs."""
+
+    class Etat(models.TextChoices):
+        DEFECTUEUX = "D", "Défectueux"
+        CONFORME = "C", "Conforme"
+        NON_INSPECTE = "NI", "Non inspecté"
+
+    class Longueur(models.TextChoices):
+        PI50 = "50pi", "50 pi"
+        PI75 = "75pi", "75 pi"
+        PI100 = "100pi", "100 pi"
+        AUTRE = "autre", "Autre"
+
+    rapport = models.ForeignKey(RapportExtincteur, on_delete=models.CASCADE, related_name="boyaux")
+
+    etage = models.CharField(max_length=100, blank=True)
+    etat = models.CharField(max_length=2, choices=Etat.choices, null=True, blank=True, default=None)
+    emplacement = models.CharField(max_length=200, blank=True)
+    longueur = models.CharField(max_length=10, choices=Longueur.choices, blank=True)
+    # Année seulement (pas de jour/mois) — les étiquettes de boyaux n'indiquent
+    # que l'année de fabrication et l'année du prochain test hydrostatique.
+    date_fabrication = models.CharField(max_length=4, blank=True)
+    prochain_test_hydrostatique = models.CharField(max_length=4, blank=True)
+    remarque = models.CharField(max_length=300, blank=True)
+
+    ordre = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["ordre", "id"]
+
+    def __str__(self):
+        return f"Boyau #{self.ordre} — {self.rapport}"
 
 
 class AppelService(models.Model):
