@@ -105,6 +105,13 @@ const features = [
       en: "Generate clear, professional reports to hand to your clients or authorities.",
     },
   },
+  {
+    title: { fr: "Interface bilingue", en: "Bilingual interface" },
+    desc: {
+      fr: "Basculez l'interface de votre équipe entre français et anglais en un clic, par organisation.",
+      en: "Switch your team's interface between French and English in one click, per organization.",
+    },
+  },
 ];
 
 const stats = [
@@ -133,7 +140,14 @@ export function HomeContent() {
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-white/60">
               {site.name} {t("hero_texte")}
             </p>
-            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <div className="mt-6 flex items-center justify-center gap-2 text-xs font-semibold text-white/50">
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18" />
+              </svg>
+              {t("hero_bilingue")}
+            </div>
+            <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <PrimaryButton href="/contact">{t("hero_essai_btn")}</PrimaryButton>
               <SecondaryButton href="/services" dark>
                 {t("decouvrir_plateforme")}

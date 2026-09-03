@@ -45,6 +45,7 @@ export const DICT: Dict = {
   },
   hero_essai_btn: { fr: "Essai gratuit — 1 mois", en: "Free trial — 1 month" },
   decouvrir_plateforme: { fr: "Découvrir la plateforme", en: "Discover the platform" },
+  hero_bilingue: { fr: "Disponible en français et en anglais", en: "Available in French and English" },
   abonnement_annuel_note: {
     fr: "Abonnement annuel · Aucune carte de crédit requise pour l'essai",
     en: "Annual subscription · No credit card required for the trial",
