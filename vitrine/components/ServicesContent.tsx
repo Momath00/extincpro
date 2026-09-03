@@ -62,16 +62,6 @@ const modules = [
       { fr: "Visibilité claire, sans appel ni courriel nécessaire", en: "Clear visibility, no call or email needed" },
     ],
   },
-  {
-    title: { fr: "Administration multi-organisations", en: "Multi-organization administration" },
-    subtitle: { fr: "Super-admin", en: "Super admin" },
-    points: [
-      { fr: "Gestion de plusieurs organisations clientes", en: "Management of multiple client organizations" },
-      { fr: "Contrôle des accès et des rôles", en: "Control of access and roles" },
-      { fr: "Configuration globale de la plateforme", en: "Global platform configuration" },
-      { fr: "Vue consolidée sur l'ensemble du réseau", en: "Consolidated view across the whole network" },
-    ],
-  },
 ];
 
 export function ServicesContent() {
