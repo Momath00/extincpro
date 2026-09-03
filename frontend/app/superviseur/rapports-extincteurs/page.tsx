@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
+import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -12,6 +13,7 @@ const ORANGE = '#e11324'
 function RapportsExtincteursListContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const t = useT()
   const [rapports, setRapports] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
@@ -22,9 +24,26 @@ function RapportsExtincteursListContent() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [modif, setModif] = useState<{ rapport: any; mode: 'technicien' | 'adresse' | 'citoyen' } | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [supprimerId, setSupprimerId] = useState<number | null>(null)
+  const [suppression, setSuppression] = useState(false)
 
   function onModifSaved() {
-    setToast('Modification faite avec succès')
+    setToast(t('modification_succes'))
+    setTimeout(() => setToast(null), 3000)
+    charger(true)
+  }
+
+  async function supprimerRapport() {
+    if (!supprimerId) return
+    setSuppression(true)
+    const token = localStorage.getItem('access_token')
+    await fetch(`${API_URL}/api/rapports-extincteurs/${supprimerId}/`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    setSuppression(false)
+    setSupprimerId(null)
+    setToast(t('rapport_supprime'))
     setTimeout(() => setToast(null), 3000)
     charger(true)
   }
@@ -107,14 +126,14 @@ function RapportsExtincteursListContent() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: NAVY }}>Rapport Extincteur</h1>
+          <h1 className="text-2xl font-bold" style={{ color: NAVY }}>{t('titre_rapport_extincteur')}</h1>
           <div className="flex items-center gap-2 mt-0.5">
-            <p className="text-gray-500 text-sm">{rapports.length} rapport{rapports.length !== 1 ? 's' : ''}</p>
+            <p className="text-gray-500 text-sm">{rapports.length} {rapports.length !== 1 ? t('rapports_pluriel') : t('rapport_singulier')}</p>
             <span className="text-gray-200">·</span>
             <span className="text-xs text-gray-400">
-              Mis à jour {lastUpdate.toLocaleTimeString('fr-CA', { timeStyle: 'short' })}
+              {t('mis_a_jour')} {lastUpdate.toLocaleTimeString('fr-CA', { timeStyle: 'short' })}
             </span>
-            <button onClick={() => charger()} className="text-gray-300 hover:text-gray-500 transition-colors" title="Actualiser">
+            <button onClick={() => charger()} className="text-gray-300 hover:text-gray-500 transition-colors" title={t('actualiser')}>
               <i className="ti ti-refresh text-sm" />
             </button>
           </div>
@@ -124,7 +143,7 @@ function RapportsExtincteursListContent() {
           className="text-center text-white px-4 py-2.5 rounded-md text-sm font-bold hover:opacity-90 transition-opacity flex items-center gap-1.5"
           style={{ background: ORANGE }}
         >
-          <i className="ti ti-plus" /> Nouveau rapport
+          <i className="ti ti-plus" /> {t('nouveau_rapport')}
         </Link>
       </div>
 
@@ -132,9 +151,9 @@ function RapportsExtincteursListContent() {
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <div className="flex gap-1 p-1 rounded-md border border-gray-100 bg-white w-full sm:w-auto">
           {([
-            { key: 'tous', label: `Tous (${rapports.length})` },
-            { key: 'ouvert', label: `Ouverts (${nbOuverts})` },
-            { key: 'ferme', label: `Fermés / Certificats (${nbFermes})` },
+            { key: 'tous', label: `${t('tous')} (${rapports.length})` },
+            { key: 'ouvert', label: `${t('ouverts')} (${nbOuverts})` },
+            { key: 'ferme', label: `${t('fermes_certificats')} (${nbFermes})` },
           ] as { key: 'tous' | 'ouvert' | 'ferme'; label: string }[]).map(f => (
             <button
               key={f.key}
@@ -156,7 +175,7 @@ function RapportsExtincteursListContent() {
             type="text"
             value={recherche}
             onChange={e => setRecherche(e.target.value)}
-            placeholder="Rechercher adresse, client..."
+            placeholder={t('rechercher_placeholder')}
             className="w-full pl-8 pr-8 py-2 text-sm border border-gray-100 rounded-md focus:outline-none focus:border-[#e11324] bg-white"
           />
           {recherche && (
@@ -173,24 +192,24 @@ function RapportsExtincteursListContent() {
         <div className="bg-white rounded-md border border-gray-100 p-12 text-center">
           <i className="ti ti-fire-extinguisher text-4xl text-gray-200" />
           <p className="mt-3 text-sm text-gray-400">
-            {recherche ? 'Aucun rapport ne correspond à votre recherche.' : 'Aucun rapport pour le moment.'}
+            {recherche ? t('aucun_resultat_recherche') : t('aucun_rapport')}
           </p>
           {!recherche && (
             <Link href="/superviseur/rapports-extincteurs/nouveau"
               className="mt-4 inline-block text-sm font-bold hover:underline"
               style={{ color: ORANGE }}>
-              Créer le premier rapport →
+              {t('creer_premier_rapport')}
             </Link>
           )}
         </div>
       ) : (
         <div className="bg-white rounded-md border border-gray-100 overflow-hidden shadow-sm">
           <div className="hidden md:grid grid-cols-[2fr_1.5fr_1.5fr_auto_auto] gap-4 px-5 py-3 border-b border-gray-100 text-xs font-bold uppercase tracking-widest text-gray-400">
-            <span>Adresse</span>
-            <span>Client</span>
-            <span>Technicien(s)</span>
-            <span>Extincteurs</span>
-            <span>Statut</span>
+            <span>{t('adresse')}</span>
+            <span>{t('client')}</span>
+            <span>{t('techniciens_col')}</span>
+            <span>{t('col_extincteurs')}</span>
+            <span>{t('statut')}</span>
           </div>
 
           <div className="divide-y divide-gray-50">
@@ -220,7 +239,7 @@ function RapportsExtincteursListContent() {
                     </div>
                     <button
                       onClick={e => { e.preventDefault(); e.stopPropagation(); setModif({ rapport: r, mode: 'adresse' }) }}
-                      title="Corriger l'adresse"
+                      title={t('corriger_adresse')}
                       className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-[#e11324] hover:bg-orange-50 transition-colors"
                     >
                       <i className="ti ti-pencil text-xs" />
@@ -233,12 +252,12 @@ function RapportsExtincteursListContent() {
                       <p className="text-sm text-gray-500 truncate">{r.batiment?.client_nom || '—'}</p>
                       <p className="text-xs text-gray-400 truncate">
                         <i className="ti ti-user text-[10px] mr-0.5" />
-                        {r.citoyen?.username || 'Aucun citoyen'}
+                        {r.citoyen?.username || t('aucun_citoyen')}
                       </p>
                     </div>
                     <button
                       onClick={e => { e.preventDefault(); e.stopPropagation(); setModif({ rapport: r, mode: 'citoyen' }) }}
-                      title="Modifier le citoyen assigné"
+                      title={t('modifier_citoyen')}
                       className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-[#e11324] hover:bg-orange-50 transition-colors"
                     >
                       <i className="ti ti-pencil text-xs" />
@@ -252,13 +271,13 @@ function RapportsExtincteursListContent() {
                           {t.username}
                         </span>
                       ))
-                      : <span className="text-xs text-gray-400 italic">Non assigné</span>}
+                      : <span className="text-xs text-gray-400 italic">{t('non_assigne')}</span>}
                     {(r.techniciens?.length || 0) > 2 && (
                       <span className="text-xs text-gray-400">+{r.techniciens.length - 2}</span>
                     )}
                     <button
                       onClick={e => { e.preventDefault(); e.stopPropagation(); setModif({ rapport: r, mode: 'technicien' }) }}
-                      title="Réassigner les techniciens"
+                      title={t('reassigner_techniciens')}
                       className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-[#e11324] hover:bg-orange-50 transition-colors"
                     >
                       <i className="ti ti-pencil text-xs" />
@@ -277,26 +296,52 @@ function RapportsExtincteursListContent() {
                     )}
                   </div>
 
-                  <span className="hidden md:inline text-xs text-gray-400">{r.nb_extincteurs || 0} extincteur{(r.nb_extincteurs || 0) !== 1 ? 's' : ''}</span>
+                  <span className="hidden md:inline text-xs text-gray-400">{r.nb_extincteurs || 0} {t('col_extincteurs').toLowerCase()}</span>
 
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-xs px-2.5 py-1 rounded-full font-semibold whitespace-nowrap"
                       style={ferme
                         ? { background: '#e9f6f2', color: '#0d6b4f' }
                         : { background: '#fff2e8', color: '#9a4a13' }}>
-                      {ferme ? 'Fermé' : 'Ouvert'}
+                      {ferme ? t('ferme') : t('ouvert')}
                     </span>
                     {ferme && r.certificat && (
                       <span className="text-xs px-2.5 py-1 rounded-full font-semibold whitespace-nowrap flex items-center gap-1"
                         style={{ background: '#fffbeb', color: '#92400e' }}>
                         <i className="ti ti-certificate text-[10px]" />
-                        {r.certificat.certificat_envoye ? 'Envoyé' : 'Non envoyé'}
+                        {r.certificat.certificat_envoye ? t('envoye') : t('non_envoye')}
                       </span>
                     )}
+                    <button
+                      onClick={e => { e.preventDefault(); e.stopPropagation(); setSupprimerId(r.id) }}
+                      title={t('supprimer_rapport_titre_action')}
+                      className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      <i className="ti ti-trash text-xs" />
+                    </button>
                   </div>
                 </Link>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {supprimerId !== null && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSupprimerId(null)} />
+          <div className="relative bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl text-center">
+            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+              <i className="ti ti-alert-triangle text-red-500 text-xl" />
+            </div>
+            <h3 className="text-sm font-bold mb-1" style={{ color: NAVY }}>{t('supprimer_rapport_titre')}</h3>
+            <p className="text-xs text-gray-400 mb-5">{t('action_irreversible')}</p>
+            <div className="flex gap-2">
+              <button onClick={() => setSupprimerId(null)} className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-200" style={{ color: NAVY }}>{t('annuler')}</button>
+              <button onClick={supprimerRapport} disabled={suppression} className="flex-1 py-2.5 rounded-md text-sm font-bold text-white bg-red-500 disabled:opacity-50">
+                {suppression ? t('suppression_en_cours') : t('supprimer')}
+              </button>
+            </div>
           </div>
         </div>
       )}

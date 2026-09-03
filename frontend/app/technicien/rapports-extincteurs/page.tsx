@@ -3,23 +3,25 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
 
-const STATUT_BADGE: Record<string, { label: string; bg: string; color: string }> = {
-  ouvert: { label: 'Ouvert', bg: '#fff2e8', color: '#9a4a13' },
-  ferme: { label: 'Fermé', bg: '#e9f6f2', color: '#0d6b4f' },
-}
-
 type FiltreStatut = 'tous' | 'ouvert' | 'ferme'
 
 export default function TechnicienRapportsExtincteursPage() {
   const router = useRouter()
+  const t = useT()
   const [rapports, setRapports] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [filtre, setFiltre] = useState<FiltreStatut>('tous')
+
+  const STATUT_BADGE: Record<string, { label: string; bg: string; color: string }> = {
+    ouvert: { label: t('ouvert'), bg: '#fff2e8', color: '#9a4a13' },
+    ferme: { label: t('ferme'), bg: '#e9f6f2', color: '#0d6b4f' },
+  }
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -57,16 +59,16 @@ export default function TechnicienRapportsExtincteursPage() {
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: NAVY }}>Rapport Extincteur</h1>
-          <p className="text-gray-400 text-sm mt-1">{rapports.length} rapport{rapports.length !== 1 ? 's' : ''} assigné{rapports.length !== 1 ? 's' : ''}</p>
+          <h1 className="text-2xl font-bold" style={{ color: NAVY }}>{t('titre_rapport_extincteur')}</h1>
+          <p className="text-gray-400 text-sm mt-1">{rapports.length} {rapports.length !== 1 ? t('rapports_pluriel') : t('rapport_singulier')} {t('rapports_assignes')}</p>
         </div>
       </div>
 
       <div className="flex gap-2 mb-6">
         {([
-          { key: 'tous', label: 'Tous' },
-          { key: 'ouvert', label: 'En cours' },
-          { key: 'ferme', label: 'Terminés' },
+          { key: 'tous', label: t('tous') },
+          { key: 'ouvert', label: t('en_cours') },
+          { key: 'ferme', label: t('termines') },
         ] as { key: FiltreStatut; label: string }[]).map(f => (
           <button
             key={f.key}
@@ -92,7 +94,7 @@ export default function TechnicienRapportsExtincteursPage() {
           <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: '#f8f9fa' }}>
             <i className="ti ti-fire-extinguisher text-xl text-gray-300" />
           </div>
-          <p className="text-gray-400 text-sm font-medium">Aucun rapport {filtre !== 'tous' ? `avec le statut "${STATUT_BADGE[filtre]?.label}"` : ''}</p>
+          <p className="text-gray-400 text-sm font-medium">{t('aucun_rapport_avec_statut')} {filtre !== 'tous' ? `"${STATUT_BADGE[filtre]?.label}"` : ''}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -127,11 +129,11 @@ export default function TechnicienRapportsExtincteursPage() {
                     <i className="ti ti-calendar text-gray-300" />
                     {r.date_inspection
                       ? new Date(r.date_inspection).toLocaleDateString('fr-CA', { day: 'numeric', month: 'short', year: 'numeric' })
-                      : 'Date non définie'}
+                      : t('date_non_definie')}
                   </span>
                   <span className="flex items-center gap-1">
                     <i className="ti ti-fire-extinguisher text-gray-300" />
-                    {r.nb_extincteurs || 0} extincteur{(r.nb_extincteurs || 0) !== 1 ? 's' : ''}
+                    {r.nb_extincteurs || 0} {t('col_extincteurs').toLowerCase()}
                   </span>
                 </div>
               </Link>

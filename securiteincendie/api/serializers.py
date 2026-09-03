@@ -9,6 +9,7 @@ class OrganisationResumeSerializer(serializers.Serializer):
 
     id = serializers.IntegerField()
     nom = serializers.CharField()
+    langue = serializers.CharField()
     modules_actifs = serializers.SerializerMethodField()
 
     def get_modules_actifs(self, obj):

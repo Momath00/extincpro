@@ -3,18 +3,19 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { clientColor } from '@/lib/clientColor'
+import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
 
-const TYPE_LABELS: Record<string, string> = {
-  residentiel: 'Résidentiel',
-  commercial: 'Commercial',
-  industriel: 'Industriel',
-}
-
 function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
+  const t = useT()
+  const TYPE_LABELS: Record<string, string> = {
+    residentiel: t('type_residentiel'),
+    commercial: t('type_commercial'),
+    industriel: t('type_industriel'),
+  }
   const [clientId, setClientId] = useState(batiment?.client || '')
   const [numeroCivique, setNumeroCivique] = useState(batiment?.numero_civique || '')
   const [rue, setRue] = useState(batiment?.rue || '')
@@ -60,7 +61,7 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
       <div className="relative bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl my-auto">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: NAVY }}>
-            {batiment ? 'Modifier le bâtiment' : 'Nouveau bâtiment'}
+            {batiment ? t('modifier_batiment') : t('nouveau_batiment')}
           </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><i className="ti ti-x text-lg" /></button>
         </div>
@@ -69,22 +70,22 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <div>
-            <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>Client</label>
+            <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('client')}</label>
             <select value={clientId} onChange={e => setClientId(e.target.value)} required
               className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]">
-              <option value="">— Sélectionner —</option>
+              <option value="">{t('selectionner')}</option>
               {clients.map((c: any) => <option key={c.id} value={c.id}>{c.nom}</option>)}
             </select>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>No civique</label>
+              <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('no_civique')}</label>
               <input value={numeroCivique} onChange={e => setNumeroCivique(e.target.value)} placeholder="9940" required
                 className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
             </div>
             <div className="col-span-2">
-              <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>Rue</label>
+              <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('rue_label')}</label>
               <input value={rue} onChange={e => setRue(e.target.value)} placeholder="St Laurent" required
                 className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
             </div>
@@ -92,12 +93,12 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>Ville</label>
+              <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('ville_label')}</label>
               <input value={ville} onChange={e => setVille(e.target.value)} placeholder="Montréal" required
                 className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
             </div>
             <div>
-              <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>Code postal</label>
+              <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('code_postal_label')}</label>
               <input value={codePostal} onChange={e => setCodePostal(e.target.value)} placeholder="H2C 2L7"
                 className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
             </div>
@@ -105,26 +106,26 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>Direction / secteur</label>
+              <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('direction_secteur')}</label>
               <input value={direction} onChange={e => setDirection(e.target.value)} placeholder="Secteur Nord"
                 className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
             </div>
             <div>
-              <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>Type</label>
+              <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('type_label')}</label>
               <select value={typeApplication} onChange={e => setTypeApplication(e.target.value)}
                 className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]">
-                <option value="residentiel">Résidentiel</option>
-                <option value="commercial">Commercial</option>
-                <option value="industriel">Industriel</option>
+                <option value="residentiel">{t('type_residentiel')}</option>
+                <option value="commercial">{t('type_commercial')}</option>
+                <option value="industriel">{t('type_industriel')}</option>
               </select>
             </div>
           </div>
 
           <div>
-            <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>Citoyen propriétaire <span className="text-gray-300 normal-case font-normal">(optionnel)</span></label>
+            <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('citoyen_proprietaire')} <span className="text-gray-300 normal-case font-normal">{t('optionnel')}</span></label>
             <select value={proprietaireId} onChange={e => setProprietaireId(e.target.value)}
               className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]">
-              <option value="">— Aucun —</option>
+              <option value="">{t('aucun_tiret')}</option>
               {citoyens.map((c: any) => <option key={c.id} value={c.id}>{c.username} — {c.email}</option>)}
             </select>
           </div>
@@ -132,7 +133,7 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
           <button type="submit" disabled={loading}
             className="text-white py-3 rounded-md text-sm font-bold uppercase tracking-widest disabled:opacity-50 mt-2"
             style={{ background: ORANGE }}>
-            {loading ? 'Enregistrement...' : batiment ? 'Enregistrer' : 'Créer le bâtiment'}
+            {loading ? t('enregistrement_en_cours') : batiment ? t('enregistrer') : t('creer_le_batiment')}
           </button>
         </form>
       </div>
@@ -142,6 +143,12 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
 
 export default function BatimentsPage() {
   const router = useRouter()
+  const t = useT()
+  const TYPE_LABELS: Record<string, string> = {
+    residentiel: t('type_residentiel'),
+    commercial: t('type_commercial'),
+    industriel: t('type_industriel'),
+  }
   const [batiments, setBatiments] = useState<any[]>([])
   const [clients, setClients] = useState<any[]>([])
   const [citoyens, setCitoyens] = useState<any[]>([])
@@ -175,7 +182,7 @@ export default function BatimentsPage() {
     const token = localStorage.getItem('access_token')
     await fetch(`${API_URL}/api/batiments/${id}/`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
     setSupprimerId(null)
-    setSuccessMsg('Bâtiment supprimé.')
+    setSuccessMsg(t('batiment_supprime'))
     setTimeout(() => setSuccessMsg(''), 2000)
     charger()
   }
@@ -202,8 +209,8 @@ export default function BatimentsPage() {
       )}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: NAVY }}>Bâtiments</h1>
-          <p className="text-gray-400 text-sm mt-1">{batiments.length} adresse{batiments.length > 1 ? 's' : ''} inspectée{batiments.length > 1 ? 's' : ''}</p>
+          <h1 className="text-2xl font-bold" style={{ color: NAVY }}>{t('batiments_titre')}</h1>
+          <p className="text-gray-400 text-sm mt-1">{batiments.length} {t('adresse_inspectee_s')}</p>
         </div>
         <button
           onClick={() => setModalBatiment(null)}
@@ -211,13 +218,13 @@ export default function BatimentsPage() {
           className="text-white px-5 py-2.5 rounded-md text-sm font-bold hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-40"
           style={{ background: ORANGE }}
         >
-          <i className="ti ti-plus" /> Nouveau bâtiment
+          <i className="ti ti-plus" /> {t('nouveau_batiment')}
         </button>
       </div>
 
       {clients.length === 0 && (
         <div className="bg-yellow-50 border border-yellow-100 text-yellow-800 text-xs px-4 py-3 rounded-md mb-6">
-          Créez d'abord un client avant d'ajouter un bâtiment.
+          {t('creez_client_dabord')}
         </div>
       )}
 
@@ -229,7 +236,7 @@ export default function BatimentsPage() {
             className="px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
             style={{ background: !filtreClient ? NAVY : '#fff', color: !filtreClient ? '#fff' : '#6b7280', border: !filtreClient ? 'none' : '1px solid #e5e7eb' }}
           >
-            Tous
+            {t('tous')}
           </button>
           {clients.map((c: any) => {
             const col = clientColor(c.id)
@@ -251,7 +258,7 @@ export default function BatimentsPage() {
 
       {visibles.length === 0 ? (
         <div className="bg-white rounded-md border border-gray-100 text-center py-16">
-          <p className="text-gray-300 text-sm">Aucun bâtiment {filtreClient ? 'pour ce client' : 'pour le moment'}</p>
+          <p className="text-gray-300 text-sm">{filtreClient ? t('aucun_batiment_pour_ce_client') : t('aucun_batiment_moment')}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -263,13 +270,13 @@ export default function BatimentsPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold truncate" style={{ color: NAVY }}>{b.adresse_complete}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{b.client_nom} · {TYPE_LABELS[b.type_application]}</p>
-                  {b.proprietaire && <p className="text-xs text-gray-300 mt-1">Citoyen : {b.proprietaire.username}</p>}
+                  {b.proprietaire && <p className="text-xs text-gray-300 mt-1">{t('citoyen_deux_points')} : {b.proprietaire.username}</p>}
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  <button onClick={() => setModalBatiment(b)} className="p-2 rounded-md hover:bg-gray-100 text-gray-500" title="Modifier">
+                  <button onClick={() => setModalBatiment(b)} className="p-2 rounded-md hover:bg-gray-100 text-gray-500" title={t('modifier')}>
                     <i className="ti ti-edit text-base" />
                   </button>
-                  <button onClick={() => setSupprimerId(b.id)} className="p-2 rounded-md hover:bg-red-50 text-gray-500 hover:text-red-500" title="Supprimer">
+                  <button onClick={() => setSupprimerId(b.id)} className="p-2 rounded-md hover:bg-red-50 text-gray-500 hover:text-red-500" title={t('supprimer')}>
                     <i className="ti ti-trash text-base" />
                   </button>
                 </div>
@@ -290,11 +297,11 @@ export default function BatimentsPage() {
             <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
               <i className="ti ti-alert-triangle text-red-500 text-xl" />
             </div>
-            <h3 className="text-sm font-bold mb-1" style={{ color: NAVY }}>Supprimer ce bâtiment ?</h3>
-            <p className="text-xs text-gray-400 mb-5">Tous ses rapports seront supprimés aussi. Cette action est irréversible.</p>
+            <h3 className="text-sm font-bold mb-1" style={{ color: NAVY }}>{t('supprimer_batiment_titre')}</h3>
+            <p className="text-xs text-gray-400 mb-5">{t('supprimer_batiment_texte')}</p>
             <div className="flex gap-2">
-              <button onClick={() => setSupprimerId(null)} className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-200" style={{ color: NAVY }}>Annuler</button>
-              <button onClick={() => supprimer(supprimerId)} className="flex-1 py-2.5 rounded-md text-sm font-bold text-white bg-red-500">Supprimer</button>
+              <button onClick={() => setSupprimerId(null)} className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-200" style={{ color: NAVY }}>{t('annuler')}</button>
+              <button onClick={() => supprimer(supprimerId)} className="flex-1 py-2.5 rounded-md text-sm font-bold text-white bg-red-500">{t('supprimer')}</button>
             </div>
           </div>
         </div>

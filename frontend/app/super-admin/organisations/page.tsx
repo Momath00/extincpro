@@ -109,7 +109,7 @@ export default function OrganisationsPage() {
                           className="w-6 h-6 rounded-md flex items-center justify-center"
                           style={{ background: m.actif ? '#fef2f2' : '#f1f5f9', color: m.actif ? ACCENT : '#cbd5e1' }}
                         >
-                          <i className={`ti ${m.code === 'rapport_incendie' ? 'ti-clipboard-check' : 'ti-fire-extinguisher'} text-xs`} />
+                          <i className={`ti ${m.code === 'rapport_incendie' ? 'ti-clipboard-check' : m.code === 'rapport_eclairage_urgence' ? 'ti-bulb' : 'ti-fire-extinguisher'} text-xs`} />
                         </span>
                       ))}
                       <span className="text-xs text-gray-400 ml-1">

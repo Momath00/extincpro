@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
+import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -22,6 +23,7 @@ async function downloadHtml(url: string) {
 export default function CitoyenRapportExtincteurDetailPage() {
   const router = useRouter()
   const params = useParams()
+  const t = useT()
   const [rapport, setRapport] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -53,11 +55,12 @@ export default function CitoyenRapportExtincteurDetailPage() {
 
   const estFerme = rapport.statut === 'ferme'
   const certificatEnvoye = rapport.certificat?.certificat_envoye === true
+  const nbExtincteurs = rapport.extincteurs?.length || 0
 
   return (
     <div className="max-w-2xl">
       <Link href="/citoyen/rapports-extincteurs" className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1 mb-4">
-        <i className="ti ti-arrow-left" /> Retour
+        <i className="ti ti-arrow-left" /> {t('retour')}
       </Link>
 
       <div className="mb-6">
@@ -65,11 +68,11 @@ export default function CitoyenRapportExtincteurDetailPage() {
           <h1 className="text-2xl font-bold" style={{ color: NAVY }}>{rapport.batiment?.adresse_complete || '—'}</h1>
           {estFerme ? (
             <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-green-50 text-green-700">
-              Vérification terminée
+              {t('verification_terminee')}
             </span>
           ) : (
             <span className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: '#fff2e8', color: '#9a4a13' }}>
-              Vérification en cours
+              {t('verification_en_cours')}
             </span>
           )}
         </div>
@@ -88,12 +91,12 @@ export default function CitoyenRapportExtincteurDetailPage() {
               <i className="ti ti-clock text-2xl" style={{ color: ORANGE }} />
             </div>
             <div>
-              <h2 className="text-sm font-bold" style={{ color: NAVY }}>Vérification en cours</h2>
-              <p className="text-xs text-gray-500 mt-0.5">Notre équipe travaille actuellement à la vérification de vos extincteurs portatifs.</p>
+              <h2 className="text-sm font-bold" style={{ color: NAVY }}>{t('verification_en_cours')}</h2>
+              <p className="text-xs text-gray-500 mt-0.5">{t('equipe_travaille_extincteurs')}</p>
             </div>
           </div>
           <p className="text-sm text-gray-500 leading-relaxed">
-            Vous recevrez une notification dès que la vérification sera complétée et que votre certificat sera disponible.
+            {t('notification_des_completee')}
           </p>
         </div>
       )}
@@ -106,18 +109,18 @@ export default function CitoyenRapportExtincteurDetailPage() {
                 <i className="ti ti-fire-extinguisher text-white text-sm" />
               </div>
               <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: NAVY }}>
-                Résumé de la vérification
+                {t('resume_verification')}
               </h2>
             </div>
             <p className="text-sm text-gray-700 leading-relaxed">
-              {(rapport.extincteurs?.length || 0)} extincteur{(rapport.extincteurs?.length || 0) !== 1 ? 's ont' : ' a'} été vérifié{(rapport.extincteurs?.length || 0) !== 1 ? 's' : ''} par notre équipe.
+              {nbExtincteurs} {t('col_extincteurs').toLowerCase()} {nbExtincteurs !== 1 ? t('extincteurs_verifies_par_equipe') : t('extincteur_verifie_par_equipe')}
             </p>
             <button
               onClick={() => downloadHtml(`${API_URL}/api/rapports-extincteurs/${rapport.id}/telecharger/`)}
               className="mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wide px-4 py-2 rounded-md border-2 hover:bg-gray-50 transition-colors"
               style={{ borderColor: NAVY, color: NAVY }}
             >
-              <i className="ti ti-file-download" /> Télécharger le rapport
+              <i className="ti ti-file-download" /> {t('telecharger_le_rapport')}
             </button>
           </div>
 
@@ -128,20 +131,20 @@ export default function CitoyenRapportExtincteurDetailPage() {
                   <i className="ti ti-certificate text-xl text-green-600" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-bold text-green-700">Certificat disponible</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">Votre certificat de vérification a été émis.</p>
+                  <h2 className="text-sm font-bold text-green-700">{t('certificat_disponible')}</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">{t('votre_certificat_emis')}</p>
                 </div>
               </div>
 
               <div className="rounded-md px-4 py-3 mb-4 flex flex-col gap-1" style={{ background: '#f0fdf4' }}>
                 {rapport.certificat?.numero && (
                   <p className="text-xs text-green-800">
-                    <span className="font-semibold">Numéro :</span> {rapport.certificat.numero}
+                    <span className="font-semibold">{t('numero_deux_points')}</span> {rapport.certificat.numero}
                   </p>
                 )}
                 {rapport.certificat?.date_emission && (
                   <p className="text-xs text-green-800">
-                    <span className="font-semibold">Date d'émission :</span>{' '}
+                    <span className="font-semibold">{t('date_emission_deux_points')}</span>{' '}
                     {new Date(rapport.certificat.date_emission).toLocaleDateString('fr-CA', { dateStyle: 'long' })}
                   </p>
                 )}
@@ -152,7 +155,7 @@ export default function CitoyenRapportExtincteurDetailPage() {
                 className="flex items-center justify-center gap-2 w-full text-white py-3 rounded-md text-sm font-bold uppercase hover:opacity-90 transition-opacity"
                 style={{ background: NAVY }}
               >
-                <i className="ti ti-download" /> Télécharger mon certificat
+                <i className="ti ti-download" /> {t('telecharger_mon_certificat')}
               </button>
             </div>
           ) : (
@@ -162,9 +165,9 @@ export default function CitoyenRapportExtincteurDetailPage() {
                   <i className="ti ti-hourglass text-xl text-gray-400" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-bold" style={{ color: NAVY }}>Certificat en cours de préparation</h2>
+                  <h2 className="text-sm font-bold" style={{ color: NAVY }}>{t('certificat_en_preparation')}</h2>
                   <p className="text-sm text-gray-500 mt-1 leading-relaxed">
-                    Votre certificat est en cours de préparation. Vous serez notifié dès qu'il sera disponible.
+                    {t('certificat_preparation_texte')}
                   </p>
                 </div>
               </div>

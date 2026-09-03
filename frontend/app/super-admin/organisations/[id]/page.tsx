@@ -25,7 +25,9 @@ function Switch({ actif, onClick, busy }: { actif: boolean; onClick: () => void;
 }
 
 function ModuleIcon({ code }: { code: string }) {
-  const icon = code === 'rapport_incendie' ? 'ti-clipboard-check' : 'ti-fire-extinguisher'
+  const icon = code === 'rapport_incendie' ? 'ti-clipboard-check'
+    : code === 'rapport_eclairage_urgence' ? 'ti-bulb'
+    : 'ti-fire-extinguisher'
   return <i className={`ti ${icon} text-base`} />
 }
 
@@ -39,6 +41,7 @@ export default function OrganisationDetailPage() {
   const [loading, setLoading] = useState(true)
   const [busyModule, setBusyModule] = useState<string | null>(null)
   const [busyStatut, setBusyStatut] = useState(false)
+  const [busyLangue, setBusyLangue] = useState(false)
 
   const [selectionnes, setSelectionnes] = useState<number[]>([])
   const [busyUtilisateur, setBusyUtilisateur] = useState<number | null>(null)
@@ -188,6 +191,17 @@ export default function OrganisationDetailPage() {
     })
     if (res.ok) setOrganisation(await res.json())
     setBusyStatut(false)
+  }
+
+  async function changerLangue(langue: 'fr' | 'en') {
+    setBusyLangue(true)
+    const res = await fetch(`${API_URL}/api/organisations/${id}/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+      body: JSON.stringify({ langue }),
+    })
+    if (res.ok) setOrganisation(await res.json())
+    setBusyLangue(false)
   }
 
   async function changerStatutUtilisateurs(ids: number[], estActif: boolean) {
@@ -356,6 +370,42 @@ export default function OrganisationDetailPage() {
           </div>
         </div>
         <Switch actif={organisation.est_active} onClick={toggleStatutOrganisation} busy={busyStatut} />
+      </div>
+
+      {/* Langue */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden mb-5">
+        <div className="px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#fef2f2', color: ACCENT }}>
+              <i className="ti ti-language text-base" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: NAVY }}>Langue</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Langue de l'interface et des documents générés (rapports, certificats) pour tous les utilisateurs de cette organisation.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-1 p-1 rounded-md border border-gray-100 bg-gray-50 flex-shrink-0">
+            {([
+              { key: 'fr', label: 'Français' },
+              { key: 'en', label: 'English' },
+            ] as { key: 'fr' | 'en'; label: string }[]).map(l => (
+              <button
+                key={l.key}
+                onClick={() => changerLangue(l.key)}
+                disabled={busyLangue}
+                className="px-3 py-1.5 rounded text-xs font-bold transition-colors whitespace-nowrap disabled:opacity-50"
+                style={{
+                  background: organisation.langue === l.key ? NAVY : 'transparent',
+                  color: organisation.langue === l.key ? '#fff' : '#6b7280',
+                }}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Modules */}

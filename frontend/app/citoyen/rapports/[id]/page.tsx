@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
+import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -20,12 +21,13 @@ async function downloadHtml(url: string) {
 }
 
 function ProgressionRapport({ rapport }: { rapport: any }) {
+  const t = useT()
   const prog = rapport.progression || {}
   const etapes = [
-    { label: 'Inspection', done: prog.e1 || prog.e2 || prog.e3, color: '#9a4a13' },
-    { label: 'Dispositifs', done: prog.e3, color: '#4b2f8c' },
-    { label: 'Rapport fermé', done: prog.ferme, color: NAVY },
-    { label: 'Certificat', done: prog.certificat, color: ORANGE },
+    { label: t('etape_inspection'), done: prog.e1 || prog.e2 || prog.e3, color: '#9a4a13' },
+    { label: t('etape_dispositifs'), done: prog.e3, color: '#4b2f8c' },
+    { label: t('etape_rapport_ferme'), done: prog.ferme, color: NAVY },
+    { label: t('certificat'), done: prog.certificat, color: ORANGE },
   ]
 
   return (
@@ -49,6 +51,7 @@ function ProgressionRapport({ rapport }: { rapport: any }) {
 export default function CitoyenRapportDetailPage() {
   const router = useRouter()
   const params = useParams()
+  const t = useT()
   const [rapport, setRapport] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -86,7 +89,7 @@ export default function CitoyenRapportDetailPage() {
   return (
     <div className="max-w-2xl">
       <Link href="/citoyen" className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1 mb-4">
-        <i className="ti ti-arrow-left" /> Retour
+        <i className="ti ti-arrow-left" /> {t('retour')}
       </Link>
 
       {/* Header */}
@@ -95,11 +98,11 @@ export default function CitoyenRapportDetailPage() {
           <h1 className="text-2xl font-bold" style={{ color: NAVY }}>{rapport.batiment?.adresse_complete || '—'}</h1>
           {estFerme ? (
             <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-green-50 text-green-700">
-              Inspection terminée
+              {t('inspection_terminee')}
             </span>
           ) : (
             <span className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: '#fff2e8', color: '#9a4a13' }}>
-              Inspection en cours
+              {t('inspection_en_cours')}
             </span>
           )}
         </div>
@@ -120,23 +123,22 @@ export default function CitoyenRapportDetailPage() {
               <i className="ti ti-clock text-2xl" style={{ color: ORANGE }} />
             </div>
             <div>
-              <h2 className="text-sm font-bold" style={{ color: NAVY }}>Inspection en cours</h2>
-              <p className="text-xs text-gray-500 mt-0.5">Notre équipe travaille actuellement à l'inspection de votre bâtiment.</p>
+              <h2 className="text-sm font-bold" style={{ color: NAVY }}>{t('inspection_en_cours')}</h2>
+              <p className="text-xs text-gray-500 mt-0.5">{t('equipe_travaille_inspection')}</p>
             </div>
           </div>
 
           {rapport.date_inspection && (
             <div className="bg-gray-50 rounded-md px-4 py-3">
               <p className="text-xs text-gray-500">
-                <span className="font-semibold">Date prévue :</span>{' '}
+                <span className="font-semibold">{t('date_prevue')}</span>{' '}
                 {new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })}
               </p>
             </div>
           )}
 
           <p className="text-sm text-gray-500 leading-relaxed">
-            Vous recevrez une notification dès que l'inspection sera complétée et que votre certificat sera disponible.
-            Si vous avez des questions, veuillez contacter notre équipe.
+            {t('notification_inspection_completee')}
           </p>
         </div>
       )}
@@ -151,7 +153,7 @@ export default function CitoyenRapportDetailPage() {
                 <i className="ti ti-file-description text-white text-sm" />
               </div>
               <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: NAVY }}>
-                Résumé de l'inspection
+                {t('resume_inspection')}
               </h2>
             </div>
 
@@ -159,12 +161,8 @@ export default function CitoyenRapportDetailPage() {
               <p className="text-sm text-gray-700 leading-relaxed">{resumeCitoyen}</p>
             ) : (
               <div className="flex flex-col gap-2 text-sm text-gray-700 leading-relaxed">
-                <p>
-                  L'inspection annuelle de votre système d'alarme incendie a été complétée conformément à la norme CAN/ULC-S536.
-                </p>
-                <p>
-                  Les dispositifs ont été vérifiés et testés par notre équipe certifiée. Le rapport complet est disponible auprès du gestionnaire de l'immeuble.
-                </p>
+                <p>{t('resume_defaut_p1')}</p>
+                <p>{t('resume_defaut_p2')}</p>
               </div>
             )}
 
@@ -174,7 +172,7 @@ export default function CitoyenRapportDetailPage() {
               className="mt-4 flex items-center gap-2 text-xs font-bold uppercase tracking-wide px-4 py-2 rounded-md border-2 hover:bg-gray-50 transition-colors"
               style={{ borderColor: NAVY, color: NAVY }}
             >
-              <i className="ti ti-file-download" /> Télécharger le rapport
+              <i className="ti ti-file-download" /> {t('telecharger_le_rapport')}
             </button>
           </div>
 
@@ -182,7 +180,7 @@ export default function CitoyenRapportDetailPage() {
           {etages.length > 0 && (
             <div className="bg-white rounded-md border border-gray-100 overflow-hidden mb-4">
               <div className="px-5 py-3 border-b border-gray-100">
-                <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: NAVY }}>État par section</h2>
+                <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: NAVY }}>{t('etat_par_section')}</h2>
               </div>
               <div className="divide-y divide-gray-50">
                 {etages.map((etage: any, i: number) => {
@@ -192,11 +190,11 @@ export default function CitoyenRapportDetailPage() {
                     <div key={i} className="flex items-center justify-between px-5 py-3">
                       <span className="text-sm font-medium" style={{ color: NAVY }}>{etage.nom}</span>
                       {etatBon ? (
-                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-green-50 text-green-700">Bon</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-green-50 text-green-700">{t('etat_bon')}</span>
                       ) : etatAcceptable ? (
-                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-yellow-50 text-yellow-700">Acceptable</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-yellow-50 text-yellow-700">{t('etat_acceptable')}</span>
                       ) : (
-                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-red-50 text-red-600">À réviser</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-red-50 text-red-600">{t('etat_a_reviser')}</span>
                       )}
                     </div>
                   )
@@ -215,12 +213,12 @@ export default function CitoyenRapportDetailPage() {
                 </div>
                 <div>
                   <h2 className={`text-sm font-bold ${rapport.certificat?.conforme === false ? 'text-red-600' : 'text-green-700'}`}>
-                    {rapport.certificat?.conforme === false ? 'Certificat non conforme' : 'Certificat disponible'}
+                    {rapport.certificat?.conforme === false ? t('certificat_non_conforme') : t('certificat_disponible')}
                   </h2>
                   <p className="text-xs text-gray-500 mt-0.5">
                     {rapport.certificat?.conforme === false
-                      ? 'Des réparations sont requises avant que votre certificat soit conforme.'
-                      : 'Votre certificat de conformité a été émis.'}
+                      ? t('reparations_requises_avant_conforme')
+                      : t('votre_certificat_conformite_emis')}
                   </p>
                 </div>
               </div>
@@ -229,8 +227,7 @@ export default function CitoyenRapportDetailPage() {
                 <div className="flex items-start gap-2.5 rounded-md p-3.5 mb-4" style={{ background: '#fffbeb' }}>
                   <i className="ti ti-alert-triangle text-base flex-shrink-0 mt-0.5" style={{ color: '#b45309' }} />
                   <p className="text-xs leading-relaxed" style={{ color: '#92400e' }}>
-                    Des réparations sont requises avant que ce certificat soit conforme. Il redeviendra
-                    conforme automatiquement dès que les dispositifs défectueux seront corrigés.
+                    {t('reparations_requises_detail')}
                   </p>
                 </div>
               )}
@@ -239,12 +236,12 @@ export default function CitoyenRapportDetailPage() {
                 style={{ background: rapport.certificat?.conforme === false ? '#fef2f2' : '#f0fdf4' }}>
                 {rapport.certificat?.numero && (
                   <p className={`text-xs ${rapport.certificat?.conforme === false ? 'text-red-800' : 'text-green-800'}`}>
-                    <span className="font-semibold">Numéro :</span> {rapport.certificat.numero}
+                    <span className="font-semibold">{t('numero_deux_points')}</span> {rapport.certificat.numero}
                   </p>
                 )}
                 {rapport.certificat?.date_emission && (
                   <p className={`text-xs ${rapport.certificat?.conforme === false ? 'text-red-800' : 'text-green-800'}`}>
-                    <span className="font-semibold">Date d'émission :</span>{' '}
+                    <span className="font-semibold">{t('date_emission_deux_points')}</span>{' '}
                     {new Date(rapport.certificat.date_emission).toLocaleDateString('fr-CA', { dateStyle: 'long' })}
                   </p>
                 )}
@@ -255,7 +252,7 @@ export default function CitoyenRapportDetailPage() {
                 className="flex items-center justify-center gap-2 w-full text-white py-3 rounded-md text-sm font-bold uppercase hover:opacity-90 transition-opacity"
                 style={{ background: NAVY }}
               >
-                <i className="ti ti-download" /> Télécharger mon certificat
+                <i className="ti ti-download" /> {t('telecharger_mon_certificat')}
               </button>
             </div>
           ) : (
@@ -265,9 +262,9 @@ export default function CitoyenRapportDetailPage() {
                   <i className="ti ti-hourglass text-xl text-gray-400" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-bold" style={{ color: NAVY }}>Certificat en cours de préparation</h2>
+                  <h2 className="text-sm font-bold" style={{ color: NAVY }}>{t('certificat_en_preparation')}</h2>
                   <p className="text-sm text-gray-500 mt-1 leading-relaxed">
-                    Votre certificat est en cours de préparation. Vous serez notifié dès qu'il sera disponible.
+                    {t('certificat_preparation_texte')}
                   </p>
                 </div>
               </div>

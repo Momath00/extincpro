@@ -2,16 +2,18 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useT } from '@/lib/i18n'
 
 const RED = '#0a0b0d'
 const ACCENT = '#e11324'
 
 const NAV_GROUPS = [
   {
-    label: 'Rapports',
+    label: 'nav_rapports_groupe',
     items: [
-      { href: '/technicien/rapports', label: 'Mes rapports', icon: 'ti-clipboard-list', module: 'rapport_incendie' },
-      { href: '/technicien/rapports-extincteurs', label: 'Rapport Extincteur', icon: 'ti-fire-extinguisher', module: 'rapport_extincteur' },
+      { href: '/technicien/rapports', label: 'nav_mes_rapports', icon: 'ti-clipboard-list', module: 'rapport_incendie' },
+      { href: '/technicien/rapports-extincteurs', label: 'nav_rapport_extincteur', icon: 'ti-fire-extinguisher', module: 'rapport_extincteur' },
+      { href: '/technicien/rapports-eclairage-urgence', label: 'nav_rapport_eclairage', icon: 'ti-bulb', module: 'rapport_eclairage_urgence' },
     ],
   },
 ]
@@ -19,6 +21,7 @@ const NAV_GROUPS = [
 export default function TechnicienSidebar({ user, onClose }: { user: any; onClose?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
+  const t = useT()
 
   const modulesActifs: string[] = user?.organisation?.modules_actifs || []
   const groupesVisibles = NAV_GROUPS.map(group => ({
@@ -67,7 +70,7 @@ export default function TechnicienSidebar({ user, onClose }: { user: any; onClos
         {/* Badge rôle */}
         <div className="mt-3 inline-flex items-center gap-1.5 bg-white/10 rounded-full px-3 py-1">
           <i className="ti ti-tool text-[10px]" style={{ color: ACCENT }} />
-          <span className="text-white/80 text-[10px] font-semibold uppercase tracking-wider">Technicien</span>
+          <span className="text-white/80 text-[10px] font-semibold uppercase tracking-wider">{t('nav_technicien')}</span>
         </div>
       </div>
 
@@ -76,7 +79,7 @@ export default function TechnicienSidebar({ user, onClose }: { user: any; onClos
         {groupesVisibles.map((group) => (
           <div key={group.label}>
             <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-white/50">
-              {group.label}
+              {t(group.label)}
             </p>
             <div className="flex flex-col gap-0.5">
               {group.items.map((item) => {
@@ -96,7 +99,7 @@ export default function TechnicienSidebar({ user, onClose }: { user: any; onClos
                       className={`ti ${item.icon} text-base`}
                       style={{ color: '#fff', opacity: active ? 1 : 0.7 }}
                     />
-                    <span className="flex-1 text-left">{item.label}</span>
+                    <span className="flex-1 text-left">{t(item.label)}</span>
                   </button>
                 )
               })}
@@ -116,14 +119,14 @@ export default function TechnicienSidebar({ user, onClose }: { user: any; onClos
           </div>
           <div className="min-w-0">
             <p className="text-white text-xs font-semibold truncate">{user?.username || '—'}</p>
-            <p className="text-white/50 text-xs">{user?.role_display || 'Technicien'}</p>
+            <p className="text-white/50 text-xs">{user?.role_display || t('nav_technicien')}</p>
           </div>
         </div>
         <button
           onClick={logout}
           className="w-full text-left px-3 py-2 rounded-md text-xs text-white/60 hover:bg-white/5 hover:text-white hover:translate-x-0.5 transition-all duration-200 flex items-center gap-2"
         >
-          <i className="ti ti-logout text-sm" /> Se déconnecter
+          <i className="ti ti-logout text-sm" /> {t('nav_deconnexion')}
         </button>
       </div>
     </div>

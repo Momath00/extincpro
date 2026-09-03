@@ -1,30 +1,31 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useT, useLangue } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
 
-const LEGENDE: { code: string; description: string }[] = [
-  { code: 'PAI', description: "Panneau annonciateur d'alarme" },
-  { code: 'M', description: 'Station manuelle' },
-  { code: 'S', description: 'Détecteur de fumée' },
-  { code: 'C', description: 'Cloche' },
-  { code: 'K', description: 'Klaxon' },
-  { code: 'RHT', description: 'Détecteur de chaleur' },
-  { code: 'FDL', description: 'Résistance de fin de ligne' },
-  { code: 'PZ', description: 'Piézo' },
-  { code: 'ISO', description: 'Module isolateur' },
-  { code: 'ANN', description: "Panneau annonciateur d'alarme" },
-  { code: 'DFG', description: 'Détecteur de fumée gaine ventilation' },
-  { code: 'TEL', description: "Téléphone d'urgence (pompier)" },
-  { code: 'IDG', description: 'Gicleur débit' },
-  { code: 'IVG', description: 'Interrupteur vanne gicleur' },
-  { code: 'IHP', description: 'Interrupteur haute pression' },
-  { code: 'IBH', description: 'Interrupteur de basse pression' },
-  { code: 'K/S', description: 'Klaxon strobe' },
-  { code: 'MA', description: 'Module adressable' },
+const LEGENDE: { code: string; description: { fr: string; en: string } }[] = [
+  { code: 'PAI', description: { fr: "Panneau annonciateur d'alarme", en: 'Fire alarm annunciator panel' } },
+  { code: 'M', description: { fr: 'Station manuelle', en: 'Manual pull station' } },
+  { code: 'S', description: { fr: 'Détecteur de fumée', en: 'Smoke detector' } },
+  { code: 'C', description: { fr: 'Cloche', en: 'Bell' } },
+  { code: 'K', description: { fr: 'Klaxon', en: 'Horn' } },
+  { code: 'RHT', description: { fr: 'Détecteur de chaleur', en: 'Heat detector' } },
+  { code: 'FDL', description: { fr: 'Résistance de fin de ligne', en: 'End-of-line resistor' } },
+  { code: 'PZ', description: { fr: 'Piézo', en: 'Piezo sounder' } },
+  { code: 'ISO', description: { fr: 'Module isolateur', en: 'Isolator module' } },
+  { code: 'ANN', description: { fr: "Panneau annonciateur d'alarme", en: 'Fire alarm annunciator panel' } },
+  { code: 'DFG', description: { fr: 'Détecteur de fumée gaine ventilation', en: 'Duct smoke detector' } },
+  { code: 'TEL', description: { fr: "Téléphone d'urgence (pompier)", en: 'Emergency telephone (fireman)' } },
+  { code: 'IDG', description: { fr: 'Gicleur débit', en: 'Sprinkler flow switch' } },
+  { code: 'IVG', description: { fr: 'Interrupteur vanne gicleur', en: 'Sprinkler valve switch' } },
+  { code: 'IHP', description: { fr: 'Interrupteur haute pression', en: 'High-pressure switch' } },
+  { code: 'IBH', description: { fr: 'Interrupteur de basse pression', en: 'Low-pressure switch' } },
+  { code: 'K/S', description: { fr: 'Klaxon strobe', en: 'Horn strobe' } },
+  { code: 'MA', description: { fr: 'Module adressable', en: 'Addressable module' } },
 ]
 
 function Toast({ msg, type }: { msg: string; type: 'success' | 'error' }) {
@@ -49,6 +50,8 @@ export default function OngletLegende({
   readOnly: boolean
   onSaved: () => void
 }) {
+  const t = useT()
+  const langue = useLangue()
   const [lignes, setLignes] = useState<Record<string, { type?: string; modele?: string }>>({})
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
 
@@ -74,10 +77,10 @@ export default function OngletLegende({
       if (res.ok) {
         onSaved()
       } else {
-        showToast('Erreur lors de la sauvegarde.', 'error')
+        showToast(t('erreur_sauvegarde'), 'error')
       }
     } catch {
-      showToast('Erreur réseau.', 'error')
+      showToast(t('erreur_reseau'), 'error')
     }
   }
 
@@ -86,9 +89,9 @@ export default function OngletLegende({
       {toast && <Toast msg={toast.msg} type={toast.type} />}
 
       <div className="px-5 py-4 border-b border-gray-100">
-        <h3 className="text-sm font-bold" style={{ color: NAVY }}>Légende des dispositifs</h3>
+        <h3 className="text-sm font-bold" style={{ color: NAVY }}>{t('legende_dispositifs_titre')}</h3>
         <p className="text-xs text-gray-400 mt-0.5">
-          Référence des abréviations utilisées à l'onglet E3 — précisez le type et le numéro de modèle réellement installés.
+          {t('legende_dispositifs_sous_titre')}
         </p>
       </div>
 
@@ -102,10 +105,10 @@ export default function OngletLegende({
           </colgroup>
           <thead>
             <tr className="bg-gray-50 text-left">
-              <th className="px-2 sm:px-3 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-gray-400">Dispositif</th>
-              <th className="px-2 sm:px-3 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-gray-400">Description</th>
-              <th className="px-1.5 sm:px-3 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-gray-400">Type</th>
-              <th className="px-1.5 sm:px-3 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-gray-400">No modèle</th>
+              <th className="px-2 sm:px-3 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-gray-400">{t('col_dispositif')}</th>
+              <th className="px-2 sm:px-3 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-gray-400">{t('description_label')}</th>
+              <th className="px-1.5 sm:px-3 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-gray-400">{t('col_type')}</th>
+              <th className="px-1.5 sm:px-3 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-gray-400">{t('col_no_modele')}</th>
             </tr>
           </thead>
           <tbody>
@@ -117,7 +120,7 @@ export default function OngletLegende({
                     {code}
                   </td>
                   <td className="px-2 sm:px-3 py-2.5 text-xs sm:text-sm text-gray-600 leading-snug align-top break-words">
-                    {description}
+                    {description[langue] ?? description.fr}
                   </td>
                   <td className="px-1 sm:px-2 py-2 align-top">
                     {readOnly ? (

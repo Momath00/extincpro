@@ -3,18 +3,20 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useT, useLangue } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ACCENT = '#e11324'
 
-const STATUT_BADGE: Record<string, { label: string; bg: string; color: string }> = {
-  ouvert: { label: 'Ouvert', bg: '#fff2e8', color: '#9a4a13' },
-  ferme: { label: 'Fermé', bg: '#e9f6f2', color: '#0d6b4f' },
-}
-
 export default function TechnicienDashboard() {
   const router = useRouter()
+  const t = useT()
+  const langue = useLangue()
+  const STATUT_BADGE: Record<string, { label: string; bg: string; color: string }> = {
+    ouvert: { label: t('ouvert'), bg: '#fff2e8', color: '#9a4a13' },
+    ferme: { label: t('ferme'), bg: '#e9f6f2', color: '#0d6b4f' },
+  }
   const [stats, setStats] = useState({ total: 0, ouverts: 0, fermes: 0 })
   const [rapportsAujourdhui, setRapportsAujourdhui] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -55,9 +57,9 @@ export default function TechnicienDashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: NAVY }}>Tableau de bord</h1>
+          <h1 className="text-2xl font-bold" style={{ color: NAVY }}>{t('nav_dashboard')}</h1>
           <p className="text-gray-400 text-sm mt-1">
-            {new Date().toLocaleDateString('fr-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            {new Date().toLocaleDateString(langue === 'en' ? 'en-CA' : 'fr-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
         <Link
@@ -65,16 +67,16 @@ export default function TechnicienDashboard() {
           className="text-center text-white px-4 py-2.5 rounded-md text-sm font-bold hover:opacity-90 transition-opacity"
           style={{ background: NAVY }}
         >
-          <i className="ti ti-clipboard-list mr-1" /> Voir tous mes rapports
+          <i className="ti ti-clipboard-list mr-1" /> {t('voir_tous_mes_rapports')}
         </Link>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         {[
-          { label: 'Rapports assignés', value: stats.total, icon: 'ti-clipboard', bg: NAVY, color: '#fff' },
-          { label: 'En cours', value: stats.ouverts, icon: 'ti-file-alert', bg: '#fff2e8', color: '#9a4a13' },
-          { label: 'Terminés', value: stats.fermes, icon: 'ti-file-check', bg: '#e9f6f2', color: '#0d6b4f' },
+          { label: t('stat_rapports_assignes'), value: stats.total, icon: 'ti-clipboard', bg: NAVY, color: '#fff' },
+          { label: t('en_cours'), value: stats.ouverts, icon: 'ti-file-alert', bg: '#fff2e8', color: '#9a4a13' },
+          { label: t('termines'), value: stats.fermes, icon: 'ti-file-check', bg: '#e9f6f2', color: '#0d6b4f' },
         ].map(stat => (
           <div key={stat.label} className="bg-white rounded-md p-5 border border-gray-100">
             <div className="flex justify-between items-center mb-3">
@@ -96,10 +98,10 @@ export default function TechnicienDashboard() {
               <i className="ti ti-calendar-today text-white text-sm" />
             </div>
             <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: NAVY }}>
-              Inspections d'aujourd'hui
+              {t('inspections_aujourdhui')}
             </h2>
           </div>
-          <span className="text-xs text-gray-400">{rapportsAujourdhui.length} rapport{rapportsAujourdhui.length !== 1 ? 's' : ''}</span>
+          <span className="text-xs text-gray-400">{rapportsAujourdhui.length} {rapportsAujourdhui.length !== 1 ? t('rapports_pluriel') : t('rapport_singulier')}</span>
         </div>
 
         <div className="p-4 flex flex-col gap-2">
@@ -108,8 +110,8 @@ export default function TechnicienDashboard() {
               <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: '#f8f9fa' }}>
                 <i className="ti ti-calendar-off text-xl text-gray-300" />
               </div>
-              <p className="text-gray-400 text-sm font-medium">Aucune inspection prévue aujourd'hui</p>
-              <p className="text-gray-300 text-xs mt-1">Les rapports assignés pour aujourd'hui apparaîtront ici.</p>
+              <p className="text-gray-400 text-sm font-medium">{t('aucune_inspection_aujourdhui')}</p>
+              <p className="text-gray-300 text-xs mt-1">{t('rapports_apparaitront_ici')}</p>
             </div>
           ) : rapportsAujourdhui.map((r: any) => {
             const badge = STATUT_BADGE[r.statut] || STATUT_BADGE.ouvert
@@ -129,7 +131,7 @@ export default function TechnicienDashboard() {
                   <p className="text-xs text-gray-400 truncate">
                     {r.batiment?.client_nom || '—'}
                     {r.date_inspection
-                      ? ` · ${new Date(r.date_inspection).toLocaleTimeString('fr-CA', { hour: '2-digit', minute: '2-digit' })}`
+                      ? ` · ${new Date(r.date_inspection).toLocaleTimeString(langue === 'en' ? 'en-CA' : 'fr-CA', { hour: '2-digit', minute: '2-digit' })}`
                       : ''}
                   </p>
                 </div>

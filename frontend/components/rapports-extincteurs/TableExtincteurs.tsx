@@ -1,54 +1,19 @@
 'use client'
 
 import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { useT, useChoix, FORMAT_CHOICES_I18N, TYPE_EXTINCTEUR_CHOICES_I18N, MARQUE_CHOICES_I18N } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
 
-export const FORMAT_CHOICES: Record<string, string> = {
-  '2.5lb': '2.5 lb',
-  '5lb': '5 lb',
-  '10lb': '10 lb',
-  '13.25lb': '13.25 lb',
-  '20lb': '20 lb',
-  '2.5kg': '2.5 kg',
-  '5kg': '5 kg',
-  '10kg': '10 kg',
-  '6L': '6 L',
-  autre: 'Autre',
-}
-
-export const TYPE_CHOICES: Record<string, string> = {
-  ABC: 'Poudre ABC',
-  BC: 'Poudre BC',
-  CO2: 'CO2',
-  EAU: 'Eau',
-  AFFF: 'Mousse (AFFF)',
-  K: 'Produits chimiques humides (K)',
-  halotron: 'Halotron',
-  fe36: 'FE36',
-  autre: 'Autre',
-}
-
-export const MARQUE_CHOICES: Record<string, string> = {
-  amerex: 'Amerex',
-  kidde: 'Kidde',
-  buckeye: 'Buckeye',
-  ansul: 'Ansul',
-  general: 'General',
-  flag: 'Flag',
-  strikefirst: 'Strike First',
-  autre: 'Autre',
-}
-
 const LEGENDE = [
-  ['HT', "Test hydro, pour boyaux et/ou extincteurs, voir (Notes)"],
-  ['T/O', 'Les extincteurs ou les boyaux ont dépassé le temps recommandé, voir (Notes)'],
-  ['MQ', 'Extincteur ou boyaux manquant, doit être ajouté, voir (Notes)'],
-  ['RM', 'Recommandation, voir (Notes)'],
-  ['D', 'Déficience, voir (Notes)'],
-  ['MT', 'Maintenance requise, voir (Notes)'],
+  ['HT', 'legende_ht'],
+  ['T/O', 'legende_to'],
+  ['MQ', 'legende_mq'],
+  ['RM', 'legende_rm'],
+  ['D', 'legende_d'],
+  ['MT', 'legende_mt'],
 ]
 
 // ── Saisie d'année auto-formatée AAAA (4 chiffres, pas de jour/mois) ────────
@@ -147,6 +112,10 @@ function LigneExtincteur({
   onDeleted: () => void
   onUpdate: (field: string, value: any) => void
 }) {
+  const t = useT()
+  const FORMAT_CHOICES = useChoix(FORMAT_CHOICES_I18N)
+  const TYPE_CHOICES = useChoix(TYPE_EXTINCTEUR_CHOICES_I18N)
+  const MARQUE_CHOICES = useChoix(MARQUE_CHOICES_I18N)
   const [it, setIt] = useState<any>(item)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [erreurChamp, setErreurChamp] = useState<string | null>(null)
@@ -172,12 +141,12 @@ function LigneExtincteur({
         // est réellement sauvegardé.
         setIt((prev: any) => ({ ...prev, [field]: ancienneValeur }))
         onUpdate(field, ancienneValeur)
-        setErreurChamp("Non enregistré — réessayez.")
+        setErreurChamp(t('non_enregistre_reessayez'))
       }
     } catch {
       setIt((prev: any) => ({ ...prev, [field]: ancienneValeur }))
       onUpdate(field, ancienneValeur)
-      setErreurChamp('Erreur réseau — non enregistré.')
+      setErreurChamp(t('erreur_reseau_non_enregistre'))
     }
   }
 
@@ -276,8 +245,8 @@ function LigneExtincteur({
         } : {}}
       >
         <td className="px-2 py-2 text-center text-xs text-gray-400">{it.ordre}</td>
-        <td className="px-2 py-2">{textInput('etage', 'Étage', 'w-full min-w-[70px]')}</td>
-        <td className="px-2 py-2">{textInput('emplacement', 'Emplacement', 'w-full min-w-[110px]')}</td>
+        <td className="px-2 py-2">{textInput('etage', t('col_etage'), 'w-full min-w-[70px]')}</td>
+        <td className="px-2 py-2">{textInput('emplacement', t('col_emplacement'), 'w-full min-w-[110px]')}</td>
         <td className="px-2 py-2">{selectInput('type_extincteur', TYPE_CHOICES)}</td>
         <td className="px-2 py-2">{selectInput('format', FORMAT_CHOICES)}</td>
         <td className="px-2 py-2">{selectInput('marque', MARQUE_CHOICES)}</td>
@@ -285,7 +254,7 @@ function LigneExtincteur({
         <td className="px-2 py-2">{anneeInput('prochaine_maintenance')}</td>
         <td className="px-2 py-2">{anneeInput('prochain_test_hydrostatique')}</td>
         <td className="px-2 py-2">{etatInput()}</td>
-        <td className="px-2 py-2">{textInput('remarque', 'Remarque...', 'w-full min-w-[120px]')}</td>
+        <td className="px-2 py-2">{textInput('remarque', t('col_remarque') + '...', 'w-full min-w-[120px]')}</td>
         {!readOnly && (
           <td className="px-2 py-2 text-center">
             <button
@@ -302,14 +271,14 @@ function LigneExtincteur({
           <td colSpan={readOnly ? 11 : 12}>
             <div className="flex items-center gap-3 px-4 py-2.5 bg-red-50 text-xs border-t border-red-100">
               <i className="ti ti-alert-circle text-red-500" />
-              <span className="text-red-700 font-semibold">Supprimer cette ligne ?</span>
+              <span className="text-red-700 font-semibold">{t('supprimer_cette_ligne')}</span>
               <button onClick={supprimer}
                 className="px-3 py-1 rounded-md bg-red-500 text-white font-bold hover:bg-red-600 transition-colors">
-                Confirmer
+                {t('confirmer')}
               </button>
               <button onClick={() => setConfirmDelete(false)}
                 className="px-3 py-1 rounded-md border border-gray-300 font-medium hover:bg-gray-50 transition-colors">
-                Annuler
+                {t('annuler')}
               </button>
             </div>
           </td>
@@ -341,6 +310,7 @@ export default function TableExtincteurs({
   readOnly: boolean
   onRefresh: () => void
 }) {
+  const t = useT()
   const [items, setItems] = useState<any[]>(rapport.extincteurs || [])
   const [adding, setAdding] = useState(false)
 
@@ -376,23 +346,23 @@ export default function TableExtincteurs({
     <div className="flex flex-col gap-5">
       {/* Légende */}
       <div className="bg-gray-50 border border-gray-100 rounded-md px-4 py-3">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Légende</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">{t('legende_titre')}</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
-          {LEGENDE.map(([code, desc]) => (
+          {LEGENDE.map(([code, descKey]) => (
             <div key={code} className="text-xs text-gray-500">
-              <strong style={{ color: NAVY }}>{code}</strong> — {desc}
+              <strong style={{ color: NAVY }}>{code}</strong> — {t(descKey)}
             </div>
           ))}
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 pt-2 border-t border-gray-100 text-xs text-gray-500">
-          <span><strong style={{ color: NAVY }}>État</strong> — D=Défectueux, C=Conforme, NI=Non inspecté</span>
+          <span><strong style={{ color: NAVY }}>{t('col_etat')}</strong> — {t('etat_legende')}</span>
           <span className="flex items-center gap-1">
             <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: '#fee2e2', border: '2px solid #ef4444' }} />
-            <span className="text-red-600 font-semibold">Ligne rouge = défectueux</span>
+            <span className="text-red-600 font-semibold">{t('ligne_rouge_defectueux')}</span>
           </span>
           <span className="flex items-center gap-1">
             <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: '#fef3c7', border: '2px solid #f59e0b' }} />
-            <span className="font-semibold" style={{ color: '#b45309' }}>Ligne jaune = non inspecté (NI)</span>
+            <span className="font-semibold" style={{ color: '#b45309' }}>{t('ligne_jaune_ni')}</span>
           </span>
         </div>
       </div>
@@ -400,10 +370,10 @@ export default function TableExtincteurs({
       {/* Sommaire */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total', value: total, bg: NAVY, color: '#fff', icon: 'ti-fire-extinguisher' },
-          { label: 'Conformes', value: inspectes, bg: '#dcfce7', color: '#16a34a', icon: 'ti-check' },
-          { label: 'Défectueux', value: defectueux, bg: defectueux > 0 ? '#fee2e2' : '#f8fafc', color: defectueux > 0 ? '#e11324' : '#94a3b8', icon: 'ti-alert-triangle' },
-          { label: 'Non inspectés', value: ni, bg: ni > 0 ? '#fef3c7' : '#f8fafc', color: ni > 0 ? '#b45309' : '#94a3b8', icon: 'ti-eye-off' },
+          { label: t('total'), value: total, bg: NAVY, color: '#fff', icon: 'ti-fire-extinguisher' },
+          { label: t('conformes'), value: inspectes, bg: '#dcfce7', color: '#16a34a', icon: 'ti-check' },
+          { label: t('defectueux'), value: defectueux, bg: defectueux > 0 ? '#fee2e2' : '#f8fafc', color: defectueux > 0 ? '#e11324' : '#94a3b8', icon: 'ti-alert-triangle' },
+          { label: t('non_inspectes'), value: ni, bg: ni > 0 ? '#fef3c7' : '#f8fafc', color: ni > 0 ? '#b45309' : '#94a3b8', icon: 'ti-eye-off' },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-md border border-gray-100 p-3.5 flex items-center gap-3 shadow-sm">
             <div className="w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: s.bg }}>
@@ -429,9 +399,9 @@ export default function TableExtincteurs({
               </div>
               <div>
                 <p className="text-sm font-bold" style={{ color: '#e11324' }}>
-                  {defects.length} extincteur{defects.length > 1 ? 's' : ''} défectueux
+                  {defects.length} {t('col_extincteurs').toLowerCase()} {t('extincteur_defectueux_plur')}
                 </p>
-                <p className="text-xs text-red-400">Résumé des anomalies à corriger</p>
+                <p className="text-xs text-red-400">{t('resume_anomalies')}</p>
               </div>
             </div>
           </div>
@@ -439,10 +409,10 @@ export default function TableExtincteurs({
             <table className="w-full">
               <thead>
                 <tr className="text-[10px] font-bold uppercase tracking-widest text-red-400 bg-red-50">
-                  <th className="text-left px-4 py-2.5">No</th>
-                  <th className="text-left px-3 py-2.5">Étage</th>
-                  <th className="text-left px-3 py-2.5">Emplacement</th>
-                  <th className="text-left px-3 py-2.5">Remarque</th>
+                  <th className="text-left px-4 py-2.5">{t('col_no')}</th>
+                  <th className="text-left px-3 py-2.5">{t('col_etage')}</th>
+                  <th className="text-left px-3 py-2.5">{t('col_emplacement')}</th>
+                  <th className="text-left px-3 py-2.5">{t('col_remarque')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -480,9 +450,9 @@ export default function TableExtincteurs({
               </div>
               <div>
                 <p className="text-sm font-bold" style={{ color: '#b45309' }}>
-                  {nonInspectes.length} extincteur{nonInspectes.length > 1 ? 's' : ''} non inspecté{nonInspectes.length > 1 ? 's' : ''}
+                  {nonInspectes.length} {t('col_extincteurs').toLowerCase()} {t('extincteur_non_inspecte_plur')}
                 </p>
-                <p className="text-xs" style={{ color: '#d0a24c' }}>Résumé des lignes au statut NI</p>
+                <p className="text-xs" style={{ color: '#d0a24c' }}>{t('resume_lignes_ni')}</p>
               </div>
             </div>
           </div>
@@ -490,10 +460,10 @@ export default function TableExtincteurs({
             <table className="w-full">
               <thead>
                 <tr className="text-[10px] font-bold uppercase tracking-widest bg-amber-50" style={{ color: '#d0a24c' }}>
-                  <th className="text-left px-4 py-2.5">No</th>
-                  <th className="text-left px-3 py-2.5">Étage</th>
-                  <th className="text-left px-3 py-2.5">Emplacement</th>
-                  <th className="text-left px-3 py-2.5">Statut</th>
+                  <th className="text-left px-4 py-2.5">{t('col_no')}</th>
+                  <th className="text-left px-3 py-2.5">{t('col_etage')}</th>
+                  <th className="text-left px-3 py-2.5">{t('col_emplacement')}</th>
+                  <th className="text-left px-3 py-2.5">{t('statut')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -510,7 +480,7 @@ export default function TableExtincteurs({
                     </td>
                     <td className="px-3 py-2.5">
                       <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100" style={{ color: '#b45309' }}>
-                        <i className="ti ti-eye-off text-[9px]" /> Non inspecté (NI)
+                        <i className="ti ti-eye-off text-[9px]" /> {t('non_inspecte_ni')}
                       </span>
                     </td>
                   </tr>
@@ -527,7 +497,7 @@ export default function TableExtincteurs({
           <button onClick={ajouterLigne} disabled={adding}
             className="flex items-center gap-2 border border-gray-200 px-4 py-2 rounded-md text-sm font-bold hover:border-[#0a0b0d] transition-colors disabled:opacity-50"
             style={{ color: NAVY }}>
-            <i className="ti ti-plus" /> {adding ? 'Ajout...' : 'Ajouter une ligne'}
+            <i className="ti ti-plus" /> {adding ? t('ajout_en_cours') : t('ajouter_ligne')}
           </button>
         </div>
       )}
@@ -536,24 +506,24 @@ export default function TableExtincteurs({
       <div className="bg-white rounded-md border border-gray-100 overflow-hidden shadow-sm">
         {items.length === 0 ? (
           <div className="text-center py-10 text-xs text-gray-400">
-            {readOnly ? 'Aucun extincteur enregistré.' : 'Aucun extincteur. Cliquez sur « Ajouter une ligne » pour commencer.'}
+            {readOnly ? t('aucun_extincteur_enregistre') : t('aucun_extincteur_cliquez')}
           </div>
         ) : (
           <ScrollableTable>
             <table className="w-full text-sm min-w-[1180px]">
               <thead>
                 <tr className="text-[10px] font-bold uppercase tracking-widest text-gray-400 bg-gray-50">
-                  <th className="text-center px-2 py-2.5 w-10">No</th>
-                  <th className="text-left px-2 py-2.5">Étage</th>
-                  <th className="text-left px-2 py-2.5">Emplacement</th>
-                  <th className="text-left px-2 py-2.5">Type</th>
-                  <th className="text-left px-2 py-2.5">Format</th>
-                  <th className="text-left px-2 py-2.5">Marque</th>
-                  <th className="text-left px-2 py-2.5">Date fabrication</th>
-                  <th className="text-left px-2 py-2.5">Prochaine maintenance</th>
-                  <th className="text-left px-2 py-2.5">Prochain test hydro.</th>
-                  <th className="text-center px-2 py-2.5 w-16" title="D=Défectueux, C=Conforme, NI=Non inspecté">État</th>
-                  <th className="text-left px-2 py-2.5">Remarque</th>
+                  <th className="text-center px-2 py-2.5 w-10">{t('col_no')}</th>
+                  <th className="text-left px-2 py-2.5">{t('col_etage')}</th>
+                  <th className="text-left px-2 py-2.5">{t('col_emplacement')}</th>
+                  <th className="text-left px-2 py-2.5">{t('col_type')}</th>
+                  <th className="text-left px-2 py-2.5">{t('col_format')}</th>
+                  <th className="text-left px-2 py-2.5">{t('col_marque')}</th>
+                  <th className="text-left px-2 py-2.5">{t('col_date_fabrication')}</th>
+                  <th className="text-left px-2 py-2.5">{t('col_prochaine_maintenance')}</th>
+                  <th className="text-left px-2 py-2.5">{t('col_prochain_test_hydro')}</th>
+                  <th className="text-center px-2 py-2.5 w-16" title={t('etat_legende')}>{t('col_etat')}</th>
+                  <th className="text-left px-2 py-2.5">{t('col_remarque')}</th>
                   {!readOnly && <th className="px-2 py-2.5 w-10" />}
                 </tr>
               </thead>

@@ -2,18 +2,20 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useT } from '@/lib/i18n'
 
 const RED = '#0a0b0d'
 const ACCENT = '#e11324'
 
 const NAV_ITEMS = [
-  { href: '/citoyen', label: 'Mon rapport', icon: 'ti-home', module: 'rapport_incendie' },
-  { href: '/citoyen/rapports-extincteurs', label: 'Rapport Extincteur', icon: 'ti-fire-extinguisher', module: 'rapport_extincteur' },
+  { href: '/citoyen', label: 'mon_rapport', icon: 'ti-home', module: 'rapport_incendie' },
+  { href: '/citoyen/rapports-extincteurs', label: 'nav_rapport_extincteur', icon: 'ti-fire-extinguisher', module: 'rapport_extincteur' },
 ]
 
 export default function CitoyenSidebar({ user, onClose }: { user: any; onClose?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
+  const t = useT()
 
   const modulesActifs: string[] = user?.organisation?.modules_actifs || []
   const itemsVisibles = NAV_ITEMS.filter(item => !item.module || modulesActifs.includes(item.module))
@@ -59,7 +61,7 @@ export default function CitoyenSidebar({ user, onClose }: { user: any; onClose?:
         {/* Badge rôle */}
         <div className="mt-3 inline-flex items-center gap-1.5 bg-white/10 rounded-full px-3 py-1">
           <i className="ti ti-home text-[10px]" style={{ color: ACCENT }} />
-          <span className="text-white/80 text-[10px] font-semibold uppercase tracking-wider">Mon espace</span>
+          <span className="text-white/80 text-[10px] font-semibold uppercase tracking-wider">{t('mon_espace')}</span>
         </div>
       </div>
 
@@ -67,7 +69,7 @@ export default function CitoyenSidebar({ user, onClose }: { user: any; onClose?:
       <nav className="flex-1 px-3 pb-4 flex flex-col gap-6 overflow-y-auto sidebar-scroll border-t border-white/10 pt-6">
         <div>
           <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-white/35">
-            Navigation
+            {t('navigation_label')}
           </p>
           <div className="flex flex-col gap-0.5">
             {itemsVisibles.map((item) => {
@@ -87,7 +89,7 @@ export default function CitoyenSidebar({ user, onClose }: { user: any; onClose?:
                     className={`ti ${item.icon} text-base`}
                     style={{ color: '#fff', opacity: active ? 1 : 0.7 }}
                   />
-                  <span className="flex-1 text-left">{item.label}</span>
+                  <span className="flex-1 text-left">{t(item.label)}</span>
                 </button>
               )
             })}
@@ -106,14 +108,14 @@ export default function CitoyenSidebar({ user, onClose }: { user: any; onClose?:
           </div>
           <div className="min-w-0">
             <p className="text-white text-xs font-semibold truncate">{user?.username || '—'}</p>
-            <p className="text-white/50 text-xs">{user?.role_display || 'Citoyen'}</p>
+            <p className="text-white/50 text-xs">{user?.role_display || t('role_citoyen_court')}</p>
           </div>
         </div>
         <button
           onClick={logout}
           className="w-full text-left px-3 py-2 rounded-md text-xs text-white/60 hover:bg-white/5 hover:text-white hover:translate-x-0.5 transition-all duration-200 flex items-center gap-2"
         >
-          <i className="ti ti-logout text-sm" /> Se déconnecter
+          <i className="ti ti-logout text-sm" /> {t('nav_deconnexion')}
         </button>
       </div>
     </div>

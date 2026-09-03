@@ -3,51 +3,52 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useT } from '@/lib/i18n'
 
 const RED = '#0a0b0d'
 const ACCENT = '#e11324'
 
 const NAV_GROUPS = [
   {
-    label: 'Général',
-    items: [{ href: '/superviseur', label: 'Tableau de bord', icon: 'ti-layout-dashboard' }],
+    label: 'nav_general',
+    items: [{ href: '/superviseur', label: 'nav_dashboard', icon: 'ti-layout-dashboard' }],
   },
   {
-    label: 'Gestion',
+    label: 'nav_gestion',
     items: [
       {
         href: '/superviseur/rapports',
-        label: 'Rapport incendie',
+        label: 'nav_rapport_incendie',
         icon: 'ti-clipboard-check',
         module: 'rapport_incendie',
-        children: [
-          { href: '/superviseur/rapports', label: 'Rapports' },
-          { href: '/superviseur/rapports?f=ferme', label: 'Certificats' },
-        ],
       },
       {
         href: '/superviseur/rapports-extincteurs',
-        label: 'Rapport extincteur',
+        label: 'nav_rapport_extincteur',
         icon: 'ti-fire-extinguisher',
         module: 'rapport_extincteur',
-        children: [
-          { href: '/superviseur/rapports-extincteurs', label: 'Rapports' },
-          { href: '/superviseur/rapports-extincteurs?f=ferme', label: 'Certificats' },
-        ],
       },
-      { href: '/superviseur/clients', label: 'Clients', icon: 'ti-building' },
-      { href: '/superviseur/batiments', label: 'Bâtiments', icon: 'ti-home' },
+      {
+        href: '/superviseur/rapports-eclairage-urgence',
+        label: 'nav_rapport_eclairage',
+        icon: 'ti-bulb',
+        module: 'rapport_eclairage_urgence',
+      },
+      { href: '/superviseur/certificats', label: 'nav_certificats', icon: 'ti-certificate' },
+      { href: '/superviseur/clients', label: 'nav_clients', icon: 'ti-building' },
+      { href: '/superviseur/batiments', label: 'nav_batiments', icon: 'ti-home' },
     ],
   },
   {
-    label: 'Équipe',
-    items: [{ href: '/superviseur/equipe', label: 'Équipe', icon: 'ti-users' }],
+    label: 'nav_equipe',
+    items: [{ href: '/superviseur/equipe', label: 'nav_equipe', icon: 'ti-users' }],
   },
 ]
 
 export default function Sidebar({ user, onClose }: { user: any; onClose?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
+  const t = useT()
   const [openGroup, setOpenGroup] = useState<string | null>(null)
 
   const modulesActifs: string[] = user?.organisation?.modules_actifs || []
@@ -93,7 +94,7 @@ export default function Sidebar({ user, onClose }: { user: any; onClose?: () => 
 
         <div className="mt-3 inline-flex items-center gap-1.5 bg-white/10 rounded-full px-3 py-1">
           <i className="ti ti-shield-check text-[10px]" style={{ color: ACCENT }} />
-          <span className="text-white/80 text-[10px] font-semibold uppercase tracking-wider">Superviseur</span>
+          <span className="text-white/80 text-[10px] font-semibold uppercase tracking-wider">{t('nav_superviseur')}</span>
         </div>
       </div>
 
@@ -101,7 +102,7 @@ export default function Sidebar({ user, onClose }: { user: any; onClose?: () => 
         {groupesVisibles.map((group, gi) => (
           <div key={group.label}>
             <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-widest text-white/50">
-              {group.label}
+              {t(group.label)}
             </p>
             <div className="flex flex-col gap-0.5">
               {group.items.map((item: any, i) => {
@@ -133,7 +134,7 @@ export default function Sidebar({ user, onClose }: { user: any; onClose?: () => 
                         className={`ti ${item.icon} text-base`}
                         style={{ color: '#fff', opacity: active || childActive ? 1 : 0.7 }}
                       />
-                      <span className="flex-1 text-left">{item.label}</span>
+                      <span className="flex-1 text-left">{t(item.label)}</span>
                       {hasChildren && (
                         <i className={`ti ti-chevron-right text-xs transition-transform duration-200 ${groupIsOpen ? 'rotate-90' : ''}`} />
                       )}
@@ -177,14 +178,14 @@ export default function Sidebar({ user, onClose }: { user: any; onClose?: () => 
           </div>
           <div className="min-w-0">
             <p className="text-white text-xs font-semibold truncate">{user?.username || '—'}</p>
-            <p className="text-white/50 text-xs">{user?.role_display || 'Superviseur'}</p>
+            <p className="text-white/50 text-xs">{user?.role_display || t('nav_superviseur')}</p>
           </div>
         </div>
         <button
           onClick={logout}
           className="w-full text-left px-3 py-2 rounded-md text-xs text-white/60 hover:bg-white/5 hover:text-white hover:translate-x-0.5 transition-all duration-200 flex items-center gap-2"
         >
-          <i className="ti ti-logout text-sm" /> Se déconnecter
+          <i className="ti ti-logout text-sm" /> {t('nav_deconnexion')}
         </button>
       </div>
     </div>

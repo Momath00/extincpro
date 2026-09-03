@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useT, useLangue } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -19,14 +20,14 @@ function Toast({ msg, type }: { msg: string; type: 'success' | 'error' }) {
   )
 }
 
-const CHAMPS: { key: string; lettre: string; label: string }[] = [
-  { key: 'fonctionnement_une_etape',    lettre: 'A', label: 'Fonctionnement en une étape' },
-  { key: 'fonctionnement_deux_etapes',  lettre: 'B', label: 'Fonctionnement en deux étapes' },
-  { key: 'inspection_essai_conforme',   lettre: 'C', label: "Inspection et mise à l'essai conforme (CAN/ULC-S536)" },
-  { key: 'documentation_sur_place',     lettre: 'D', label: 'Documentation du réseau sur place' },
-  { key: 'reseau_fonctionnel',          lettre: 'E', label: 'Réseau surveillé complètement fonctionnel' },
-  { key: 'lacunes_constatees',          lettre: 'F', label: 'Le réseau présente des lacunes' },
-  { key: 'copie_remise_responsable',    lettre: 'H', label: 'Copie remise au responsable du bâtiment' },
+const CHAMPS: { key: string; lettre: string; label: { fr: string; en: string } }[] = [
+  { key: 'fonctionnement_une_etape',    lettre: 'A', label: { fr: 'Fonctionnement en une étape', en: 'One-stage operation' } },
+  { key: 'fonctionnement_deux_etapes',  lettre: 'B', label: { fr: 'Fonctionnement en deux étapes', en: 'Two-stage operation' } },
+  { key: 'inspection_essai_conforme',   lettre: 'C', label: { fr: "Inspection et mise à l'essai conforme (CAN/ULC-S536)", en: 'Inspection and testing compliant (CAN/ULC-S536)' } },
+  { key: 'documentation_sur_place',     lettre: 'D', label: { fr: 'Documentation du réseau sur place', en: 'System documentation on site' } },
+  { key: 'reseau_fonctionnel',          lettre: 'E', label: { fr: 'Réseau surveillé complètement fonctionnel', en: 'Supervised system fully functional' } },
+  { key: 'lacunes_constatees',          lettre: 'F', label: { fr: 'Le réseau présente des lacunes', en: 'The system has deficiencies' } },
+  { key: 'copie_remise_responsable',    lettre: 'H', label: { fr: 'Copie remise au responsable du bâtiment', en: 'Copy handed to the building manager' } },
 ]
 
 export default function OngletE1({
@@ -38,6 +39,8 @@ export default function OngletE1({
   readOnly: boolean
   onSaved: () => void
 }) {
+  const t = useT()
+  const langue = useLangue()
   const [form, setForm] = useState<Record<string, any>>({})
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
@@ -77,11 +80,11 @@ export default function OngletE1({
   async function sauvegarder() {
     const errs: string[] = []
     if (form.fonctionnement_une_etape === null && form.fonctionnement_deux_etapes === null)
-      errs.push('A ou B — Indiquez le mode de fonctionnement.')
+      errs.push(t('erreur_mode_fonctionnement'))
     if (form.inspection_essai_conforme === null)
-      errs.push('C — Indiquez si l\'inspection est conforme.')
+      errs.push(t('erreur_inspection_conforme'))
     if (form.reseau_fonctionnel === null)
-      errs.push('E — Indiquez si le réseau est fonctionnel.')
+      errs.push(t('erreur_reseau_fonctionnel'))
     if (errs.length > 0) { setErreurs(errs); return }
     setErreurs([])
     setSaving(true)
@@ -93,14 +96,14 @@ export default function OngletE1({
         body: JSON.stringify(form),
       })
       if (res.ok) {
-        showToast('Fiche E1 sauvegardée.', 'success')
+        showToast(t('fiche_e1_sauvegardee'), 'success')
         onSaved()
       } else {
         const d = await res.json().catch(() => ({}))
-        showToast(d.error || 'Erreur lors de la sauvegarde.', 'error')
+        showToast(d.error || t('erreur_sauvegarde'), 'error')
       }
     } catch {
-      showToast('Erreur réseau.', 'error')
+      showToast(t('erreur_reseau'), 'error')
     } finally {
       setSaving(false)
     }
@@ -112,7 +115,7 @@ export default function OngletE1({
 
       <div className="bg-white rounded-md border border-gray-100 p-5">
         <h3 className="text-sm font-bold mb-4" style={{ color: NAVY }}>
-          Rapport annuel de mise à l'essai et d'inspection
+          {t('rapport_annuel_titre')}
         </h3>
 
         <div className="flex flex-col gap-3">
@@ -125,7 +128,7 @@ export default function OngletE1({
                 {lettre}
               </span>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-500 leading-relaxed mb-1.5">{label}</p>
+                <p className="text-xs text-gray-500 leading-relaxed mb-1.5">{label[langue] ?? label.fr}</p>
                 {readOnly ? (
                   <p className="text-xs font-semibold"
                     style={{
@@ -133,7 +136,7 @@ export default function OngletE1({
                         : form[key] === false ? '#c0392b'
                         : '#9ca3af',
                     }}>
-                    {form[key] === true ? 'Oui' : form[key] === false ? 'Non' : '—'}
+                    {form[key] === true ? t('oui') : form[key] === false ? t('non') : '—'}
                   </p>
                 ) : (
                   <select
@@ -142,8 +145,8 @@ export default function OngletE1({
                     className="border border-gray-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#e11324]"
                   >
                     <option value="">—</option>
-                    <option value="true">Oui</option>
-                    <option value="false">Non</option>
+                    <option value="true">{t('oui')}</option>
+                    <option value="false">{t('non')}</option>
                   </select>
                 )}
               </div>
@@ -159,7 +162,7 @@ export default function OngletE1({
               G
             </span>
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-gray-500 leading-relaxed mb-1.5">Commentaires</p>
+              <p className="text-xs text-gray-500 leading-relaxed mb-1.5">{t('commentaires_label')}</p>
               {readOnly ? (
                 <p className="text-sm px-3 py-1.5 bg-gray-50 rounded-md min-h-[60px]"
                   style={{ color: form.commentaires ? '#111827' : '#9ca3af' }}>
@@ -170,7 +173,7 @@ export default function OngletE1({
                   value={form.commentaires}
                   onChange={e => setForm({ ...form, commentaires: e.target.value })}
                   rows={3}
-                  placeholder="Saisir vos commentaires..."
+                  placeholder={t('saisir_commentaires_placeholder')}
                   className="w-full border border-gray-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#e11324] resize-none"
                 />
               )}
@@ -182,8 +185,8 @@ export default function OngletE1({
           <div className="mt-4 pt-3 border-t border-gray-100 flex items-center gap-2">
             <i className="ti ti-writing text-xs text-gray-400" />
             <p className="text-xs text-gray-400">
-              Signé par <strong style={{ color: NAVY }}>{rapport.fiche_e1.signataire.username}</strong>{' '}
-              le {new Date(rapport.fiche_e1.date_signature).toLocaleDateString('fr-CA')}
+              {t('signe_par')} <strong style={{ color: NAVY }}>{rapport.fiche_e1.signataire.username}</strong>{' '}
+              {t('le_prefix')} {new Date(rapport.fiche_e1.date_signature).toLocaleDateString(langue === 'en' ? 'en-CA' : 'fr-CA')}
             </p>
           </div>
         )}
@@ -192,7 +195,7 @@ export default function OngletE1({
           <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-4 py-3">
             <div className="flex items-center gap-2 mb-2">
               <i className="ti ti-alert-circle text-red-500 text-sm" />
-              <p className="text-xs font-bold text-red-700">Champs obligatoires manquants</p>
+              <p className="text-xs font-bold text-red-700">{t('champs_obligatoires_manquants')}</p>
             </div>
             <ul className="flex flex-col gap-1">
               {erreurs.map((e, i) => (
@@ -212,7 +215,7 @@ export default function OngletE1({
             className="mt-6 w-full text-white py-3 rounded-md text-sm font-bold uppercase disabled:opacity-50 hover:opacity-90 transition-opacity"
             style={{ background: NAVY }}
           >
-            {saving ? 'Sauvegarde...' : 'Sauvegarder E1'}
+            {saving ? t('sauvegarde_en_cours') : t('sauvegarder_e1')}
           </button>
         )}
       </div>

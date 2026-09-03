@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { LangueProvider, useT } from '@/lib/i18n'
+import { usePrefLangue } from '@/lib/usePrefLangue'
+import LangueToggleAuth from '@/components/LangueToggleAuth'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const INK = '#0a0b0d'
@@ -45,7 +48,18 @@ const inputClass =
   'w-full bg-white border border-gray-200 rounded-md pl-10 pr-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-[#e11324] transition-colors placeholder-gray-300'
 
 export default function LoginPage() {
+  const [langue, setLangue] = usePrefLangue()
+  return (
+    <LangueProvider langue={langue}>
+      <LangueToggleAuth langue={langue} onChange={setLangue} />
+      <LoginForm />
+    </LangueProvider>
+  )
+}
+
+function LoginForm() {
   const router = useRouter()
+  const t = useT()
   const [etape, setEtape] = useState<Etape>('login')
 
   // Login
@@ -78,7 +92,7 @@ export default function LoginPage() {
     })
     if (!tokenRes.ok) {
       const err = await tokenRes.json()
-      throw new Error(err.error || err.detail || 'Identifiants incorrects.')
+      throw new Error(err.error || err.detail || t('identifiants_incorrects'))
     }
     const tokenData = await tokenRes.json()
     localStorage.setItem('access_token', tokenData.access)
@@ -87,7 +101,7 @@ export default function LoginPage() {
     const meRes = await fetch(`${API_URL}/api/me/`, {
       headers: { Authorization: `Bearer ${tokenData.access}` },
     })
-    if (!meRes.ok) throw new Error("Impossible de récupérer votre profil.")
+    if (!meRes.ok) throw new Error(t('profil_recuperation_erreur'))
     const user = await meRes.json()
 
     localStorage.setItem('user_role', user.role)
@@ -115,7 +129,7 @@ export default function LoginPage() {
     try {
       await connecterEtRediriger(username, password)
     } catch (err: any) {
-      setError(err.message || 'Identifiants incorrects. Réessayez.')
+      setError(err.message || t('identifiants_incorrects_reessayez'))
     } finally {
       setLoading(false)
     }
@@ -132,7 +146,7 @@ export default function LoginPage() {
         body: JSON.stringify({ email }),
       })
       const data = await res.json() as any
-      if (!res.ok) throw new Error(data.error || 'Email introuvable')
+      if (!res.ok) throw new Error(data.error || t('email_introuvable'))
       setEtape('oublie_code')
     } catch (err: any) {
       setError(err.message)
@@ -145,8 +159,8 @@ export default function LoginPage() {
   async function handleReinitialiser(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-    if (nouveauMdp !== confirmerMdp) { setError('Les mots de passe ne correspondent pas'); return }
-    if (nouveauMdp.length < 8) { setError('Minimum 8 caractères'); return }
+    if (nouveauMdp !== confirmerMdp) { setError(t('mdp_ne_correspondent_pas')); return }
+    if (nouveauMdp.length < 8) { setError(t('minimum_8_caracteres')); return }
     setLoading(true)
     try {
       const res = await fetch(`${API_URL}/api/reinitialiser-mdp/`, {
@@ -155,9 +169,9 @@ export default function LoginPage() {
         body: JSON.stringify({ email, code, nouveau_mot_de_passe: nouveauMdp }),
       })
       const data = await res.json() as any
-      if (!res.ok) throw new Error(data.error || 'Erreur')
+      if (!res.ok) throw new Error(data.error || t('erreur_generique'))
 
-      setToast('Mot de passe mis à jour')
+      setToast(t('mdp_mis_a_jour'))
       setTimeout(() => setToast(''), 3000)
       try {
         await connecterEtRediriger(data.username, nouveauMdp)
@@ -176,9 +190,9 @@ export default function LoginPage() {
   }
 
   const headerContent = {
-    login: { icon: 'ti-lock', title: 'Veuillez vous authentifier' },
-    oublie_email: { icon: 'ti-mail', title: 'Mot de passe oublié' },
-    oublie_code: { icon: 'ti-key', title: 'Nouveau mot de passe' },
+    login: { icon: 'ti-lock', title: t('login_authentifier_titre') },
+    oublie_email: { icon: 'ti-mail', title: t('login_oublie_titre') },
+    oublie_code: { icon: 'ti-key', title: t('nouveau_mdp_titre') },
   }[etape]
 
   return (
@@ -195,7 +209,7 @@ export default function LoginPage() {
           EXTINC<span style={{ color: RED }}>PRO</span>
         </h1>
         <p className="mt-1 text-[11px] font-semibold uppercase tracking-widest text-white/40">
-          Sécurité incendie
+          {t('securite_incendie_tagline')}
         </p>
       </div>
 
@@ -218,7 +232,7 @@ export default function LoginPage() {
               <Field icon="ti-user">
                 <input type="text" value={username} onChange={e => setUsername(e.target.value)}
                   className={inputClass}
-                  placeholder="Nom d'utilisateur" required autoComplete="username" />
+                  placeholder={t('nom_utilisateur_placeholder')} required autoComplete="username" />
               </Field>
               <Field
                 icon="ti-lock"
@@ -232,19 +246,19 @@ export default function LoginPage() {
                 <input type={showPassword ? 'text' : 'password'} value={password}
                   onChange={e => setPassword(e.target.value)}
                   className={`${inputClass} pr-10`}
-                  placeholder="Mot de passe" required autoComplete="current-password" />
+                  placeholder={t('mot_de_passe_placeholder')} required autoComplete="current-password" />
               </Field>
 
               <button type="button"
                 onClick={() => { reset(); setEtape('oublie_email') }}
                 className="self-start text-xs font-medium hover:underline" style={{ color: RED }}>
-                J'ai oublié mon mot de passe
+                {t('jai_oublie_mdp')}
               </button>
 
               <button type="submit" disabled={loading}
                 className="mt-1 flex items-center justify-center gap-2.5 rounded-md py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                 style={{ background: RED }}>
-                {loading ? <Spinner size={16} /> : 'Se connecter'}
+                {loading ? <Spinner size={16} /> : t('se_connecter')}
               </button>
             </form>
           )}
@@ -253,7 +267,7 @@ export default function LoginPage() {
           {etape === 'oublie_email' && (
             <form onSubmit={handleEnvoyerCode} className="flex flex-col gap-4">
               <p className="text-xs text-gray-500 -mt-1 mb-1">
-                Entrez votre email. Un code de réinitialisation vous sera envoyé.
+                {t('entrez_email_code_texte')}
               </p>
               <Field icon="ti-mail">
                 <input type="email" value={email} onChange={e => setEmail(e.target.value)}
@@ -263,11 +277,11 @@ export default function LoginPage() {
               <button type="submit" disabled={loading}
                 className="flex items-center justify-center gap-2.5 rounded-md py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                 style={{ background: RED }}>
-                {loading && <Spinner size={16} />} {loading ? 'Envoi en cours...' : 'Envoyer le code'}
+                {loading && <Spinner size={16} />} {loading ? t('envoi_en_cours') : t('envoyer_le_code')}
               </button>
               <button type="button" onClick={() => { reset(); setEtape('login') }}
                 className="text-xs text-gray-400 hover:text-[#0a0b0d] transition-colors text-center">
-                Retour à la connexion
+                {t('retour_connexion')}
               </button>
             </form>
           )}
@@ -276,7 +290,7 @@ export default function LoginPage() {
           {etape === 'oublie_code' && (
             <form onSubmit={handleReinitialiser} className="flex flex-col gap-4">
               <p className="text-xs text-gray-500 -mt-1 mb-1">
-                Code envoyé à <strong className="text-gray-700">{email}</strong>. Vérifiez vos emails.
+                {t('code_envoye_a')} <strong className="text-gray-700">{email}</strong>. {t('verifiez_emails')}
               </p>
               <Field icon="ti-key">
                 <input type="text" value={code}
@@ -296,7 +310,7 @@ export default function LoginPage() {
                 <input type={showNvMdp ? 'text' : 'password'} value={nouveauMdp}
                   onChange={e => setNouveauMdp(e.target.value)}
                   className={`${inputClass} pr-10`}
-                  placeholder="Nouveau mot de passe" required autoComplete="new-password" />
+                  placeholder={t('nouveau_mdp_placeholder')} required autoComplete="new-password" />
               </Field>
               <Field
                 icon="ti-lock"
@@ -310,16 +324,16 @@ export default function LoginPage() {
                 <input type={showCfMdp ? 'text' : 'password'} value={confirmerMdp}
                   onChange={e => setConfirmerMdp(e.target.value)}
                   className={`${inputClass} pr-10`}
-                  placeholder="Confirmer le mot de passe" required autoComplete="new-password" />
+                  placeholder={t('confirmer_mdp_placeholder')} required autoComplete="new-password" />
               </Field>
               <button type="submit" disabled={loading}
                 className="flex items-center justify-center gap-2.5 rounded-md py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
                 style={{ background: RED }}>
-                {loading && <Spinner size={16} />} {loading ? 'Réinitialisation...' : 'Réinitialiser mon mot de passe'}
+                {loading && <Spinner size={16} />} {loading ? t('reinitialisation_en_cours') : t('reinitialiser_mon_mdp')}
               </button>
               <button type="button" onClick={() => { setError(''); setEtape('oublie_email') }}
                 className="text-xs text-gray-400 hover:text-[#0a0b0d] transition-colors text-center">
-                Renvoyer un code
+                {t('renvoyer_code')}
               </button>
             </form>
           )}

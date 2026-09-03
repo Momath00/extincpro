@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import { Container, SectionHeading } from "@/components/ui";
+import { useT } from "@/lib/i18n";
 
 const partners = [
   {
@@ -29,12 +32,13 @@ const partners = [
 ];
 
 export function Partners() {
+  const t = useT();
   return (
     <section className="border-t border-line bg-paper py-20 sm:py-24">
       <Container>
         <SectionHeading
-          kicker="Ils nous font confiance"
-          title="Nos partenaires d'affaires"
+          kicker={t("partners_kicker")}
+          title={t("partners_titre")}
           align="center"
         />
         <div className="mt-14 grid grid-cols-2 gap-6 lg:grid-cols-4">

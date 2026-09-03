@@ -59,6 +59,7 @@ class OrganisationSerializer(serializers.ModelSerializer):
             "nom",
             "slug",
             "adresse",
+            "langue",
             "logo",
             "est_active",
             "date_creation",

@@ -1,6 +1,7 @@
 import random
 import string
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
@@ -8,6 +9,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from securiteincendie.emailing import envoyer_email, html_template
+from securiteincendie.email_i18n import et
 
 from .models import DemandeEssai, Module, Organisation, OrganisationModule
 from .serializers import (
@@ -56,6 +58,11 @@ class OrganisationViewSet(viewsets.ModelViewSet):
         if "adresse" in request.data:
             organisation.adresse = request.data["adresse"]
             champs.append("adresse")
+        if "langue" in request.data:
+            if request.data["langue"] not in dict(Organisation.Langue.choices):
+                return Response({"error": "Langue invalide."}, status=status.HTTP_400_BAD_REQUEST)
+            organisation.langue = request.data["langue"]
+            champs.append("langue")
         if "logo" in request.data:
             logo = request.data["logo"] or ""
             erreur = valider_logo(logo)
@@ -101,37 +108,40 @@ class OrganisationViewSet(viewsets.ModelViewSet):
         )
 
         prenom = data.get("first_name") or data["username"]
+        langue = organisation.langue or "fr"
+        frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/")
+        lien_login = f"{frontend_url}/login" if frontend_url else ""
         html_body = f"""
-<h2 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#0a0b0d;">Bienvenue sur ExtincPro !</h2>
+<h2 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#0a0b0d;">{et('bienvenue_org_titre', langue)}</h2>
 <p style="margin:0 0 24px;color:#64748b;font-size:14px;line-height:1.6;">
-  Bonjour <strong style="color:#0a0b0d;">{prenom}</strong>,<br>
-  votre organisation <strong style="color:#0a0b0d;">{organisation.nom}</strong> a été créée sur la
-  plateforme. Vous êtes désormais <strong style="color:#e11324;">Superviseur</strong> — vous pouvez
-  inviter votre équipe (techniciens, citoyens) une fois connecté(e).
+  {et('bonjour', langue)} <strong style="color:#0a0b0d;">{prenom}</strong>,<br>
+  {et('bienvenue_org_intro', langue)} <strong style="color:#0a0b0d;">{organisation.nom}</strong>
+  {et('bienvenue_org_intro_suite', langue)}
 </p>
 <table role="presentation" cellpadding="0" cellspacing="0"
   style="width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:24px;">
   <tr>
     <td style="padding:14px 20px;border-bottom:1px solid #e2e8f0;">
-      <span style="display:block;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">Nom d'utilisateur</span>
+      <span style="display:block;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">{et('nom_utilisateur_email', langue)}</span>
       <span style="font-size:14px;font-weight:700;color:#0a0b0d;">{data['username']}</span>
     </td>
   </tr>
   <tr>
     <td style="padding:14px 20px;">
-      <span style="display:block;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Mot de passe temporaire</span>
+      <span style="display:block;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">{et('mdp_temporaire_email', langue)}</span>
       <code style="display:inline-block;background:#fff2e8;color:#e11324;font-size:18px;font-weight:800;letter-spacing:3px;padding:8px 16px;border-radius:8px;border:2px solid #fed7aa;">{mdp_temp}</code>
     </td>
   </tr>
 </table>
 <div style="background:#fffbeb;border-left:3px solid #e11324;padding:12px 16px;border-radius:0 8px 8px 0;">
   <p style="margin:0;color:#92400e;font-size:13px;line-height:1.5;">
-    ⚠️ Ce mot de passe est <strong>temporaire</strong>. Vous serez invité(e) à le modifier dès votre première connexion.
+    ⚠️ {et('mdp_temporaire_note', langue)}
   </p>
-</div>"""
+</div>
+{f'<p style="margin:24px 0 0;text-align:center;"><a href="{lien_login}" style="display:inline-block;background:#e11324;color:#fff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">{et("se_connecter_portail_btn", langue)}</a></p>' if lien_login else ''}"""
         envoyer_email(
             data["email"],
-            f"Bienvenue sur ExtincPro — {organisation.nom}",
+            f"{et('bienvenue_org_sujet', langue)} — {organisation.nom}",
             html_template(html_body),
         )
 
