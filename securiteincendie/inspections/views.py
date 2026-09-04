@@ -771,23 +771,6 @@ def _html_rapport_incendie_complet(rapport) -> str:
     if not sections_html:
         sections_html = "<p class='muted' style='font-size:9pt;'>Aucun dispositif enregistré.</p>"
 
-    cert_html = ""
-    if hasattr(rapport, "certificat"):
-        c = rapport.certificat
-        badge_color = "#0d6b4f" if c.conforme else "#e11324"
-        badge_bg = "#e9f6f2" if c.conforme else "#fef2f2"
-        badge_texte = "Conforme" if c.conforme else "Non conforme"
-        cert_html = (
-            f'<div style="display:flex;align-items:center;gap:8px;background:#fff7ed;border:1.5px solid #ff6b1a;'
-            f'border-radius:6px;padding:8px 14px;margin-top:12px;">'
-            f'<span style="font-size:7pt;font-weight:700;text-transform:uppercase;color:#9a4a13;">Certificat</span>'
-            f'<span style="font-size:11pt;font-weight:900;color:#ff6b1a;">{c.numero}</span>'
-            f'<span style="font-size:8pt;color:#555;">· Émis le {_date_fr(c.date_emission)}</span>'
-            f'<span style="background:{badge_bg};color:{badge_color};font-size:7pt;font-weight:700;padding:2px 8px;border-radius:100px;border:1px solid {badge_color};">{badge_texte}</span>'
-            f'{"<span style=\"background:#0d6b4f;color:#fff;font-size:7pt;font-weight:700;padding:2px 7px;border-radius:100px;\">Envoyé</span>" if c.certificat_envoye else ""}'
-            f'</div>'
-        )
-
     logo_content = organisation_logo_content(bat.client.organisation, 46)
     organisation_nom = bat.client.organisation.nom
 
@@ -842,7 +825,6 @@ def _html_rapport_incendie_complet(rapport) -> str:
 <div class="sec-title">E3 — Détail par section</div>
 <div style="font-size:7.5pt;color:#000;margin-bottom:8px;font-style:italic;">A = Installation correcte &nbsp;|&nbsp; B = Nécessite entretien &nbsp;|&nbsp; C = Alarme confirmée &nbsp;|&nbsp; D = Statut (D=Défectueux, I=Inspecté, NI=Non inspecté) &nbsp;|&nbsp; E = Zone/Circuit &nbsp;&nbsp;(A/B/C : 1 = Oui, 0 = Non)</div>
 {sections_html}
-{cert_html}
 {pied_de_page(organisation_nom, t("footer_rapport_incendie"))}
 </div>
 </body>
