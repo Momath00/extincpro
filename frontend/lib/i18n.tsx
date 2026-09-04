@@ -193,6 +193,7 @@ export const DICT: Dict = {
   incendie: { fr: "Système d'alarme", en: 'Fire alarm system' },
   extincteur: { fr: 'Extincteur', en: 'Extinguisher' },
   extincteur_eclairage: { fr: 'Extincteur & éclairage', en: 'Extinguisher & lighting' },
+  eclairage_urgence_badge: { fr: "Éclairage d'urgence", en: 'Emergency lighting' },
   tous_statuts: { fr: 'Tous statuts', en: 'All statuses' },
   envoyes: { fr: 'Envoyés', en: 'Sent' },
   non_envoyes: { fr: 'Non envoyés', en: 'Not sent' },

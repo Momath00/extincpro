@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import TableEclairageUrgence from '@/components/rapports-eclairage-urgence/TableEclairageUrgence'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
+import ModuleBadge from '@/components/dashboard/ModuleBadge'
 import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -125,10 +126,13 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
         </div>
       )}
 
-      <Link href="/superviseur/rapports-eclairage-urgence"
-        className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1 mb-4">
-        <i className="ti ti-arrow-left" /> {t('retour_aux_rapports')}
-      </Link>
+      <div className="flex items-center justify-between mb-4 gap-3">
+        <Link href="/superviseur/rapports-eclairage-urgence"
+          className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1">
+          <i className="ti ti-arrow-left" /> {t('retour_aux_rapports')}
+        </Link>
+        <ModuleBadge type="eclairage" />
+      </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-5">
         <div>
@@ -172,8 +176,8 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
             <button
               onClick={() => setConfirmRouvrir(true)}
               disabled={actionLoading}
-              className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 border-2 disabled:opacity-50 hover:bg-gray-50 transition-colors"
-              style={{ borderColor: NAVY, color: NAVY }}
+              className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 disabled:opacity-50 hover:opacity-90 transition-opacity"
+              style={{ background: '#eef2f7', color: NAVY }}
             >
               <i className="ti ti-lock-open" /> {t('rouvrir_rapport')}
             </button>
@@ -181,8 +185,8 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
 
           <button
             onClick={() => downloadHtml(`${API_URL}/api/rapports-eclairage-urgence/${rapport.id}/telecharger/`)}
-            className="text-sm font-bold px-4 py-2.5 rounded-md border-2 flex items-center gap-2 hover:bg-gray-50 transition-colors"
-            style={{ borderColor: NAVY, color: NAVY }}
+            className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 hover:opacity-90 transition-opacity"
+            style={{ background: '#eef2f7', color: NAVY }}
           >
             <i className="ti ti-file-download" /> {t('telecharger_rapport')}
           </button>

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import TableExtincteurs from '@/components/rapports-extincteurs/TableExtincteurs'
 import TableBoyaux from '@/components/rapports-extincteurs/TableBoyaux'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
+import ModuleBadge from '@/components/dashboard/ModuleBadge'
 import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -155,8 +156,8 @@ function CertificatTab({
             )}
             <button
               onClick={() => downloadHtml(`${API_URL}/api/rapports-extincteurs/${rapport.id}/certificat-pdf/`)}
-              className="flex-1 text-sm font-bold px-4 py-3 rounded-lg border-2 flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
-              style={{ borderColor: NAVY, color: NAVY }}
+              className="flex-1 text-sm font-bold px-4 py-3 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+              style={{ background: '#eef2f7', color: NAVY }}
             >
               <i className="ti ti-download" /> {t('telecharger_pdf')}
             </button>
@@ -290,10 +291,13 @@ export default function SuperviseurRapportExtincteurDetailPage() {
         </div>
       )}
 
-      <Link href="/superviseur/rapports-extincteurs"
-        className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1 mb-4">
-        <i className="ti ti-arrow-left" /> {t('retour_aux_rapports')}
-      </Link>
+      <div className="flex items-center justify-between mb-4 gap-3">
+        <Link href="/superviseur/rapports-extincteurs"
+          className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1">
+          <i className="ti ti-arrow-left" /> {t('retour_aux_rapports')}
+        </Link>
+        <ModuleBadge type="extincteur" />
+      </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-5">
         <div>
@@ -348,8 +352,8 @@ export default function SuperviseurRapportExtincteurDetailPage() {
             <button
               onClick={() => setConfirmRouvrir(true)}
               disabled={actionLoading}
-              className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 border-2 disabled:opacity-50 hover:bg-gray-50 transition-colors"
-              style={{ borderColor: NAVY, color: NAVY }}
+              className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 disabled:opacity-50 hover:opacity-90 transition-opacity"
+              style={{ background: '#eef2f7', color: NAVY }}
             >
               <i className="ti ti-lock-open" /> {t('rouvrir_rapport')}
             </button>
@@ -365,8 +369,8 @@ export default function SuperviseurRapportExtincteurDetailPage() {
                   setTelechargement(null)
                 }}
                 disabled={telechargement !== null}
-                className="text-sm font-bold px-4 py-2.5 rounded-md border-2 flex items-center gap-2 hover:bg-gray-50 transition-colors disabled:opacity-50"
-                style={{ borderColor: NAVY, color: NAVY }}
+                className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
+                style={{ background: '#eef2f7', color: NAVY }}
               >
                 {telechargement === 'rapport' ? <SpinnerBouton color={NAVY} /> : <i className="ti ti-file-download" />} {t('telecharger_rapport')}
               </button>
@@ -392,8 +396,8 @@ export default function SuperviseurRapportExtincteurDetailPage() {
                     setTelechargement(null)
                   }}
                   disabled={telechargement !== null}
-                  className="text-sm font-bold px-4 py-2.5 rounded-md border-2 flex items-center gap-2 hover:bg-orange-50 transition-colors disabled:opacity-50"
-                  style={{ borderColor: ORANGE, color: ORANGE }}
+                  className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
+                  style={{ background: '#fef2f2', color: ORANGE }}
                 >
                   {telechargement === 'certificat' ? <SpinnerBouton color={ORANGE} /> : <i className="ti ti-certificate" />} {t('certificat')}
                 </button>
