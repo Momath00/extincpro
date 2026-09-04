@@ -138,13 +138,6 @@ function RapportsEclairageUrgenceListContent() {
             </button>
           </div>
         </div>
-        <Link
-          href="/superviseur/rapports-eclairage-urgence/nouveau"
-          className="text-center text-white px-4 py-2.5 rounded-md text-sm font-bold hover:opacity-90 transition-opacity flex items-center gap-1.5"
-          style={{ background: ORANGE }}
-        >
-          <i className="ti ti-plus" /> {t('nouveau_rapport')}
-        </Link>
       </div>
 
       {/* Filtres + Recherche */}
@@ -195,11 +188,14 @@ function RapportsEclairageUrgenceListContent() {
             {recherche ? t('aucun_resultat_recherche') : t('aucun_rapport')}
           </p>
           {!recherche && (
-            <Link href="/superviseur/rapports-eclairage-urgence/nouveau"
-              className="mt-4 inline-block text-sm font-bold hover:underline"
-              style={{ color: ORANGE }}>
-              {t('creer_premier_rapport')}
-            </Link>
+            <>
+              <p className="mt-2 text-xs text-gray-400 max-w-sm mx-auto">{t('eclairage_cree_automatiquement')}</p>
+              <Link href="/superviseur/rapports-extincteurs/nouveau"
+                className="mt-4 inline-block text-sm font-bold hover:underline"
+                style={{ color: ORANGE }}>
+                {t('creer_rapport_extincteur_lien')}
+              </Link>
+            </>
           )}
         </div>
       ) : (

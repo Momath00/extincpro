@@ -45,6 +45,11 @@ export const DICT: Dict = {
   aucun_rapport: { fr: 'Aucun rapport pour le moment.', en: 'No reports yet.' },
   aucun_resultat_recherche: { fr: 'Aucun rapport ne correspond à votre recherche.', en: 'No reports match your search.' },
   creer_premier_rapport: { fr: 'Créer le premier rapport →', en: 'Create the first report →' },
+  eclairage_cree_automatiquement: {
+    fr: "Un rapport éclairage d'urgence est créé automatiquement avec chaque nouveau rapport extincteurs.",
+    en: 'An emergency lighting report is created automatically with each new fire extinguisher report.',
+  },
+  creer_rapport_extincteur_lien: { fr: 'Créer un rapport extincteurs →', en: 'Create a fire extinguisher report →' },
   envoye: { fr: 'Envoyé', en: 'Sent' },
   non_envoye: { fr: 'Non envoyé', en: 'Not sent' },
   supprimer_rapport_titre: { fr: 'Supprimer ce rapport ?', en: 'Delete this report?' },
