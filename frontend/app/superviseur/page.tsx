@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import InviteModal from '@/components/dashboard/InviteModal'
 import { useT, useLangue } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -18,36 +17,51 @@ export default function SuperviseurDashboard() {
     ouvert: { label: t('ouvert'), bg: '#fef2f2', color: '#9a4a13' },
     ferme: { label: t('ferme'), bg: '#e9f6f2', color: '#0d6b4f' },
   }
+  const MODULE_STYLES: Record<string, { href: string; icon: string; accent: string; bg: string; color: string; rowBg: string }> = {
+    incendie: { href: '/superviseur/rapports', icon: 'ti-clipboard-check', accent: '#6366f1', bg: '#eef2ff', color: '#4338ca', rowBg: '#f5f6ff' },
+    extincteur: { href: '/superviseur/rapports-extincteurs', icon: 'ti-fire-extinguisher', accent: '#f97316', bg: '#fff2e8', color: '#9a4a13', rowBg: '#fffaf5' },
+    eclairage: { href: '/superviseur/rapports-eclairage-urgence', icon: 'ti-bulb', accent: '#06b6d4', bg: '#ecfeff', color: '#0e7490', rowBg: '#f0fdfe' },
+  }
   const [rapports, setRapports] = useState<any[]>([])
   const [nbClients, setNbClients] = useState(0)
   const [nbTechniciens, setNbTechniciens] = useState(0)
   const [nbCitoyens, setNbCitoyens] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [inviteOpen, setInviteOpen] = useState(false)
 
   function chargerDonnees() {
     const token = localStorage.getItem('access_token')
     if (!token) { router.push('/login'); return }
     const headers = { Authorization: `Bearer ${token}` }
 
+    const parseListe = async (res: Response) => {
+      if (!res.ok) return []
+      const data = await res.json()
+      return Array.isArray(data) ? data : (data.results || [])
+    }
+
     Promise.all([
+      fetch(`${API_URL}/api/rapports/`, { headers }),
       fetch(`${API_URL}/api/rapports-extincteurs/`, { headers }),
+      fetch(`${API_URL}/api/rapports-eclairage-urgence/`, { headers }),
       fetch(`${API_URL}/api/clients/`, { headers }),
       fetch(`${API_URL}/api/utilisateurs/?role=technicien`, { headers }),
       fetch(`${API_URL}/api/utilisateurs/?role=citoyen`, { headers }),
     ])
-      .then(async ([rapportsRes, clientsRes, techRes, citRes]) => {
-        if (rapportsRes.status === 401) { router.push('/login'); return }
-        const [rapportsData, clientsData, techData, citData] = await Promise.all([
-          rapportsRes.json(), clientsRes.json(), techRes.json(), citRes.json(),
+      .then(async ([incendieRes, extincteurRes, eclairageRes, clientsRes, techRes, citRes]) => {
+        if (extincteurRes.status === 401) { router.push('/login'); return }
+
+        const [incendieList, extincteurList, eclairageList, clientsList, techList, citList] = await Promise.all([
+          parseListe(incendieRes), parseListe(extincteurRes), parseListe(eclairageRes),
+          parseListe(clientsRes), parseListe(techRes), parseListe(citRes),
         ])
 
-        const rapportsList = Array.isArray(rapportsData) ? rapportsData : (rapportsData.results || [])
-        const clientsList = Array.isArray(clientsData) ? clientsData : (clientsData.results || [])
-        const techList = Array.isArray(techData) ? techData : (techData.results || [])
-        const citList = Array.isArray(citData) ? citData : (citData.results || [])
+        const rapportsTagged = [
+          ...incendieList.map((r: any) => ({ ...r, _module: 'incendie' })),
+          ...extincteurList.map((r: any) => ({ ...r, _module: 'extincteur' })),
+          ...eclairageList.map((r: any) => ({ ...r, _module: 'eclairage' })),
+        ]
 
-        setRapports(rapportsList)
+        setRapports(rapportsTagged)
         setNbClients(clientsList.length)
         setNbTechniciens(techList.length)
         setNbCitoyens(citList.length)
@@ -70,39 +84,19 @@ export default function SuperviseurDashboard() {
 
   const ouverts = rapports.filter(r => r.statut === 'ouvert').length
   const fermes = rapports.filter(r => r.statut === 'ferme').length
-  const recents = rapports.slice(0, 6)
+  const recents = [...rapports]
+    .sort((a, b) => new Date(b.date_derniere_sauvegarde || 0).getTime() - new Date(a.date_derniere_sauvegarde || 0).getTime())
+    .slice(0, 6)
 
   return (
     <div>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: RED }}>{t('nav_dashboard')}</h1>
-          <p className="text-gray-400 text-sm mt-1">
-            {new Date().toLocaleDateString(langue === 'en' ? 'en-CA' : 'fr-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </p>
-        </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <button
-            onClick={() => setInviteOpen(true)}
-            className="flex-1 sm:flex-none text-center border border-gray-200 px-4 py-2.5 rounded-md text-sm font-bold hover:border-[#0a0b0d] transition-colors"
-            style={{ color: RED }}
-          >
-            <i className="ti ti-user-plus mr-1" /> {t('inviter')}
-          </button>
-          <Link
-            href="/superviseur/rapports-extincteurs/nouveau"
-            className="flex-1 sm:flex-none text-center text-white px-4 py-2.5 rounded-md text-sm font-bold hover:opacity-90 transition-opacity"
-            style={{ background: ACCENT }}
-          >
-            <i className="ti ti-plus mr-1" /> {t('nouveau_rapport')}
-          </Link>
-        </div>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold" style={{ color: RED }}>{t('nav_dashboard')}</h1>
+        <p className="text-gray-400 text-sm mt-1">
+          {new Date().toLocaleDateString(langue === 'en' ? 'en-CA' : 'fr-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+        </p>
       </div>
-
-      {inviteOpen && (
-        <InviteModal onClose={() => setInviteOpen(false)} onInvited={chargerDonnees} />
-      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
@@ -149,15 +143,16 @@ export default function SuperviseurDashboard() {
             </div>
           ) : recents.map((r: any) => {
             const badge = STATUT_BADGE[r.statut] || STATUT_BADGE.ouvert
+            const mod = MODULE_STYLES[r._module] || MODULE_STYLES.extincteur
             return (
               <Link
-                href={`/superviseur/rapports-extincteurs/${r.id}`}
-                key={r.id}
+                href={`${mod.href}/${r.id}`}
+                key={`${r._module}-${r.id}`}
                 className="flex items-center gap-3 p-3 pl-3.5 rounded-md border-l-4 hover:shadow-sm transition-all"
-                style={{ borderLeftColor: '#f97316', background: '#fffaf5' }}
+                style={{ borderLeftColor: mod.accent, background: mod.rowBg }}
               >
-                <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: '#fff2e8' }}>
-                  <i className="ti ti-fire-extinguisher text-base" style={{ color: '#9a4a13' }} />
+                <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: mod.bg }}>
+                  <i className={`ti ${mod.icon} text-base`} style={{ color: mod.color }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate" style={{ color: RED }}>
