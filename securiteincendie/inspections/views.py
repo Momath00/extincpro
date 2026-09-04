@@ -635,7 +635,7 @@ def _html_rapport_incendie_complet(rapport) -> str:
     """HTML du rapport technique complet (E1 + E2 + légende + E3) — même
     chrome (ligne rouge, bandeau noir, pied de page bouclier) que le
     certificat, avec le contenu technique détaillé."""
-    from .pdf_design import CSS_DOCUMENT, entete, pied_de_page
+    from .pdf_design import CSS_DOCUMENT, ICONE_PIN, entete, icone, pied_de_page
 
     bat = rapport.batiment
     adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
@@ -786,7 +786,7 @@ def _html_rapport_incendie_complet(rapport) -> str:
 <meta charset="UTF-8">
 <title>Rapport d'inspection — {adresse}</title>
 <style>{CSS_DOCUMENT}
-  .info-grid{{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:18px; }}
+  .info-grid{{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px; }}
 </style>
 </head>
 <body>
@@ -800,15 +800,18 @@ def _html_rapport_incendie_complet(rapport) -> str:
   <div style="width:140px;height:1.5px;background:linear-gradient(90deg, transparent, #e11324, transparent);margin:6px auto;"></div>
   <p>Réseau d'alarme incendie — CAN/ULC-S536</p>
 </div>
+<div style="text-align:left;margin-bottom:6px;">
+  <div class="card-title">Client</div>
+  <div class="card-main" style="font-size:11pt;">{bat.client.nom}</div>
+</div>
+<div style="text-align:center;margin-bottom:6px;">
+  <div class="card-title">Adresse inspectée</div>
+</div>
+<div class="info-card" style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:14px;">
+  <span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:#f1f5f9;flex-shrink:0;">{icone(ICONE_PIN, 16, '#6b7280')}</span>
+  <div class="card-main" style="font-size:20pt; font-weight:900;">{adresse}</div>
+</div>
 <div class="info-grid">
-  <div class="info-card">
-    <div class="card-title">Client</div>
-    <div class="card-main">{bat.client.nom}</div>
-  </div>
-  <div class="info-card">
-    <div class="card-title">Adresse</div>
-    <div class="card-main">{adresse}</div>
-  </div>
   <div class="info-card">
     <div class="card-title">Fabricant du panneau</div>
     <div class="card-main">{fabricant_panneau}</div>
