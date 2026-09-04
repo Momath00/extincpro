@@ -113,8 +113,17 @@ def html_template(body: str) -> str:
 </html>"""
 
 
-def envoyer_email(to_email: str, subject: str, html: str, reply_to: str | None = None) -> None:
-    """Envoie via Resend si RESEND_API_KEY est défini, sinon repli SMTP Django."""
+def envoyer_email(
+    to_email: str,
+    subject: str,
+    html: str,
+    reply_to: str | None = None,
+    attachments: list[tuple[str, bytes, str]] | None = None,
+) -> None:
+    """Envoie via Resend si RESEND_API_KEY est défini, sinon repli SMTP Django.
+
+    `attachments` : liste de (nom_fichier, contenu_octets, type_mime), par ex.
+    pour joindre un PDF de certificat/rapport au courriel."""
     api_key = getattr(settings, "RESEND_API_KEY", "")
     from_email = getattr(settings, "RESEND_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL)
     if api_key:
@@ -125,6 +134,10 @@ def envoyer_email(to_email: str, subject: str, html: str, reply_to: str | None =
             payload = {"from": from_email, "to": [to_email], "subject": subject, "html": html}
             if reply_to:
                 payload["reply_to"] = [reply_to]
+            if attachments:
+                payload["attachments"] = [
+                    {"filename": nom, "content": list(contenu)} for nom, contenu, _mime in attachments
+                ]
             _resend.Emails.send(payload)
             return
         except Exception:
@@ -137,4 +150,6 @@ def envoyer_email(to_email: str, subject: str, html: str, reply_to: str | None =
         reply_to=[reply_to] if reply_to else None,
     )
     email.attach_alternative(html, "text/html")
+    for nom, contenu, mime in attachments or []:
+        email.attach(nom, contenu, mime)
     email.send(fail_silently=True)

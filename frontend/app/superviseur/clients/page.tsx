@@ -14,8 +14,12 @@ function ClientModal({ client, onClose, onSaved }: { client: any; onClose: () =>
   const [email, setEmail] = useState(client?.contact_email || '')
   const [telephone, setTelephone] = useState(client?.contact_telephone || '')
   const [adresse, setAdresse] = useState(client?.adresse || '')
+  const [modeLivraison, setModeLivraison] = useState(client?.mode_livraison || 'plateforme')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const nbBatiments = client?.nb_batiments || 0
+  const suggereDirect = client && nbBatiments > 0 && nbBatiments < 5
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -29,7 +33,7 @@ function ClientModal({ client, onClose, onSaved }: { client: any; onClose: () =>
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           nom, contact_nom: contactNom, contact_email: email,
-          contact_telephone: telephone, adresse,
+          contact_telephone: telephone, adresse, mode_livraison: modeLivraison,
         }),
       })
       const data = await res.json() as any
@@ -85,6 +89,50 @@ function ClientModal({ client, onClose, onSaved }: { client: any; onClose: () =>
             <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>Adresse</label>
             <input value={adresse} onChange={e => setAdresse(e.target.value)} placeholder="123 rue Principale, Montréal, QC"
               className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>Mode de livraison des rapports</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setModeLivraison('plateforme')}
+                className="text-left rounded-lg border-2 px-3 py-2.5 transition-colors"
+                style={modeLivraison === 'plateforme'
+                  ? { borderColor: NAVY, background: '#f8fafc' }
+                  : { borderColor: '#e5e7eb', background: '#fff' }}
+              >
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <i className="ti ti-users text-sm" style={{ color: modeLivraison === 'plateforme' ? NAVY : '#9ca3af' }} />
+                  <span className="text-xs font-bold" style={{ color: NAVY }}>Espace client</span>
+                </div>
+                <p className="text-[11px] text-gray-400 leading-snug">Comptes invités (citoyen/superviseur) qui se connectent pour consulter.</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setModeLivraison('direct')}
+                className="text-left rounded-lg border-2 px-3 py-2.5 transition-colors"
+                style={modeLivraison === 'direct'
+                  ? { borderColor: ORANGE, background: '#fef2f2' }
+                  : { borderColor: '#e5e7eb', background: '#fff' }}
+              >
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <i className="ti ti-mail-forward text-sm" style={{ color: modeLivraison === 'direct' ? ORANGE : '#9ca3af' }} />
+                  <span className="text-xs font-bold" style={{ color: NAVY }}>Envoi direct</span>
+                </div>
+                <p className="text-[11px] text-gray-400 leading-snug">Rapport + certificat en PDF, envoyés par courriel — sans compte.</p>
+              </button>
+            </div>
+            {suggereDirect && modeLivraison !== 'direct' && (
+              <p className="text-[11px] mt-2 flex items-center gap-1" style={{ color: ORANGE }}>
+                <i className="ti ti-bulb" /> Ce client a {nbBatiments} bâtiment{nbBatiments > 1 ? 's' : ''} — l'envoi direct est souvent plus simple pour les petits clients.
+              </p>
+            )}
+            {modeLivraison === 'direct' && !email && (
+              <p className="text-[11px] mt-2 flex items-center gap-1 text-red-500">
+                <i className="ti ti-alert-triangle" /> Une adresse courriel de contact est requise pour l'envoi direct.
+              </p>
+            )}
           </div>
 
           <button type="submit" disabled={loading}
@@ -184,7 +232,18 @@ export default function ClientsPage() {
                   {c.contact_nom && <p className="text-xs text-gray-500 mt-0.5">{c.contact_nom}</p>}
                   {c.contact_email && <p className="text-xs text-gray-400">{c.contact_email}</p>}
                   {c.contact_telephone && <p className="text-xs text-gray-400">{c.contact_telephone}</p>}
-                  <p className="text-xs mt-2 font-semibold" style={{ color: col.bg }}>{c.nb_batiments || 0} bâtiment{(c.nb_batiments || 0) > 1 ? 's' : ''}</p>
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    <p className="text-xs font-semibold" style={{ color: col.bg }}>{c.nb_batiments || 0} bâtiment{(c.nb_batiments || 0) > 1 ? 's' : ''}</p>
+                    {c.mode_livraison === 'direct' ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full" style={{ color: ORANGE, background: '#fef2f2' }}>
+                        <i className="ti ti-mail-forward text-[11px]" /> Envoi direct
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full text-gray-500 bg-gray-100">
+                        <i className="ti ti-users text-[11px]" /> Espace client
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
                   <button onClick={() => setModalClient(c)} className="p-2 rounded-md hover:bg-gray-100 text-gray-500" title="Modifier">

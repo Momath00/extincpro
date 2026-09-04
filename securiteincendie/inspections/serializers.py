@@ -27,6 +27,7 @@ from .models import (
 
 class ClientSerializer(serializers.ModelSerializer):
     nb_batiments = serializers.SerializerMethodField()
+    mode_livraison_display = serializers.CharField(source="get_mode_livraison_display", read_only=True)
 
     def get_nb_batiments(self, obj):
         return obj.batiments.count()
@@ -35,20 +36,23 @@ class ClientSerializer(serializers.ModelSerializer):
         model = Client
         fields = [
             "id", "nom", "contact_nom", "contact_email", "contact_telephone",
-            "adresse", "nb_batiments", "date_creation",
+            "adresse", "mode_livraison", "mode_livraison_display", "nb_batiments", "date_creation",
         ]
 
 
 class BatimentSerializer(serializers.ModelSerializer):
     adresse_complete = serializers.CharField(read_only=True)
     client_nom = serializers.CharField(source="client.nom", read_only=True)
+    client_mode_livraison = serializers.CharField(source="client.mode_livraison", read_only=True)
+    client_contact_email = serializers.CharField(source="client.contact_email", read_only=True)
     proprietaire = UtilisateurSerializer(read_only=True)
     proprietaire_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = Batiment
         fields = [
-            "id", "client", "client_nom", "numero_civique", "rue", "ville", "code_postal",
+            "id", "client", "client_nom", "client_mode_livraison", "client_contact_email",
+            "numero_civique", "rue", "ville", "code_postal",
             "adresse_complete", "fabricant_reseau", "modele_systeme", "direction",
             "type_application", "proprietaire", "proprietaire_id", "date_creation",
         ]

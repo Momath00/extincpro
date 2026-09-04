@@ -65,6 +65,9 @@ function CertificatTab({
   actionLoading: boolean
 }) {
   const cert = rapport.certificat
+  const modeDirect = rapport.batiment?.client_mode_livraison === 'direct'
+  const contactEmail = rapport.batiment?.client_contact_email
+  const peutEnvoyer = modeDirect ? !!contactEmail : !!rapport.citoyen
 
   if (!cert) {
     return (
@@ -116,12 +119,20 @@ function CertificatTab({
               <div>
                 <p className="text-sm font-bold"
                   style={{ color: cert.certificat_envoye ? '#166534' : '#92400e' }}>
-                  {cert.certificat_envoye ? 'Certificat envoyé au citoyen' : 'Pas encore envoyé'}
+                  {cert.certificat_envoye
+                    ? (modeDirect ? 'Certificat envoyé par courriel (PDF)' : 'Certificat envoyé au citoyen')
+                    : 'Pas encore envoyé'}
                 </p>
-                {rapport.citoyen && !cert.certificat_envoye && (
+                {modeDirect && contactEmail && !cert.certificat_envoye && (
+                  <p className="text-xs text-gray-500 mt-0.5">Destinataire : {contactEmail} <span className="text-gray-300">(envoi direct, sans compte)</span></p>
+                )}
+                {modeDirect && !contactEmail && (
+                  <p className="text-xs text-red-500 mt-0.5">Ce client n'a pas d'adresse courriel de contact — ajoutez-en une dans sa fiche client.</p>
+                )}
+                {!modeDirect && rapport.citoyen && !cert.certificat_envoye && (
                   <p className="text-xs text-gray-500 mt-0.5">Destinataire : {rapport.citoyen.username}</p>
                 )}
-                {!rapport.citoyen && (
+                {!modeDirect && !rapport.citoyen && (
                   <p className="text-xs text-gray-400 mt-0.5">Aucun citoyen assigné au rapport</p>
                 )}
               </div>
@@ -129,15 +140,15 @@ function CertificatTab({
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
-            {rapport.citoyen && !cert.certificat_envoye && (
+            {peutEnvoyer && !cert.certificat_envoye && (
               <button
                 onClick={onEnvoyer}
                 disabled={actionLoading}
                 className="flex-1 text-sm font-bold px-4 py-3 rounded-lg text-white flex items-center justify-center gap-2 disabled:opacity-50 hover:opacity-90 transition-opacity"
                 style={{ background: ORANGE }}
               >
-                <i className="ti ti-send" />
-                {actionLoading ? 'Envoi...' : 'Envoyer au citoyen'}
+                <i className={`ti ${modeDirect ? 'ti-mail-forward' : 'ti-send'}`} />
+                {actionLoading ? 'Envoi...' : modeDirect ? 'Envoyer par courriel (PDF)' : 'Envoyer au citoyen'}
               </button>
             )}
             <button
@@ -237,11 +248,11 @@ export default function SuperviseurRapportExtincteurDetailPage() {
       headers: { Authorization: `Bearer ${token}` },
     })
     setActionLoading(false)
+    const d = await res.json().catch(() => ({}))
     if (res.ok) {
-      showToast('Certificat envoyé au citoyen.', 'success')
+      showToast(d.message || 'Certificat envoyé.', 'success')
       charger()
     } else {
-      const d = await res.json().catch(() => ({}))
       showToast(d.error || "Erreur lors de l'envoi.", 'error')
     }
   }
@@ -315,14 +326,16 @@ export default function SuperviseurRapportExtincteurDetailPage() {
             </button>
           )}
 
-          {estFerme && rapport.citoyen && rapport.certificat && !rapport.certificat.certificat_envoye && (
+          {estFerme && rapport.certificat && !rapport.certificat.certificat_envoye &&
+            (rapport.batiment?.client_mode_livraison === 'direct' ? !!rapport.batiment?.client_contact_email : !!rapport.citoyen) && (
             <button
               onClick={envoyerCertificat}
               disabled={actionLoading}
               className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
               style={{ background: ORANGE }}
             >
-              <i className="ti ti-send" /> Envoyer le certificat
+              <i className={`ti ${rapport.batiment?.client_mode_livraison === 'direct' ? 'ti-mail-forward' : 'ti-send'}`} />
+              {rapport.batiment?.client_mode_livraison === 'direct' ? 'Envoyer par courriel (PDF)' : 'Envoyer le certificat'}
             </button>
           )}
 

@@ -6,6 +6,10 @@ class Client(models.Model):
     """L'entreprise avec qui l'organisation travaille (ex. Actionéo).
     Regroupe tous les bâtiments et rapports d'une même entreprise cliente."""
 
+    class ModeLivraison(models.TextChoices):
+        PLATEFORME = "plateforme", "Espace client (invitation)"
+        DIRECT = "direct", "Envoi direct par courriel (PDF joint)"
+
     organisation = models.ForeignKey(
         "organisations.Organisation", on_delete=models.CASCADE, related_name="clients"
     )
@@ -14,11 +18,27 @@ class Client(models.Model):
     contact_email = models.EmailField(blank=True)
     contact_telephone = models.CharField(max_length=20, blank=True)
     adresse = models.CharField(max_length=300, blank=True)
+    mode_livraison = models.CharField(
+        max_length=20,
+        choices=ModeLivraison.choices,
+        default=ModeLivraison.PLATEFORME,
+        help_text=(
+            "« Direct » : pas de compte à créer — le rapport et le certificat PDF sont "
+            "envoyés directement à contact_email dès qu'ils sont prêts. Recommandé pour "
+            "les clients avec peu de bâtiments (moins de 5)."
+        ),
+    )
     date_creation = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["nom"]
         unique_together = [("organisation", "nom")]
+
+    @property
+    def est_petit_client(self) -> bool:
+        """Suggestion : moins de 5 bâtiments → l'envoi direct par courriel est
+        généralement plus simple qu'un espace client dédié."""
+        return self.batiments.count() < 5
 
     def __str__(self):
         return self.nom

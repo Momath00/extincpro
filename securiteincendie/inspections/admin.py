@@ -18,7 +18,8 @@ from .models import (
 
 @admin.register(Client)
 class ClientAdmin(admin.ModelAdmin):
-    list_display = ("nom", "contact_nom", "contact_email", "contact_telephone")
+    list_display = ("nom", "contact_nom", "contact_email", "contact_telephone", "mode_livraison")
+    list_filter = ("mode_livraison",)
     search_fields = ("nom", "contact_nom", "contact_email")
 
 

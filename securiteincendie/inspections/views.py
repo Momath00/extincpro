@@ -489,6 +489,15 @@ class RapportViewSet(viewsets.ModelViewSet):
         if not hasattr(rapport, "certificat"):
             return Response({"error": "Aucun certificat trouvé pour ce rapport."}, status=status.HTTP_404_NOT_FOUND)
 
+        client = rapport.batiment.client
+        if client.mode_livraison == Client.ModeLivraison.DIRECT:
+            from .emailing import envoyer_certificats_directs_batiment
+
+            ok, message = envoyer_certificats_directs_batiment(rapport.batiment, request.user)
+            if not ok:
+                return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": message})
+
         rapport.certificat.certificat_envoye = True
         rapport.certificat.save()
         rapport.historiser(request.user, f"Certificat envoyé au citoyen {rapport.citoyen.username if rapport.citoyen else '—'}")
@@ -1341,6 +1350,15 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
             )
         if not hasattr(rapport, "certificat"):
             return Response({"error": "Aucun certificat trouvé pour ce rapport."}, status=status.HTTP_404_NOT_FOUND)
+
+        client = rapport.batiment.client
+        if client.mode_livraison == Client.ModeLivraison.DIRECT:
+            from .emailing import envoyer_certificats_directs_batiment
+
+            ok, message = envoyer_certificats_directs_batiment(rapport.batiment, request.user)
+            if not ok:
+                return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": message})
 
         rapport.certificat.certificat_envoye = True
         rapport.certificat.save()
