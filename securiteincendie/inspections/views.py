@@ -1983,8 +1983,8 @@ def _html_rapport_eclairage_complet(rapport) -> str:
         item_rows += (
             f"<tr{bg}>"
             f"<td class='center'>{it.ordre}</td>"
-            f"<td>{it.emplacement or '—'}</td>"
             f"<td>{it.etage or '—'}</td>"
+            f"<td>{it.emplacement or '—'}</td>"
             f"<td>{it.modele or '—'}</td>"
             f"<td>{it.voltage or '—'}</td>"
             f"<td class='center bold'{etat_style}>{it.etat or '—'}</td>"
@@ -2029,7 +2029,7 @@ def _html_rapport_eclairage_complet(rapport) -> str:
 <div class="sec-title">{t("detail_unites_eclairage")}</div>
 <table>
   <thead><tr>
-    <th>{t("col_no")}</th><th>{t("col_emplacement")}</th><th>{t("col_etage")}</th><th>{t("col_modele")}</th><th>{t("col_voltage")}</th>
+    <th>{t("col_no")}</th><th>{t("col_etage")}</th><th>{t("col_emplacement")}</th><th>{t("col_modele")}</th><th>{t("col_voltage")}</th>
     <th title="{t('etat_titre_abbr')}">{t("col_etat")}</th><th>{t("col_remarque")}</th>
   </tr></thead>
   <tbody>{item_rows}</tbody>
@@ -2199,11 +2199,11 @@ class RapportEclairageUrgenceViewSet(viewsets.ModelViewSet):
             statut=t('statut_ferme') if rapport.statut == 'ferme' else t('statut_ouvert'), techniciens=techniciens,
         )
 
-        colonnes = [t("col_no"), t("col_emplacement"), t("col_etage"), t("col_modele"), t("col_voltage"), t("col_etat"), t("col_remarque")]
+        colonnes = [t("col_no"), t("col_etage"), t("col_emplacement"), t("col_modele"), t("col_voltage"), t("col_etat"), t("col_remarque")]
         ligne = excel_ligne_entetes(ws, colonnes, ligne=6)
         for it in rapport.eclairages_urgence.all():
             ligne += 1
-            valeurs = [it.ordre, it.emplacement, it.etage, it.modele, it.voltage, it.etat, it.remarque]
+            valeurs = [it.ordre, it.etage, it.emplacement, it.modele, it.voltage, it.etat, it.remarque]
             for col, valeur in enumerate(valeurs, start=1):
                 ws.cell(row=ligne, column=col, value=valeur)
         excel_ajuster_largeurs(ws, colonnes)
