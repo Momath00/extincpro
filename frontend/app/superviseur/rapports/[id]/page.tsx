@@ -88,15 +88,16 @@ function CertificatTab({
     <div className="max-w-lg">
       <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
         {/* Header certificat */}
-        <div className="px-8 py-10 text-center" style={{ background: 'linear-gradient(135deg,#123a63,#0a1c2e)' }}>
-          <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
-            <i className="ti ti-certificate text-white text-3xl" />
+        <div className="px-5 py-4 flex items-center gap-3.5" style={{ background: NAVY, borderBottom: `3px solid ${ORANGE}` }}>
+          <div className="w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.08)' }}>
+            <i className="ti ti-certificate text-white text-lg" />
           </div>
-          <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-1">{t('certificat_inspection')}</p>
-          <p className="text-white text-2xl font-bold tracking-wide">{cert.numero}</p>
-          <p className="text-white/50 text-xs mt-2">CAN/ULC-S536</p>
+          <div className="flex-1 min-w-0">
+            <p className="text-white/45 text-[10px] font-bold uppercase tracking-widest mb-0.5">{t('certificat_inspection')}</p>
+            <p className="text-white text-base font-bold tracking-wide truncate">{cert.numero}</p>
+          </div>
           <span
-            className="inline-block mt-3 text-xs font-black uppercase tracking-widest px-4 py-1.5 rounded-full"
+            className="flex-shrink-0 text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full"
             style={{
               background: cert.conforme ? '#e9f6f2' : '#fef2f2',
               color: cert.conforme ? '#0d6b4f' : '#e11324',

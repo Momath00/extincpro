@@ -1958,6 +1958,88 @@ class BoyauItemViewSet(viewsets.ModelViewSet):
         serializer.save()
 
 
+def _html_rapport_eclairage_complet(rapport) -> str:
+    """HTML du rapport de vérification des unités d'éclairage d'urgence —
+    même chrome (ligne rouge, bandeau noir, pied de page bouclier) que les
+    autres documents de la plateforme."""
+    from .pdf_design import CSS_DOCUMENT, entete, pied_de_page
+
+    bat = rapport.batiment
+    adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
+    langue = bat.client.organisation.langue
+    t = lambda cle: _t(langue, cle)
+
+    date_insp = _date_fr(rapport.date_inspection)
+    techniciens = list(rapport.techniciens.all())
+    tech_noms = ", ".join(t2.get_full_name() or t2.username for t2 in techniciens) or "—"
+
+    items = list(rapport.eclairages_urgence.all())
+    item_rows = ""
+    for it in items:
+        is_defect = it.etat == EclairageUrgenceItem.Etat.DEFECTUEUX
+        is_ni = not is_defect and it.etat == "NI"
+        bg = ' style="background:#fef2f2;"' if is_defect else ' style="background:#fef3c7;"' if is_ni else ""
+        etat_style = ' style="color:#cc0000;"' if is_defect else ' style="color:#b45309;"' if is_ni else ""
+        item_rows += (
+            f"<tr{bg}>"
+            f"<td class='center'>{it.ordre}</td>"
+            f"<td>{it.emplacement or '—'}</td>"
+            f"<td>{it.etage or '—'}</td>"
+            f"<td>{it.modele or '—'}</td>"
+            f"<td>{it.voltage or '—'}</td>"
+            f"<td class='center bold'{etat_style}>{it.etat or '—'}</td>"
+            f"<td>{it.remarque or ''}</td>"
+            f"</tr>"
+        )
+    if not item_rows:
+        item_rows = f"<tr><td colspan='7' class='muted center'>{t('aucune_unite')}</td></tr>"
+
+    logo_content = organisation_logo_content(bat.client.organisation, 46)
+    organisation_nom = bat.client.organisation.nom
+    rapport_extincteur = getattr(rapport, "rapport_extincteur", None)
+    cert = getattr(rapport_extincteur, "certificat", None) if rapport_extincteur else None
+
+    entete_html = entete(
+        logo_content, organisation_nom, t("footer_rapport_eclairage"),
+        t("certificat_no"), (cert.numero if cert else "—"),
+        t("date_inspection"), date_insp, t("technicien_s"), tech_noms,
+    )
+
+    return f"""<!DOCTYPE html>
+<html lang="{langue}">
+<head>
+<meta charset="UTF-8">
+<title>{t("footer_rapport_eclairage")} — {adresse}</title>
+<style>{CSS_DOCUMENT}</style>
+</head>
+<body>
+<div class="no-print" style="text-align:right;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
+  <button onclick="window.print()" style="background:#0a0b0d;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">{t("imprimer_pdf")}</button>
+</div>
+<div style="padding:16px 20px;">
+{entete_html}
+<div class="title-banner">
+  <h2>{t("footer_rapport_eclairage")}</h2>
+  <div style="width:140px;height:1.5px;background:linear-gradient(90deg, transparent, #e11324, transparent);margin:6px auto;"></div>
+</div>
+<div class="info-card" style="text-align:center;margin-bottom:18px;">
+  <div class="card-title">{t("adresse")}</div>
+  <div class="card-main" style="font-size:14pt;">{adresse}</div>
+</div>
+<div class="sec-title">{t("detail_unites_eclairage")}</div>
+<table>
+  <thead><tr>
+    <th>{t("col_no")}</th><th>{t("col_emplacement")}</th><th>{t("col_etage")}</th><th>{t("col_modele")}</th><th>{t("col_voltage")}</th>
+    <th title="{t('etat_titre_abbr')}">{t("col_etat")}</th><th>{t("col_remarque")}</th>
+  </tr></thead>
+  <tbody>{item_rows}</tbody>
+</table>
+{pied_de_page(organisation_nom, t("footer_rapport_eclairage"))}
+</div>
+</body>
+</html>"""
+
+
 class EstModuleRapportEclairageUrgenceActif(permissions.BasePermission):
     message = "Le module « Rapport éclairage d'urgence » n'est pas activé pour votre organisation."
 
@@ -2094,109 +2176,7 @@ class RapportEclairageUrgenceViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], url_path="telecharger")
     def telecharger(self, request, pk=None):
         rapport = self.get_object()
-        bat = rapport.batiment
-        adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
-        from django.utils import timezone
-
-        langue = bat.client.organisation.langue
-        t = lambda cle: _t(langue, cle)
-
-        date_insp = _date_fr(timezone.localdate())
-        techniciens = list(rapport.techniciens.all())
-        tech_noms = ", ".join(t2.get_full_name() or t2.username for t2 in techniciens) or "—"
-
-        items = list(rapport.eclairages_urgence.all())
-        item_rows = ""
-        for it in items:
-            is_defect = it.etat == EclairageUrgenceItem.Etat.DEFECTUEUX
-            is_ni = not is_defect and it.etat == "NI"
-            bg = ' style="background:#fef2f2;"' if is_defect else ' style="background:#fef3c7;"' if is_ni else ""
-            etat_style = ' style="color:#cc0000;"' if is_defect else ' style="color:#b45309;"' if is_ni else ""
-            item_rows += (
-                f"<tr{bg}>"
-                f"<td class='center'>{it.ordre}</td>"
-                f"<td>{it.emplacement or '—'}</td>"
-                f"<td>{it.etage or '—'}</td>"
-                f"<td>{it.modele or '—'}</td>"
-                f"<td>{it.voltage or '—'}</td>"
-                f"<td class='center bold'{etat_style}>{it.etat or '—'}</td>"
-                f"<td>{it.remarque or ''}</td>"
-                f"</tr>"
-            )
-        if not item_rows:
-            item_rows = f"<tr><td colspan='7' class='muted center'>{t('aucune_unite')}</td></tr>"
-
-        logo_content = organisation_logo_content(bat.client.organisation, 46)
-        organisation_nom = bat.client.organisation.nom
-
-        html = f"""<!DOCTYPE html>
-<html lang="{langue}">
-<head>
-<meta charset="UTF-8">
-<title>{t("footer_rapport_eclairage")} — {adresse}</title>
-<style>
-  @page {{ margin: 14mm 12mm; }}
-  *{{ box-sizing:border-box; margin:0; padding:0; }}
-  body{{ font-family:Arial,Helvetica,sans-serif; font-size:9pt; color:#000; background:#fff; }}
-  .header{{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #0a0b0d; padding-bottom:10px; margin-bottom:14px; }}
-  .brand{{ display:flex; align-items:center; gap:12px; }}
-  .logo-box{{ height:46px; max-width:150px; display:flex; align-items:center; flex-shrink:0; }}
-  .logo-box img{{ max-height:100%; max-width:100%; }}
-  .brand-text h1{{ font-size:12pt; font-weight:900; color:#0a0b0d; text-transform:uppercase; }}
-  .brand-text p{{ font-size:7.5pt; color:#444; margin-top:1px; }}
-  .info-card{{ border:1px solid #ccc; border-radius:4px; padding:8px 12px; }}
-  .card-title{{ font-size:7pt; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:#555; margin-bottom:4px; }}
-  .card-main{{ font-size:10pt; font-weight:700; color:#000; }}
-  .title-banner{{ background:#0a0b0d; color:#fff; text-align:center; padding:8px 0; border-radius:4px; margin-bottom:12px; }}
-  .title-banner h2{{ font-size:11pt; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; }}
-  .sec-title{{ font-size:8.5pt; font-weight:700; text-transform:uppercase; color:#000; border-bottom:2px solid #000; padding-bottom:3px; margin-bottom:6px; margin-top:14px; }}
-  table{{ width:100%; border-collapse:collapse; font-size:8pt; }}
-  th{{ background:#e8e8e8; color:#000; font-weight:700; padding:4px 6px; text-align:left; font-size:7.5pt; border:1px solid #ccc; }}
-  td{{ padding:4px 6px; border:1px solid #ddd; color:#000; }}
-  .center{{ text-align:center; }} .bold{{ font-weight:700; }} .muted{{ color:#777; font-style:italic; }}
-  .footer{{ margin-top:20px; padding-top:8px; border-top:1px solid #ccc; display:flex; justify-content:space-between; font-size:7pt; color:#555; }}
-  @media print{{ body{{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }} .no-print{{ display:none!important; }} }}
-</style>
-</head>
-<body>
-<div class="no-print" style="text-align:right;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
-  <button onclick="window.print()" style="background:#0a0b0d;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">{t("imprimer_pdf")}</button>
-</div>
-<div style="padding:16px 20px;">
-<div class="header">
-  <div class="brand">
-    <div class="logo-box">{logo_content}</div>
-    <div class="brand-text">
-      <h1>{organisation_nom}</h1>
-      <p>{t("footer_rapport_eclairage")}</p>
-    </div>
-  </div>
-  <div style="text-align:right;">
-    <div style="font-size:8pt;font-weight:700;text-transform:uppercase;color:{'#0d6b4f' if rapport.statut == 'ferme' else '#ff6b1a'};">{t('statut_ferme') if rapport.statut == 'ferme' else t('statut_ouvert')}</div>
-    <div style="font-size:7.5pt;color:#555;margin-top:4px;">{t("date_inspection")} : <strong style="color:#000;">{date_insp}</strong></div>
-    <div style="font-size:7.5pt;color:#555;margin-top:1px;">{t("technicien_s")} : <strong style="color:#000;">{tech_noms}</strong></div>
-  </div>
-</div>
-<div class="title-banner"><h2>{t("footer_rapport_eclairage")}</h2></div>
-<div class="info-card" style="text-align:center;margin-bottom:18px;">
-  <div class="card-title">{t("adresse")}</div>
-  <div class="card-main" style="font-size:14pt;">{adresse}</div>
-</div>
-<div class="sec-title">{t("detail_unites_eclairage")}</div>
-<table>
-  <thead><tr>
-    <th>{t("col_no")}</th><th>{t("col_emplacement")}</th><th>{t("col_etage")}</th><th>{t("col_modele")}</th><th>{t("col_voltage")}</th>
-    <th title="{t('etat_titre_abbr')}">{t("col_etat")}</th><th>{t("col_remarque")}</th>
-  </tr></thead>
-  <tbody>{item_rows}</tbody>
-</table>
-<div class="footer">
-  <div><strong>{organisation_nom}</strong></div>
-  <div>{adresse}</div>
-</div>
-</div>
-</body>
-</html>"""
+        html = _html_rapport_eclairage_complet(rapport)
         return HttpResponse(html, content_type="text/html; charset=utf-8")
 
     @action(detail=True, methods=["get"])
