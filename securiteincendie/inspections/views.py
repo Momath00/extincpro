@@ -802,6 +802,10 @@ def _html_rapport_incendie_complet(rapport) -> str:
 </div>
 <div class="info-grid">
   <div class="info-card">
+    <div class="card-title">Client</div>
+    <div class="card-main">{bat.client.nom}</div>
+  </div>
+  <div class="info-card">
     <div class="card-title">Adresse</div>
     <div class="card-main">{adresse}</div>
   </div>
@@ -2021,6 +2025,10 @@ def _html_rapport_eclairage_complet(rapport) -> str:
 <div class="title-banner">
   <h2>{t("footer_rapport_eclairage")}</h2>
   <div style="width:140px;height:1.5px;background:linear-gradient(90deg, transparent, #e11324, transparent);margin:6px auto;"></div>
+</div>
+<div style="text-align:left;margin-bottom:6px;">
+  <div class="card-title">{t("client")}</div>
+  <div class="card-main" style="font-size:11pt;">{bat.client.nom}</div>
 </div>
 <div class="info-card" style="text-align:center;margin-bottom:18px;">
   <div class="card-title">{t("adresse")}</div>
