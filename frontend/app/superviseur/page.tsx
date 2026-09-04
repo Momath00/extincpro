@@ -115,15 +115,18 @@ export default function SuperviseurDashboard() {
         ].map(stat => (
           <div
             key={stat.label}
-            className="bg-white rounded-lg p-5 border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+            className="bg-white rounded-lg overflow-hidden border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
           >
-            <div className="flex justify-between items-center mb-3">
-              <div className="w-9 h-9 rounded-md flex items-center justify-center" style={{ background: stat.bg }}>
-                <i className={`ti ${stat.icon} text-base`} style={{ color: stat.color }} />
+            <div className="h-1" style={{ background: stat.color }} />
+            <div className="p-5">
+              <div className="flex justify-between items-center mb-3">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: stat.bg }}>
+                  <i className={`ti ${stat.icon} text-lg`} style={{ color: stat.color }} />
+                </div>
               </div>
+              <p className="text-3xl font-bold" style={{ color: RED }}>{stat.value}</p>
+              <p className="text-xs text-gray-400 uppercase tracking-widest mt-1">{stat.label}</p>
             </div>
-            <p className="text-3xl font-bold" style={{ color: RED }}>{stat.value}</p>
-            <p className="text-xs text-gray-400 uppercase tracking-widest mt-1">{stat.label}</p>
           </div>
         ))}
       </div>
@@ -150,10 +153,11 @@ export default function SuperviseurDashboard() {
               <Link
                 href={`/superviseur/rapports-extincteurs/${r.id}`}
                 key={r.id}
-                className="flex items-center gap-3 p-3 rounded-md bg-gray-50 hover:bg-gray-100 transition-colors"
+                className="flex items-center gap-3 p-3 pl-3.5 rounded-md border-l-4 hover:shadow-sm transition-all"
+                style={{ borderLeftColor: '#f97316', background: '#fffaf5' }}
               >
-                <div className="w-9 h-9 rounded-md flex-shrink-0 flex items-center justify-center" style={{ background: RED }}>
-                  <i className="ti ti-fire-extinguisher text-white text-sm" />
+                <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: '#fff2e8' }}>
+                  <i className="ti ti-fire-extinguisher text-base" style={{ color: '#9a4a13' }} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate" style={{ color: RED }}>
