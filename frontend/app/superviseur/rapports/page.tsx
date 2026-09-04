@@ -236,7 +236,7 @@ function RapportsListContent() {
       ) : (
         <div className="bg-white rounded-md border border-gray-100 overflow-hidden shadow-sm">
           {/* En-tête tableau — desktop */}
-          <div className="hidden md:grid grid-cols-[2fr_1.5fr_1.5fr_auto_auto] gap-4 px-5 py-3 border-b border-gray-100 text-xs font-bold uppercase tracking-widest text-gray-400">
+          <div className="hidden md:grid grid-cols-[2fr_1.5fr_1.5fr_auto_auto] gap-4 px-5 py-3 border-b border-gray-100 bg-slate-50 text-xs font-black uppercase tracking-widest text-gray-500">
             <span>{t('adresse')}</span>
             <span>{t('client')}</span>
             <span>{t('techniciens_col')}</span>
