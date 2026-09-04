@@ -675,7 +675,7 @@ def _html_rapport_incendie_complet(rapport) -> str:
             for l, label, v in CHAMPS_E1
         )
         e1_html = f"""<div class="sec-title">E1 — Rapport annuel de mise à l'essai</div>
-<table><thead><tr><th></th><th>Champ</th><th class='center'>Valeur</th></tr></thead><tbody>{rows}</tbody></table>
+<table class="data-grid"><thead><tr><th></th><th>Champ</th><th class='center'>Valeur</th></tr></thead><tbody>{rows}</tbody></table>
 {'<p style="margin-top:6px;font-size:9pt;"><strong>Commentaires :</strong> ' + (e1.commentaires or '—') + '</p>' if e1 else ''}"""
 
     e2_html = ""
@@ -698,7 +698,7 @@ def _html_rapport_incendie_complet(rapport) -> str:
                 for iid, lbl in items_defs
             )
             content = (
-                f"<table><thead><tr>"
+                f"<table class='data-grid'><thead><tr>"
                 f"<th style='width:36px;'></th>"
                 f"<th>Élément vérifié</th>"
                 f"<th class='center' style='width:64px;'>Résultat</th>"
@@ -721,7 +721,7 @@ def _html_rapport_incendie_complet(rapport) -> str:
     )
     legende_html = (
         '<div class="sec-title">Légende des dispositifs</div>'
-        "<table><thead><tr><th>Dispositif</th><th>Description</th><th>Type</th><th>No de modèle</th></tr></thead>"
+        "<table class='data-grid'><thead><tr><th>Dispositif</th><th>Description</th><th>Type</th><th>No de modèle</th></tr></thead>"
         f"<tbody>{legende_rows}</tbody></table>"
     )
 
@@ -755,7 +755,7 @@ def _html_rapport_incendie_complet(rapport) -> str:
             )
         sections_html += (
             f"<div class='sec-sub'>{section.nom}</div>"
-            f"<table>"
+            f"<table class='data-grid'>"
             f"<thead><tr>"
             f"<th>Localisation</th>"
             f"<th class='center'>Type</th>"
@@ -822,7 +822,7 @@ def _html_rapport_incendie_complet(rapport) -> str:
 {e2_html}
 {legende_html}
 <div class="sec-title">E3 — Inventaire global</div>
-<table>
+<table class="data-grid">
   <thead><tr><th>Type de dispositif</th><th class="center">Qté</th></tr></thead>
   <tbody>{inv_rows}<tr style="font-weight:700;background:#f8fafc;border-top:1.5px solid #e5e7eb;"><td>Total</td><td class="center bold">{total_disp}</td></tr></tbody>
 </table>
@@ -1550,7 +1550,7 @@ def _html_rapport_extincteur_complet(rapport) -> str:
                 f"</tr>"
             )
         eclairage_section = f"""<div class="sec-title">{t("detail_unites_eclairage")}</div>
-<table>
+<table class="data-grid">
   <thead><tr>
     <th>{t("col_no")}</th><th>{t("col_etage")}</th><th>{t("col_emplacement")}</th><th>{t("col_modele")}</th>
     <th>{t("col_voltage")}</th><th title="{t('etat_titre_abbr')}">{t("col_etat")}</th><th>{t("col_remarque")}</th>
@@ -1596,7 +1596,7 @@ def _html_rapport_extincteur_complet(rapport) -> str:
 <table><tbody>{legende_rows}</tbody></table>
 </div>
 <div class="sec-title">{t("detail_extincteurs")}</div>
-<table>
+<table class="data-grid">
   <thead><tr>
     <th>{t("col_no")}</th><th>{t("col_etage")}</th><th>{t("col_emplacement")}</th><th>{t("col_type")}</th><th>{t("col_format")}</th><th>{t("col_marque")}</th><th>{t("col_numero_serie")}</th>
     <th>{t("col_date_fabrication")}</th><th>{t("col_prochaine_maintenance")}</th><th>{t("col_prochain_test_hydro")}</th>
@@ -1605,7 +1605,7 @@ def _html_rapport_extincteur_complet(rapport) -> str:
   <tbody>{item_rows}</tbody>
 </table>
 <div class="sec-title">{t("detail_boyaux")}</div>
-<table>
+<table class="data-grid">
   <thead><tr>
     <th>{t("col_no")}</th><th>{t("col_etage")}</th><th title="{t('etat_titre_abbr')}">{t("col_etat")}</th><th>{t("col_emplacement")}</th>
     <th>{t("col_longueur")}</th><th>{t("col_annee_fabrication")}</th><th>{t("col_prochain_test_hydro")}</th><th>{t("col_remarque")}</th>
@@ -2035,7 +2035,7 @@ def _html_rapport_eclairage_complet(rapport) -> str:
   <div class="card-main" style="font-size:14pt;">{adresse}</div>
 </div>
 <div class="sec-title">{t("detail_unites_eclairage")}</div>
-<table>
+<table class="data-grid">
   <thead><tr>
     <th>{t("col_no")}</th><th>{t("col_etage")}</th><th>{t("col_emplacement")}</th><th>{t("col_modele")}</th><th>{t("col_voltage")}</th>
     <th title="{t('etat_titre_abbr')}">{t("col_etat")}</th><th>{t("col_remarque")}</th>

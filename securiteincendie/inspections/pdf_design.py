@@ -86,6 +86,9 @@ CSS_DOCUMENT = """
   .sec-sub{ font-size:8.5pt; font-weight:700; color:#0a0b0d; border-bottom:1px solid #d1d5db; padding-bottom:2px; margin-top:12px; margin-bottom:5px; }
   .legende-box{ border:1px solid #999999; border-radius:4px; padding:8px 10px; margin-bottom:10px; background:#fafafa; }
   .legende-box table td{ border:none; padding:2px 8px; font-size:8pt; }
+  .data-grid{ border:1px solid #d1d5db; border-collapse:collapse; }
+  .data-grid th{ border:1px solid #d1d5db; }
+  .data-grid td{ border:1px solid #e5e7eb; }
   @media print{ body{ -webkit-print-color-adjust:exact; print-color-adjust:exact; } .no-print{ display:none!important; } }
 """
 
