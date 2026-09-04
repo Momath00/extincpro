@@ -13,10 +13,14 @@ const STYLES: Record<ModuleType, { bg: string; color: string; dot: string; icon:
 /** Puce indiquant le module courant (système d'alarme / extincteur / éclairage
  * d'urgence) — repère visuel constant en haut à droite des pages de rapport,
  * avec un petit point animé pour signaler "en cours de consultation". */
-export default function ModuleBadge({ type }: { type: ModuleType }) {
+export default function ModuleBadge({ type, eclairageLie }: { type: ModuleType; eclairageLie?: boolean }) {
   const t = useT()
   const s = STYLES[type]
-  const label = type === 'incendie' ? t('incendie') : type === 'extincteur' ? t('extincteur_eclairage') : t('eclairage_urgence_badge')
+  const label = type === 'incendie'
+    ? t('incendie')
+    : type === 'extincteur'
+      ? (eclairageLie ? t('extincteur_eclairage') : t('extincteur'))
+      : t('eclairage_urgence_badge')
 
   return (
     <span

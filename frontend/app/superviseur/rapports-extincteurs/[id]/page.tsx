@@ -296,7 +296,7 @@ export default function SuperviseurRapportExtincteurDetailPage() {
           className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1">
           <i className="ti ti-arrow-left" /> {t('retour_aux_rapports')}
         </Link>
-        <ModuleBadge type="extincteur" />
+        <ModuleBadge type="extincteur" eclairageLie={!!rapport.rapport_eclairage_lie} />
       </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-5">
