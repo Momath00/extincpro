@@ -182,7 +182,7 @@ function CertificatTab({
             <button
               onClick={() => downloadHtml(`${API_URL}/api/rapports/${rapport.id}/certificat-pdf/`)}
               className="flex-1 text-sm font-bold px-4 py-3 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-              style={{ background: '#eef2f7', color: NAVY }}
+              style={{ background: '#e0e7ff', color: '#3730a3' }}
             >
               <i className="ti ti-download" /> {t('telecharger_pdf')}
             </button>
@@ -448,7 +448,7 @@ export default function SuperviseurRapportDetailPage() {
               onClick={() => setConfirmRouvrir(true)}
               disabled={actionLoading}
               className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 disabled:opacity-50 hover:opacity-90 transition-opacity"
-              style={{ background: '#eef2f7', color: NAVY }}
+              style={{ background: '#fef3c7', color: '#b45309' }}
             >
               <i className="ti ti-lock-open" /> {t('rouvrir_rapport')}
             </button>
@@ -465,9 +465,9 @@ export default function SuperviseurRapportDetailPage() {
                 }}
                 disabled={telechargement !== null}
                 className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
-                style={{ background: '#eef2f7', color: NAVY }}
+                style={{ background: '#e0e7ff', color: '#3730a3' }}
               >
-                {telechargement === 'rapport' ? <SpinnerBouton color={NAVY} /> : <i className="ti ti-file-download" />} {t('telecharger_rapport')}
+                {telechargement === 'rapport' ? <SpinnerBouton color="#3730a3" /> : <i className="ti ti-file-download" />} {t('telecharger_rapport')}
               </button>
               <button
                 onClick={async () => {

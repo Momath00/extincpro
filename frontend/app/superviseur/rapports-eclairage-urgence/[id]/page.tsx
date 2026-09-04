@@ -177,7 +177,7 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
               onClick={() => setConfirmRouvrir(true)}
               disabled={actionLoading}
               className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 disabled:opacity-50 hover:opacity-90 transition-opacity"
-              style={{ background: '#eef2f7', color: NAVY }}
+              style={{ background: '#fef3c7', color: '#b45309' }}
             >
               <i className="ti ti-lock-open" /> {t('rouvrir_rapport')}
             </button>
@@ -186,7 +186,7 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
           <button
             onClick={() => downloadHtml(`${API_URL}/api/rapports-eclairage-urgence/${rapport.id}/telecharger/`)}
             className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 hover:opacity-90 transition-opacity"
-            style={{ background: '#eef2f7', color: NAVY }}
+            style={{ background: '#e0e7ff', color: '#3730a3' }}
           >
             <i className="ti ti-file-download" /> {t('telecharger_rapport')}
           </button>

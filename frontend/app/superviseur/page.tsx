@@ -127,11 +127,8 @@ export default function SuperviseurDashboard() {
 
       {/* Rapports récents */}
       <div className="bg-white rounded-md border border-gray-100 overflow-hidden">
-        <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
+        <div className="px-5 py-4 border-b border-gray-100">
           <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: RED }}>{t('rapports_recents')}</h2>
-          <Link href="/superviseur/rapports-extincteurs" className="text-xs font-semibold hover:underline" style={{ color: ACCENT }}>
-            {t('voir_tout')}
-          </Link>
         </div>
         <div className="p-4 flex flex-col gap-2">
           {recents.length === 0 ? (
