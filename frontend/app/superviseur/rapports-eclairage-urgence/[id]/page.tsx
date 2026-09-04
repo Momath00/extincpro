@@ -186,14 +186,6 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
           >
             <i className="ti ti-file-download" /> {t('telecharger_rapport')}
           </button>
-
-          <button
-            onClick={() => downloadHtml(`${API_URL}/api/rapports-eclairage-urgence/${rapport.id}/excel/`)}
-            className="text-sm font-bold px-4 py-2.5 rounded-md border-2 flex items-center gap-2 hover:bg-gray-50 transition-colors"
-            style={{ borderColor: NAVY, color: NAVY }}
-          >
-            <i className="ti ti-file-spreadsheet" /> {t('excel')}
-          </button>
         </div>
       </div>
 
