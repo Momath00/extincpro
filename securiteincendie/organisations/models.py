@@ -6,9 +6,17 @@ class Organisation(models.Model):
     utilisateurs, clients, bâtiments et rapports, isolés des autres
     organisations."""
 
+    class Langue(models.TextChoices):
+        FRANCAIS = "fr", "Français"
+        ANGLAIS = "en", "Anglais"
+
     nom = models.CharField(max_length=150, unique=True)
     slug = models.SlugField(max_length=160, unique=True)
     adresse = models.CharField(max_length=300, blank=True)
+    langue = models.CharField(
+        max_length=2, choices=Langue.choices, default=Langue.FRANCAIS,
+        help_text="Langue de l'interface et des documents générés (rapports, certificats) pour cette organisation.",
+    )
     logo = models.TextField(
         blank=True, default="",
         help_text="Logo de l'organisation, en data URI base64 — affiché sur ses rapports et "

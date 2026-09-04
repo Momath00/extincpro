@@ -10,6 +10,7 @@ from .models import (
     CertificatExtincteur,
     Client,
     Dispositif,
+    EclairageUrgenceItem,
     EtageResume,
     ExtincteurItem,
     FicheE1,
@@ -17,8 +18,10 @@ from .models import (
     FicheLegende,
     HistoriqueAppelService,
     HistoriqueRapport,
+    HistoriqueRapportEclairageUrgence,
     HistoriqueRapportExtincteur,
     Rapport,
+    RapportEclairageUrgence,
     RapportExtincteur,
     ResumeSommaire,
     SectionDispositif,
@@ -338,6 +341,7 @@ class RapportExtincteurListSerializer(serializers.ModelSerializer):
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
     nb_extincteurs = serializers.SerializerMethodField()
     certificat = serializers.SerializerMethodField()
+    rapport_eclairage_lie = serializers.SerializerMethodField()
 
     def get_nb_extincteurs(self, obj):
         return obj.extincteurs.count()
@@ -349,12 +353,18 @@ class RapportExtincteurListSerializer(serializers.ModelSerializer):
         except Exception:
             return None
 
+    def get_rapport_eclairage_lie(self, obj):
+        eclairage = getattr(obj, "rapport_eclairage_lie", None)
+        if eclairage is None:
+            return None
+        return {"id": eclairage.id, "statut": eclairage.statut}
+
     class Meta:
         model = RapportExtincteur
         fields = [
             "id", "batiment", "rapport_alarme", "techniciens", "citoyen", "numero_job",
             "statut", "statut_display", "date_inspection", "date_derniere_sauvegarde",
-            "date_fermeture", "nb_extincteurs", "certificat",
+            "date_fermeture", "nb_extincteurs", "certificat", "rapport_eclairage_lie",
         ]
 
 
@@ -386,6 +396,74 @@ class RapportExtincteurCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = RapportExtincteur
         fields = ["id", "batiment", "techniciens", "citoyen", "numero_job", "date_inspection"]
+        read_only_fields = ["id"]
+
+
+# ── Rapport éclairage d'urgence ─────────────────────────────────────────────
+
+class EclairageUrgenceItemSerializer(serializers.ModelSerializer):
+    etat_display = serializers.CharField(source="get_etat_display", read_only=True)
+
+    class Meta:
+        model = EclairageUrgenceItem
+        fields = [
+            "id", "rapport", "ordre", "emplacement", "etage",
+            "modele", "voltage", "etat", "etat_display", "remarque",
+        ]
+        read_only_fields = ["rapport"]
+
+
+class HistoriqueRapportEclairageUrgenceSerializer(serializers.ModelSerializer):
+    utilisateur = UtilisateurSerializer(read_only=True)
+
+    class Meta:
+        model = HistoriqueRapportEclairageUrgence
+        fields = ["id", "utilisateur", "description", "date_heure"]
+
+
+class RapportEclairageUrgenceListSerializer(serializers.ModelSerializer):
+    """Version allégée — pour les listes."""
+
+    batiment = BatimentSerializer(read_only=True)
+    techniciens = UtilisateurSerializer(many=True, read_only=True)
+    statut_display = serializers.CharField(source="get_statut_display", read_only=True)
+    nb_eclairages_urgence = serializers.SerializerMethodField()
+    rapport_extincteur_id = serializers.IntegerField(source="rapport_extincteur.id", read_only=True, default=None)
+
+    def get_nb_eclairages_urgence(self, obj):
+        return obj.eclairages_urgence.count()
+
+    class Meta:
+        model = RapportEclairageUrgence
+        fields = [
+            "id", "batiment", "techniciens", "numero_job",
+            "statut", "statut_display", "date_inspection", "date_derniere_sauvegarde",
+            "date_fermeture", "nb_eclairages_urgence", "rapport_extincteur_id",
+        ]
+
+
+class RapportEclairageUrgenceDetailSerializer(RapportEclairageUrgenceListSerializer):
+    cree_par = UtilisateurSerializer(read_only=True)
+    eclairages_urgence = EclairageUrgenceItemSerializer(many=True, read_only=True)
+    historique = HistoriqueRapportEclairageUrgenceSerializer(many=True, read_only=True)
+
+    class Meta(RapportEclairageUrgenceListSerializer.Meta):
+        fields = RapportEclairageUrgenceListSerializer.Meta.fields + [
+            "cree_par", "eclairages_urgence", "historique",
+        ]
+
+
+class RapportEclairageUrgenceCreateSerializer(serializers.ModelSerializer):
+    """Utilisé par le superviseur — création automatique (liée) ou manuelle."""
+
+    techniciens = serializers.PrimaryKeyRelatedField(
+        many=True, required=False,
+        queryset=Utilisateur.objects.filter(role=Utilisateur.Role.TECHNICIEN),
+    )
+
+    class Meta:
+        model = RapportEclairageUrgence
+        fields = ["id", "batiment", "techniciens", "numero_job", "date_inspection"]
         read_only_fields = ["id"]
 
 

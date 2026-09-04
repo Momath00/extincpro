@@ -4,18 +4,20 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import InviteModal from '@/components/dashboard/InviteModal'
+import { useT, useLangue } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const RED = '#0a0b0d'
 const ACCENT = '#e11324'
 
-const STATUT_BADGE: Record<string, { label: string; bg: string; color: string }> = {
-  ouvert: { label: 'Ouvert', bg: '#fef2f2', color: '#9a4a13' },
-  ferme: { label: 'Fermé', bg: '#e9f6f2', color: '#0d6b4f' },
-}
-
 export default function SuperviseurDashboard() {
   const router = useRouter()
+  const t = useT()
+  const langue = useLangue()
+  const STATUT_BADGE: Record<string, { label: string; bg: string; color: string }> = {
+    ouvert: { label: t('ouvert'), bg: '#fef2f2', color: '#9a4a13' },
+    ferme: { label: t('ferme'), bg: '#e9f6f2', color: '#0d6b4f' },
+  }
   const [rapports, setRapports] = useState<any[]>([])
   const [nbClients, setNbClients] = useState(0)
   const [nbTechniciens, setNbTechniciens] = useState(0)
@@ -75,9 +77,9 @@ export default function SuperviseurDashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: RED }}>Tableau de bord</h1>
+          <h1 className="text-2xl font-bold" style={{ color: RED }}>{t('nav_dashboard')}</h1>
           <p className="text-gray-400 text-sm mt-1">
-            {new Date().toLocaleDateString('fr-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            {new Date().toLocaleDateString(langue === 'en' ? 'en-CA' : 'fr-CA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
@@ -86,14 +88,14 @@ export default function SuperviseurDashboard() {
             className="flex-1 sm:flex-none text-center border border-gray-200 px-4 py-2.5 rounded-md text-sm font-bold hover:border-[#0a0b0d] transition-colors"
             style={{ color: RED }}
           >
-            <i className="ti ti-user-plus mr-1" /> Inviter
+            <i className="ti ti-user-plus mr-1" /> {t('inviter')}
           </button>
           <Link
             href="/superviseur/rapports-extincteurs/nouveau"
             className="flex-1 sm:flex-none text-center text-white px-4 py-2.5 rounded-md text-sm font-bold hover:opacity-90 transition-opacity"
             style={{ background: ACCENT }}
           >
-            <i className="ti ti-plus mr-1" /> Nouveau rapport
+            <i className="ti ti-plus mr-1" /> {t('nouveau_rapport')}
           </Link>
         </div>
       </div>
@@ -105,11 +107,11 @@ export default function SuperviseurDashboard() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         {[
-          { label: 'Rapports ouverts', value: ouverts, icon: 'ti-file-alert', bg: '#fef2f2', color: '#e11324' },
-          { label: 'Rapports fermés', value: fermes, icon: 'ti-file-check', bg: '#f0fdf4', color: '#16a34a' },
-          { label: 'Clients actifs', value: nbClients, icon: 'ti-building', bg: '#f1f5f9', color: '#0a0b0d' },
-          { label: 'Techniciens actifs', value: nbTechniciens, icon: 'ti-tool', bg: '#fffbeb', color: '#b45309' },
-          { label: 'Citoyens enregistrés', value: nbCitoyens, icon: 'ti-users', bg: '#f8fafc', color: '#475569' },
+          { label: t('stat_rapports_ouverts'), value: ouverts, icon: 'ti-file-alert', bg: '#fef2f2', color: '#e11324' },
+          { label: t('stat_rapports_fermes'), value: fermes, icon: 'ti-file-check', bg: '#f0fdf4', color: '#16a34a' },
+          { label: t('stat_clients_actifs'), value: nbClients, icon: 'ti-building', bg: '#f1f5f9', color: '#0a0b0d' },
+          { label: t('stat_techniciens_actifs'), value: nbTechniciens, icon: 'ti-tool', bg: '#fffbeb', color: '#b45309' },
+          { label: t('stat_citoyens_enregistres'), value: nbCitoyens, icon: 'ti-users', bg: '#f8fafc', color: '#475569' },
         ].map(stat => (
           <div
             key={stat.label}
@@ -129,17 +131,17 @@ export default function SuperviseurDashboard() {
       {/* Rapports récents */}
       <div className="bg-white rounded-md border border-gray-100 overflow-hidden">
         <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
-          <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: RED }}>Rapports récents</h2>
+          <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: RED }}>{t('rapports_recents')}</h2>
           <Link href="/superviseur/rapports-extincteurs" className="text-xs font-semibold hover:underline" style={{ color: ACCENT }}>
-            Voir tout →
+            {t('voir_tout')}
           </Link>
         </div>
         <div className="p-4 flex flex-col gap-2">
           {recents.length === 0 ? (
             <div className="text-center py-10">
-              <p className="text-gray-300 text-sm mb-3">Aucun rapport pour le moment</p>
+              <p className="text-gray-300 text-sm mb-3">{t('aucun_rapport')}</p>
               <Link href="/superviseur/rapports-extincteurs/nouveau" className="text-sm font-bold hover:underline" style={{ color: ACCENT }}>
-                Créer le premier rapport →
+                {t('creer_premier_rapport')}
               </Link>
             </div>
           ) : recents.map((r: any) => {
@@ -158,7 +160,7 @@ export default function SuperviseurDashboard() {
                     {r.batiment?.adresse_complete || '—'}
                   </p>
                   <p className="text-xs text-gray-400 truncate">
-                    {r.batiment?.client_nom} · {r.techniciens?.map((t: any) => t.username).join(', ') || 'Non assigné'}
+                    {r.batiment?.client_nom} · {r.techniciens?.map((tc: any) => tc.username).join(', ') || t('non_assigne')}
                   </p>
                 </div>
                 <span className="text-xs px-2.5 py-1 rounded-full font-semibold flex-shrink-0" style={{ background: badge.bg, color: badge.color }}>

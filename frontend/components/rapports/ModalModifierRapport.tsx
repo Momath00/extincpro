@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -25,6 +26,7 @@ export default function ModalModifierRapport({
   onClose: () => void
   onSaved: () => void
 }) {
+  const t = useT()
   const [techniciens, setTechniciens] = useState<any[]>([])
   const [selectedTechIds, setSelectedTechIds] = useState<number[]>((rapport.techniciens || []).map((t: any) => t.id))
 
@@ -66,7 +68,7 @@ export default function ModalModifierRapport({
     try {
       if (mode === 'adresse') {
         if (!adresse.rue.trim() || !adresse.ville.trim()) {
-          setError("La rue et la ville sont obligatoires.")
+          setError(t('rue_ville_obligatoires'))
           return
         }
         const res = await fetch(`${API_URL}/api/batiments/${rapport.batiment.id}/`, {
@@ -78,7 +80,7 @@ export default function ModalModifierRapport({
         else {
           const d = await res.json().catch(() => ({})) as Record<string, any>
           const premiereErreur = (Object.values(d)[0] as any)?.[0]
-          setError(d.error || premiereErreur || 'Erreur lors de la modification.')
+          setError(d.error || premiereErreur || t('erreur_modification'))
         }
         return
       }
@@ -92,14 +94,14 @@ export default function ModalModifierRapport({
         body: JSON.stringify(body),
       })
       if (res.ok) { onSaved(); onClose() }
-      else { const d = await res.json().catch(() => ({})); setError(d.error || 'Erreur lors de la modification.') }
+      else { const d = await res.json().catch(() => ({})); setError(d.error || t('erreur_modification')) }
     } finally { setSaving(false) }
   }
 
   const titres = {
-    technicien: 'Réassigner les techniciens',
-    adresse: "Corriger l'adresse",
-    citoyen: 'Modifier le citoyen assigné',
+    technicien: t('reassigner_techniciens'),
+    adresse: t('corriger_adresse'),
+    citoyen: t('modifier_citoyen'),
   }
 
   return (
@@ -120,19 +122,19 @@ export default function ModalModifierRapport({
         {mode === 'technicien' && (
           <>
             <p className="text-xs text-gray-400 mb-4">
-              Le technicien nouvellement assigné verra automatiquement ce rapport dans sa liste.
+              {t('technicien_verra_rapport')}
             </p>
             {techniciens.length === 0 ? (
-              <p className="text-xs text-gray-400">Aucun technicien disponible.</p>
+              <p className="text-xs text-gray-400">{t('aucun_technicien_disponible')}</p>
             ) : (
               <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
-                {techniciens.map((t: any) => {
-                  const checked = selectedTechIds.includes(t.id)
+                {techniciens.map((tech: any) => {
+                  const checked = selectedTechIds.includes(tech.id)
                   return (
                     <button
                       type="button"
-                      key={t.id}
-                      onClick={() => toggleTech(t.id)}
+                      key={tech.id}
+                      onClick={() => toggleTech(tech.id)}
                       className="flex items-center gap-3 p-3 rounded-md border-2 text-left transition-colors"
                       style={{ borderColor: checked ? ORANGE : '#e5e7eb', background: checked ? '#fef2f2' : '#fff' }}
                     >
@@ -142,7 +144,7 @@ export default function ModalModifierRapport({
                       >
                         {checked && <i className="ti ti-check text-white text-xs" />}
                       </span>
-                      <p className="text-sm font-medium truncate" style={{ color: NAVY }}>{t.username}</p>
+                      <p className="text-sm font-medium truncate" style={{ color: NAVY }}>{tech.username}</p>
                     </button>
                   )
                 })}
@@ -154,14 +156,14 @@ export default function ModalModifierRapport({
         {mode === 'citoyen' && (
           <>
             <p className="text-xs text-gray-400 mb-4">
-              Le citoyen assigné pourra consulter ce rapport et son certificat.
+              {t('citoyen_pourra_consulter')}
             </p>
             <select
               value={selectedCitoyenId}
               onChange={e => setSelectedCitoyenId(e.target.value)}
               className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
             >
-              <option value="">— Aucun —</option>
+              <option value="">{t('aucun_tiret')}</option>
               {citoyens.map((c: any) => (
                 <option key={c.id} value={c.id}>{c.username} — {c.email}</option>
               ))}
@@ -172,12 +174,12 @@ export default function ModalModifierRapport({
         {mode === 'adresse' && (
           <>
             <p className="text-xs text-gray-400 mb-4">
-              Corrige l'adresse de ce bâtiment — le changement s'applique à tous les rapports liés à ce bâtiment.
+              {t('corrige_adresse_batiment')}
             </p>
             <div className="flex flex-col gap-3">
               <div className="grid grid-cols-3 gap-2">
                 <div className="col-span-1">
-                  <label className="block text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: NAVY }}>No civique</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: NAVY }}>{t('no_civique')}</label>
                   <input
                     type="text"
                     value={adresse.numero_civique}
@@ -186,7 +188,7 @@ export default function ModalModifierRapport({
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: NAVY }}>Rue</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: NAVY }}>{t('rue_label')}</label>
                   <input
                     type="text"
                     value={adresse.rue}
@@ -196,7 +198,7 @@ export default function ModalModifierRapport({
                 </div>
               </div>
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: NAVY }}>Ville</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: NAVY }}>{t('ville_label')}</label>
                 <input
                   type="text"
                   value={adresse.ville}
@@ -205,7 +207,7 @@ export default function ModalModifierRapport({
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: NAVY }}>Code postal</label>
+                <label className="block text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: NAVY }}>{t('code_postal_label')}</label>
                 <input
                   type="text"
                   value={adresse.code_postal}
@@ -221,7 +223,7 @@ export default function ModalModifierRapport({
           <button onClick={onClose}
             className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-200 hover:bg-gray-50 transition-colors"
             style={{ color: NAVY }}>
-            Annuler
+            {t('annuler')}
           </button>
           <button
             onClick={enregistrer}
@@ -229,7 +231,7 @@ export default function ModalModifierRapport({
             className="flex-1 py-2.5 rounded-md text-sm font-bold text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
             style={{ background: NAVY }}
           >
-            {saving ? 'Enregistrement...' : 'Enregistrer'}
+            {saving ? t('enregistrement_en_cours') : t('enregistrer')}
           </button>
         </div>
       </div>

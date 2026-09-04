@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { LangueProvider, useT } from '@/lib/i18n'
+import { usePrefLangue } from '@/lib/usePrefLangue'
+import LangueToggleAuth from '@/components/LangueToggleAuth'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const INK = '#0a0b0d'
@@ -35,7 +38,18 @@ const inputClass =
   'w-full bg-white border border-gray-200 rounded-md pl-10 pr-10 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-[#e11324] transition-colors placeholder-gray-300'
 
 export default function ChangerMotDePassePage() {
+  const [langue, setLangue] = usePrefLangue()
+  return (
+    <LangueProvider langue={langue}>
+      <LangueToggleAuth langue={langue} onChange={setLangue} />
+      <ChangerMotDePasseForm />
+    </LangueProvider>
+  )
+}
+
+function ChangerMotDePasseForm() {
   const router = useRouter()
+  const t = useT()
 
   const [ancienMdp, setAncienMdp] = useState('')
   const [nouveauMdp, setNouveauMdp] = useState('')
@@ -50,9 +64,9 @@ export default function ChangerMotDePassePage() {
     e.preventDefault()
     setError('')
 
-    if (nouveauMdp !== confirmerMdp) { setError('Les mots de passe ne correspondent pas.'); return }
-    if (nouveauMdp.length < 8) { setError('Le nouveau mot de passe doit contenir au moins 8 caractères.'); return }
-    if (nouveauMdp === ancienMdp) { setError('Le nouveau mot de passe doit être différent de l\'actuel.'); return }
+    if (nouveauMdp !== confirmerMdp) { setError(t('mdp_ne_correspondent_pas')); return }
+    if (nouveauMdp.length < 8) { setError(t('nouveau_mdp_min_8_caracteres')); return }
+    if (nouveauMdp === ancienMdp) { setError(t('nouveau_mdp_different_erreur')); return }
 
     setLoading(true)
     try {
@@ -69,13 +83,13 @@ export default function ChangerMotDePassePage() {
       })
       const data = await res.json() as any
       if (!res.ok) {
-        throw new Error(data.error || (Object.values(data) as any[])[0]?.toString() || 'Erreur lors du changement de mot de passe.')
+        throw new Error(data.error || (Object.values(data) as any[])[0]?.toString() || t('erreur_changement_mdp'))
       }
 
       const role = localStorage.getItem('user_role') || ''
       router.push(ROUTES_PAR_ROLE[role] || '/login')
     } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue.')
+      setError(err.message || t('erreur_survenue'))
     } finally {
       setLoading(false)
     }
@@ -95,7 +109,7 @@ export default function ChangerMotDePassePage() {
           EXTINC<span style={{ color: RED }}>PRO</span>
         </h1>
         <p className="mt-1 text-[11px] font-semibold uppercase tracking-widest text-white/40">
-          Sécurité incendie
+          {t('securite_incendie_tagline')}
         </p>
       </div>
 
@@ -103,10 +117,10 @@ export default function ChangerMotDePassePage() {
         <div className="rounded-lg border border-white/10 bg-white p-6 sm:p-8">
           <h2 className="mb-2 flex items-center gap-2 border-b border-gray-100 pb-4 text-sm font-bold" style={{ color: INK }}>
             <i className="ti ti-key text-base" style={{ color: RED }} />
-            Nouveau mot de passe
+            {t('nouveau_mdp_titre')}
           </h2>
           <p className="text-xs text-gray-500 mb-5 mt-3 leading-relaxed">
-            Votre mot de passe est temporaire. Choisissez-en un nouveau avant de continuer.
+            {t('mdp_temporaire_texte')}
           </p>
 
           {error && (
@@ -128,7 +142,7 @@ export default function ChangerMotDePassePage() {
               <input type={showAncien ? 'text' : 'password'} value={ancienMdp}
                 onChange={e => setAncienMdp(e.target.value)}
                 className={inputClass}
-                placeholder="Mot de passe actuel (temporaire)" required autoFocus />
+                placeholder={t('mdp_actuel_temporaire_placeholder')} required autoFocus />
             </Field>
 
             <Field
@@ -143,9 +157,9 @@ export default function ChangerMotDePassePage() {
               <input type={showNouveau ? 'text' : 'password'} value={nouveauMdp}
                 onChange={e => setNouveauMdp(e.target.value)}
                 className={inputClass}
-                placeholder="Nouveau mot de passe" required />
+                placeholder={t('nouveau_mdp_placeholder')} required />
             </Field>
-            <p className="text-[11px] text-gray-400 -mt-2.5">Minimum 8 caractères.</p>
+            <p className="text-[11px] text-gray-400 -mt-2.5">{t('minimum_8_caracteres')}.</p>
 
             <Field
               icon="ti-lock"
@@ -159,13 +173,13 @@ export default function ChangerMotDePassePage() {
               <input type={showConfirmer ? 'text' : 'password'} value={confirmerMdp}
                 onChange={e => setConfirmerMdp(e.target.value)}
                 className={inputClass}
-                placeholder="Confirmer le nouveau mot de passe" required />
+                placeholder={t('confirmer_nouveau_mdp_placeholder')} required />
             </Field>
 
             <button type="submit" disabled={loading}
               className="mt-1 flex items-center justify-center gap-2.5 rounded-md py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
               style={{ background: RED }}>
-              {loading ? 'Enregistrement...' : 'Continuer →'}
+              {loading ? t('enregistrement_en_cours') : t('continuer_fleche')}
             </button>
           </form>
         </div>

@@ -6,6 +6,7 @@ from rest_framework import permissions, status, viewsets
 
 from securiteincendie.emailing import envoyer_email as _envoyer_email
 from securiteincendie.emailing import html_template as _html_template
+from securiteincendie.email_i18n import et, langue_utilisateur, role_label
 
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
@@ -143,44 +144,49 @@ class UtilisateurViewSet(viewsets.ModelViewSet):
             organisation=request.user.organisation,
         )
 
-        role_label = utilisateur.get_role_display()
+        role_label_fr = utilisateur.get_role_display()
+        langue = langue_utilisateur(utilisateur)
+        role_label_email = role_label(data["role"], langue)
         prenom = data.get('first_name') or data['username']
+        frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/")
+        lien_login = f"{frontend_url}/login" if frontend_url else ""
         html_body = f"""
-<h2 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#0a0b0d;">Bienvenue !</h2>
+<h2 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#0a0b0d;">{et('bienvenue_titre', langue)}</h2>
 <p style="margin:0 0 24px;color:#64748b;font-size:14px;line-height:1.6;">
-  Bonjour <strong style="color:#0a0b0d;">{prenom}</strong>,<br>
-  vous avez été invité(e) en tant que <strong style="color:#e11324;">{role_label}</strong>
-  sur la plateforme <strong style="color:#0a0b0d;">ExtincPro</strong>.
+  {et('bonjour', langue)} <strong style="color:#0a0b0d;">{prenom}</strong>,<br>
+  {et('invitation_intro', langue)} <strong style="color:#e11324;">{role_label_email}</strong>
+  {et('invitation_intro_suite', langue)}
 </p>
 <table role="presentation" cellpadding="0" cellspacing="0"
   style="width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:24px;">
   <tr>
     <td style="padding:14px 20px;border-bottom:1px solid #e2e8f0;">
-      <span style="display:block;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">Nom d'utilisateur</span>
+      <span style="display:block;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">{et('nom_utilisateur_email', langue)}</span>
       <span style="font-size:14px;font-weight:700;color:#0a0b0d;">{data['username']}</span>
     </td>
   </tr>
   <tr>
     <td style="padding:14px 20px;">
-      <span style="display:block;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Mot de passe temporaire</span>
+      <span style="display:block;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">{et('mdp_temporaire_email', langue)}</span>
       <code style="display:inline-block;background:#fff2e8;color:#e11324;font-size:18px;font-weight:800;letter-spacing:3px;padding:8px 16px;border-radius:8px;border:2px solid #fed7aa;">{mdp_temp}</code>
     </td>
   </tr>
 </table>
 <div style="background:#fffbeb;border-left:3px solid #e11324;padding:12px 16px;border-radius:0 8px 8px 0;">
   <p style="margin:0;color:#92400e;font-size:13px;line-height:1.5;">
-    ⚠️ Ce mot de passe est <strong>temporaire</strong>. Vous serez invité(e) à le modifier dès votre première connexion.
+    ⚠️ {et('mdp_temporaire_note', langue)}
   </p>
-</div>"""
+</div>
+{f'<p style="margin:24px 0 0;text-align:center;"><a href="{lien_login}" style="display:inline-block;background:#e11324;color:#fff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">{et("se_connecter_portail_btn", langue)}</a></p>' if lien_login else ''}"""
         _envoyer_email(
             data["email"],
-            f"Invitation — ExtincPro ({role_label})",
+            f"{et('invitation_sujet', langue)} ({role_label_email})",
             _html_template(html_body),
         )
 
         return Response(
             {
-                "message": f"{role_label} {data['username']} invité(e) avec succès.",
+                "message": f"{role_label_fr} {data['username']} invité(e) avec succès.",
                 "utilisateur": UtilisateurSerializer(utilisateur).data,
                 # Renvoyé une seule fois ici, en secours si l'email échoue en développement.
                 "mdp_temporaire": mdp_temp,
@@ -216,12 +222,13 @@ class MotDePasseOublieView(APIView):
 
         CodeVerification.objects.filter(email=email).delete()
         code_obj = CodeVerification.objects.create(email=email)
+        langue = langue_utilisateur(user)
 
         html_body = f"""
-<h2 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#0a0b0d;">Réinitialisation de mot de passe</h2>
+<h2 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#0a0b0d;">{et('reinit_titre', langue)}</h2>
 <p style="margin:0 0 28px;color:#64748b;font-size:14px;line-height:1.6;">
-  Bonjour <strong style="color:#0a0b0d;">{user.username}</strong>,<br>
-  voici votre code de réinitialisation de mot de passe.
+  {et('bonjour', langue)} <strong style="color:#0a0b0d;">{user.username}</strong>,<br>
+  {et('reinit_intro', langue)}
 </p>
 <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:28px;">
   <tr><td align="center">
@@ -229,7 +236,7 @@ class MotDePasseOublieView(APIView):
       <tr>
         <td align="center" bgcolor="#123a63"
           style="background-color:#123a63;background-image:linear-gradient(135deg,#123a63,#0a1c2e);padding:24px 48px;border-radius:14px;">
-          <p style="margin:0 0 6px;color:rgba(255,255,255,.55);font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;">Code de vérification</p>
+          <p style="margin:0 0 6px;color:rgba(255,255,255,.55);font-size:10px;font-weight:600;letter-spacing:3px;text-transform:uppercase;">{et('code_verification_label', langue)}</p>
           <p style="margin:0;color:#e11324;font-size:36px;font-weight:800;letter-spacing:10px;font-family:monospace;">{code_obj.code}</p>
         </td>
       </tr>
@@ -237,14 +244,14 @@ class MotDePasseOublieView(APIView):
   </td></tr>
 </table>
 <p style="margin:0;text-align:center;color:#64748b;font-size:13px;">
-  Ce code expire dans <strong style="color:#0a0b0d;">{CodeVerification.DUREE_VALIDITE_MINUTES} minutes</strong>.
+  {et('code_expire_prefix', langue)} <strong style="color:#0a0b0d;">{CodeVerification.DUREE_VALIDITE_MINUTES} {et('code_expire_suffix', langue)}</strong>
 </p>
 <p style="margin:8px 0 0;text-align:center;color:#94a3b8;font-size:12px;">
-  Si vous n'avez pas demandé cette réinitialisation, ignorez ce message.
+  {et('reinit_ignorer', langue)}
 </p>"""
         _envoyer_email(
             email,
-            "Réinitialisation de mot de passe — ExtincPro",
+            et("reinit_sujet", langue),
             _html_template(html_body),
         )
         return Response({"message": "Un code de vérification vous a été envoyé par email."})

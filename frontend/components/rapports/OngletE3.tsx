@@ -1,49 +1,55 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useT, useLangue, useChoix, TYPE_DISPOSITIF_I18N } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
 
-export const TYPE_DISPOSITIF: Record<string, string> = {
-  AFE: 'Avertisseur de fumée électrique',
-  ANN: 'Panneau annonciateur d\'alarme',
-  B: 'Cloche',
-  DFG: 'Détecteur de fumée gaine ventilation',
-  FDL: 'Résistance de fin de ligne',
-  HT: 'Détecteur de chaleur non réarmable',
-  IBH: 'Interrupteur de basse pression',
-  IDG: 'Gicleur débit',
-  IHP: 'Interrupteur haute pression',
-  ISO: 'Module isolateur',
-  IVG: 'Interrupteur vanne gicleur',
-  K: 'Klaxon',
-  'K/S': 'Klaxon strobe',
-  M: 'Avertisseur manuel',
-  MA: 'Module adressable',
-  PAI: 'Panneau d\'alarme incendie',
-  PZ: 'Piézo',
-  RHT: 'Détecteur de chaleur réarmable',
-  S: 'Détecteur de fumée',
-  TEL: 'Téléphone d\'urgence (pompier)',
-  'UN72-6': 'Éclairage d\'urgence',
-}
+const SECTIONS_PRESETS: { fr: string; en: string }[] = [
+  { fr: 'SOUS-SOL', en: 'BASEMENT' },
+  { fr: 'REZ-DE-CHAUSSÉE', en: 'GROUND FLOOR' },
+  { fr: '1ER ÉTAGE', en: '1ST FLOOR' },
+  { fr: '2E ÉTAGE', en: '2ND FLOOR' },
+  { fr: '3E ÉTAGE', en: '3RD FLOOR' },
+  { fr: '4E ÉTAGE', en: '4TH FLOOR' },
+  { fr: '5E ÉTAGE', en: '5TH FLOOR' },
+  { fr: '6E ÉTAGE', en: '6TH FLOOR' },
+  { fr: '7E ÉTAGE', en: '7TH FLOOR' },
+  { fr: '8E ÉTAGE', en: '8TH FLOOR' },
+]
+const ESCALIERS_PRESETS: { fr: string; en: string }[] = [
+  { fr: 'ESCALIER AVANT NORD', en: 'NORTH FRONT STAIRWELL' },
+  { fr: 'ESCALIER AVANT SUD', en: 'SOUTH FRONT STAIRWELL' },
+  { fr: 'ESCALIER ARRIÈRE NORD', en: 'NORTH REAR STAIRWELL' },
+  { fr: 'ESCALIER ARRIÈRE SUD', en: 'SOUTH REAR STAIRWELL' },
+  { fr: 'ESCALIER ARRIÈRE', en: 'REAR STAIRWELL' },
+]
+const AUTRES_PRESETS: { fr: string; en: string }[] = [
+  { fr: 'AVERTISSEUR', en: 'WARNING DEVICE' },
+  { fr: 'AVERTISSEURS DE FUMÉE', en: 'SMOKE DETECTORS' },
+  { fr: "ÉCLAIRAGE D'URGENCE", en: 'EMERGENCY LIGHTING' },
+  { fr: "PANNEAU D'ALARME", en: 'ALARM PANEL' },
+]
 
 // ── Ligne dispositif — éditable inline ──────────────────────────────────────
 function LigneDispositif({
   dispositif,
   readOnly,
   filtreType,
+  typeDispositif,
   onDeleted,
   onUpdate,
 }: {
   dispositif: any
   readOnly: boolean
   filtreType: string
+  typeDispositif: Record<string, string>
   onDeleted: () => void
   onUpdate: (field: string, value: any) => void
 }) {
+  const t = useT()
   const [d, setD] = useState<any>(dispositif)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -121,7 +127,7 @@ function LigneDispositif({
               className="w-full min-w-0 text-xs border border-gray-200 rounded px-1.5 py-1 focus:outline-none focus:border-[#e11324] bg-white"
             >
               <option value="">-</option>
-              {Object.keys(TYPE_DISPOSITIF).sort().map(k => (
+              {Object.keys(typeDispositif).sort().map(k => (
                 <option key={k} value={k}>{k}</option>
               ))}
             </select>
@@ -142,9 +148,9 @@ function LigneDispositif({
               onChange={e => patchField('installation_correcte', e.target.value === 'true' ? true : e.target.value === 'false' ? false : null)}
               className="w-full min-w-0 text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
             >
-              <option value="">S.O.</option>
-              <option value="true">Oui</option>
-              <option value="false">Non</option>
+              <option value="">{t('so_abrege')}</option>
+              <option value="true">{t('oui')}</option>
+              <option value="false">{t('non')}</option>
             </select>
           )}
         </td>
@@ -163,9 +169,9 @@ function LigneDispositif({
               onChange={e => patchField('necessite_entretien', e.target.value === 'true' ? true : e.target.value === 'false' ? false : null)}
               className="w-full min-w-0 text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
             >
-              <option value="">S.O.</option>
-              <option value="true">Oui</option>
-              <option value="false">Non</option>
+              <option value="">{t('so_abrege')}</option>
+              <option value="true">{t('oui')}</option>
+              <option value="false">{t('non')}</option>
             </select>
           )}
         </td>
@@ -184,9 +190,9 @@ function LigneDispositif({
               onChange={e => patchField('alarme_confirmee', e.target.value === 'true' ? true : e.target.value === 'false' ? false : null)}
               className="w-full min-w-0 text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
             >
-              <option value="">S.O.</option>
-              <option value="true">Oui</option>
-              <option value="false">Non</option>
+              <option value="">{t('so_abrege')}</option>
+              <option value="true">{t('oui')}</option>
+              <option value="false">{t('non')}</option>
             </select>
           )}
         </td>
@@ -241,7 +247,7 @@ function LigneDispositif({
               type="text"
               defaultValue={d.remarque || ''}
               onBlur={e => patchField('remarque', e.target.value)}
-              placeholder="Remarque..."
+              placeholder={t('placeholder_remarque')}
               className="w-full min-w-0 text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-orange-300 rounded px-1 py-0.5"
             />
           )}
@@ -264,14 +270,14 @@ function LigneDispositif({
           <td colSpan={readOnly ? 8 : 9}>
             <div className="flex items-center gap-3 px-4 py-2.5 bg-red-50 text-xs border-t border-red-100">
               <i className="ti ti-alert-circle text-red-500" />
-              <span className="text-red-700 font-semibold">Supprimer ce dispositif ?</span>
+              <span className="text-red-700 font-semibold">{t('supprimer_ce_dispositif')}</span>
               <button onClick={supprimer}
                 className="px-3 py-1 rounded-md bg-red-500 text-white font-bold hover:bg-red-600 transition-colors">
-                Confirmer
+                {t('confirmer')}
               </button>
               <button onClick={() => setConfirmDelete(false)}
                 className="px-3 py-1 rounded-md border border-gray-300 font-medium hover:bg-gray-50 transition-colors">
-                Annuler
+                {t('annuler')}
               </button>
             </div>
           </td>
@@ -285,14 +291,17 @@ function LigneDispositif({
 function ModalAjoutDispositif({
   sectionId,
   rapportId,
+  typeDispositif,
   onClose,
   onAdded,
 }: {
   sectionId: number
   rapportId: string | string[]
+  typeDispositif: Record<string, string>
   onClose: () => void
   onAdded: () => void
 }) {
+  const t = useT()
   const [form, setForm] = useState({
     localisation: '',
     type_dispositif: '',
@@ -311,7 +320,7 @@ function ModalAjoutDispositif({
 
   async function ajouter() {
     const multiple = nombreLignes > 1
-    if (!multiple && !form.localisation.trim()) { signalerErreur('La localisation est obligatoire.', 'localisation'); return }
+    if (!multiple && !form.localisation.trim()) { signalerErreur(t('localisation_obligatoire'), 'localisation'); return }
     signalerErreur('', null)
     setSaving(true)
     const token = localStorage.getItem('access_token')
@@ -329,7 +338,7 @@ function ModalAjoutDispositif({
               section: sectionId,
             }),
           })
-          if (!res.ok) { const d = await res.json().catch(() => ({})); signalerErreur(d.error || 'Erreur.', null); return }
+          if (!res.ok) { const d = await res.json().catch(() => ({})); signalerErreur(d.error || t('erreur_generique'), null); return }
         }
         onAdded(); onClose()
       } else {
@@ -339,7 +348,7 @@ function ModalAjoutDispositif({
           body: JSON.stringify({ ...form, type_dispositif: form.type_dispositif || null, section: sectionId }),
         })
         if (res.ok) { onAdded(); onClose() }
-        else { const d = await res.json().catch(() => ({})); signalerErreur(d.error || 'Erreur.', null) }
+        else { const d = await res.json().catch(() => ({})); signalerErreur(d.error || t('erreur_generique'), null) }
       }
     } finally { setSaving(false) }
   }
@@ -350,8 +359,8 @@ function ModalAjoutDispositif({
       <div className="relative bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h3 className="text-base font-bold" style={{ color: NAVY }}>Ajouter un dispositif</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Les champs marqués * sont obligatoires</p>
+            <h3 className="text-base font-bold" style={{ color: NAVY }}>{t('ajouter_dispositif_titre')}</h3>
+            <p className="text-xs text-gray-400 mt-0.5">{t('champs_obligatoires_texte')}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <i className="ti ti-x text-lg" />
@@ -360,7 +369,7 @@ function ModalAjoutDispositif({
         <div className="flex flex-col gap-3.5">
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: NAVY }}>
-              Nombre de lignes à créer
+              {t('nombre_lignes_creer')}
             </label>
             <input
               type="number"
@@ -369,25 +378,25 @@ function ModalAjoutDispositif({
               value={nombreLignesInput}
               onChange={e => setNombreLignesInput(e.target.value)}
               onBlur={() => setNombreLignesInput(String(nombreLignes))}
-              placeholder="ex. 7 ou 10"
+              placeholder={t('placeholder_nb_lignes')}
               className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
             />
             {nombreLignes > 1 && (
               <p className="text-xs text-gray-400 mt-1">
-                {nombreLignes} lignes seront créées automatiquement, numérotées de 1 à {nombreLignes}
-                {form.localisation.trim() ? ` (ex. "${form.localisation.trim()} 1", "${form.localisation.trim()} 2"...)` : ''}, avec le type de dispositif sélectionné ci-dessous.
+                {nombreLignes} {t('lignes_seront_creees_de_1_a')} {nombreLignes}
+                {form.localisation.trim() ? ` (ex. "${form.localisation.trim()} 1", "${form.localisation.trim()} 2"...)` : ''}{t('avec_type_dispositif_selectionne')}
               </p>
             )}
           </div>
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: NAVY }}>
-              Localisation {nombreLignes <= 1 && <span className="text-red-500">*</span>}
+              {t('localisation_label')} {nombreLignes <= 1 && <span className="text-red-500">*</span>}
             </label>
             <input
               type="text"
               value={form.localisation}
               onChange={e => { setForm({ ...form, localisation: e.target.value }); signalerErreur('', null) }}
-              placeholder={nombreLignes > 1 ? 'ex. COULOIR (optionnel, sinon numéros seuls)' : 'ex. SOMMET ESC AU 3E ÉTAGE 304'}
+              placeholder={nombreLignes > 1 ? t('placeholder_multi_localisation') : t('placeholder_single_localisation')}
               autoFocus
               className={`w-full border rounded-md px-3 py-2.5 text-sm focus:outline-none ${
                 erreurChamp === 'localisation' ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-[#e11324]'
@@ -397,7 +406,7 @@ function ModalAjoutDispositif({
           </div>
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: NAVY }}>
-              Type de dispositif
+              {t('type_dispositif_label')}
             </label>
             <select
               value={form.type_dispositif}
@@ -405,7 +414,7 @@ function ModalAjoutDispositif({
               className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
             >
               <option value="">-</option>
-              {Object.entries(TYPE_DISPOSITIF).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => (
+              {Object.entries(typeDispositif).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => (
                 <option key={k} value={k}>{k} — {v}</option>
               ))}
             </select>
@@ -413,13 +422,13 @@ function ModalAjoutDispositif({
           {erreur && !erreurChamp && <p className="text-xs text-red-500 -mt-1">{erreur}</p>}
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: NAVY }}>
-              Zone / circuit
+              {t('zone_circuit_label')}
             </label>
             <input
               type="text"
               value={form.zone_circuit}
               onChange={e => setForm({ ...form, zone_circuit: e.target.value })}
-              placeholder="ex. 7"
+              placeholder={t('placeholder_zone_ex')}
               className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
             />
           </div>
@@ -428,7 +437,7 @@ function ModalAjoutDispositif({
           <button onClick={onClose}
             className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-200 hover:bg-gray-50 transition-colors"
             style={{ color: NAVY }}>
-            Annuler
+            {t('annuler')}
           </button>
           <button
             onClick={ajouter}
@@ -436,7 +445,7 @@ function ModalAjoutDispositif({
             className="flex-1 py-2.5 rounded-md text-sm font-bold text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
             style={{ background: NAVY }}
           >
-            {saving ? 'Ajout...' : nombreLignes > 1 ? `Ajouter ${nombreLignes} lignes` : 'Ajouter'}
+            {saving ? t('ajout_en_cours') : nombreLignes > 1 ? `${t('ajouter')} ${nombreLignes} ${t('lignes_mot')}` : t('ajouter')}
           </button>
         </div>
       </div>
@@ -454,12 +463,14 @@ function ModalAjoutSection({
   onClose: () => void
   onAdded: () => void
 }) {
+  const t = useT()
+  const langue = useLangue()
   const [nom, setNom] = useState('')
   const [saving, setSaving] = useState(false)
   const [erreur, setErreur] = useState('')
 
   async function ajouter() {
-    if (!nom.trim()) { setErreur('Le nom de la section est obligatoire.'); return }
+    if (!nom.trim()) { setErreur(t('section_nom_obligatoire')); return }
     setErreur('')
     setSaving(true)
     const token = localStorage.getItem('access_token')
@@ -470,7 +481,7 @@ function ModalAjoutSection({
         body: JSON.stringify({ nom }),
       })
       if (res.ok) { onAdded(); onClose() }
-      else { const d = await res.json().catch(() => ({})); setErreur(d.error || 'Erreur.') }
+      else { const d = await res.json().catch(() => ({})); setErreur(d.error || t('erreur_generique')) }
     } finally { setSaving(false) }
   }
 
@@ -479,7 +490,7 @@ function ModalAjoutSection({
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-bold" style={{ color: NAVY }}>Nouvelle section</h3>
+          <h3 className="text-base font-bold" style={{ color: NAVY }}>{t('nouvelle_section_titre')}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <i className="ti ti-x text-lg" />
           </button>
@@ -488,13 +499,13 @@ function ModalAjoutSection({
           {/* Nom libre */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: NAVY }}>
-              Nom de la section <span className="text-red-500">*</span>
+              {t('nom_section_label')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={nom}
               onChange={e => { setNom(e.target.value); setErreur('') }}
-              placeholder="ex. ESCALIER AVANT NORD"
+              placeholder={t('placeholder_nom_section')}
               autoFocus
               className={`w-full border rounded-md px-3 py-2.5 text-sm focus:outline-none ${
                 erreur ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-[#e11324]'
@@ -505,49 +516,55 @@ function ModalAjoutSection({
 
           {/* Sélection rapide — Étages */}
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>Étages</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{t('etages_label')}</p>
             <div className="flex flex-wrap gap-1.5">
-              {['SOUS-SOL', 'REZ-DE-CHAUSSÉE',
-                '1ER ÉTAGE', '2E ÉTAGE', '3E ÉTAGE', '4E ÉTAGE',
-                '5E ÉTAGE', '6E ÉTAGE', '7E ÉTAGE', '8E ÉTAGE',
-              ].map(p => (
-                <button key={p} type="button"
-                  onClick={() => { setNom(p); setErreur('') }}
-                  className="text-[10px] font-semibold px-2 py-1 rounded border transition-colors"
-                  style={{ borderColor: nom === p ? NAVY : '#e5e7eb', background: nom === p ? NAVY : '#f9fafb', color: nom === p ? '#fff' : '#374151' }}>
-                  {p}
-                </button>
-              ))}
+              {SECTIONS_PRESETS.map(p => {
+                const label = langue === 'en' ? p.en : p.fr
+                return (
+                  <button key={p.fr} type="button"
+                    onClick={() => { setNom(label); setErreur('') }}
+                    className="text-[10px] font-semibold px-2 py-1 rounded border transition-colors"
+                    style={{ borderColor: nom === label ? NAVY : '#e5e7eb', background: nom === label ? NAVY : '#f9fafb', color: nom === label ? '#fff' : '#374151' }}>
+                    {label}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
           {/* Escaliers */}
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>Escaliers</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{t('escaliers_label')}</p>
             <div className="flex flex-wrap gap-1.5">
-              {['ESCALIER AVANT NORD', 'ESCALIER AVANT SUD', 'ESCALIER ARRIÈRE NORD', 'ESCALIER ARRIÈRE SUD', 'ESCALIER ARRIÈRE'].map(p => (
-                <button key={p} type="button"
-                  onClick={() => { setNom(p); setErreur('') }}
-                  className="text-[10px] font-semibold px-2 py-1 rounded border transition-colors"
-                  style={{ borderColor: nom === p ? NAVY : '#e5e7eb', background: nom === p ? NAVY : '#f9fafb', color: nom === p ? '#fff' : '#374151' }}>
-                  {p}
-                </button>
-              ))}
+              {ESCALIERS_PRESETS.map(p => {
+                const label = langue === 'en' ? p.en : p.fr
+                return (
+                  <button key={p.fr} type="button"
+                    onClick={() => { setNom(label); setErreur('') }}
+                    className="text-[10px] font-semibold px-2 py-1 rounded border transition-colors"
+                    style={{ borderColor: nom === label ? NAVY : '#e5e7eb', background: nom === label ? NAVY : '#f9fafb', color: nom === label ? '#fff' : '#374151' }}>
+                    {label}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
           {/* Autres */}
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>Autres</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest mb-1.5" style={{ color: '#6b7280' }}>{t('autres_label')}</p>
             <div className="flex flex-wrap gap-1.5">
-              {['AVERTISSEUR', 'AVERTISSEURS DE FUMÉE', 'ÉCLAIRAGE D\'URGENCE', 'PANNEAU D\'ALARME'].map(p => (
-                <button key={p} type="button"
-                  onClick={() => { setNom(p); setErreur('') }}
-                  className="text-[10px] font-semibold px-2 py-1 rounded border transition-colors"
-                  style={{ borderColor: nom === p ? NAVY : '#e5e7eb', background: nom === p ? NAVY : '#f9fafb', color: nom === p ? '#fff' : '#374151' }}>
-                  {p}
-                </button>
-              ))}
+              {AUTRES_PRESETS.map(p => {
+                const label = langue === 'en' ? p.en : p.fr
+                return (
+                  <button key={p.fr} type="button"
+                    onClick={() => { setNom(label); setErreur('') }}
+                    className="text-[10px] font-semibold px-2 py-1 rounded border transition-colors"
+                    style={{ borderColor: nom === label ? NAVY : '#e5e7eb', background: nom === label ? NAVY : '#f9fafb', color: nom === label ? '#fff' : '#374151' }}>
+                    {label}
+                  </button>
+                )
+              })}
             </div>
           </div>
         </div>
@@ -555,7 +572,7 @@ function ModalAjoutSection({
           <button onClick={onClose}
             className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-200 hover:bg-gray-50 transition-colors"
             style={{ color: NAVY }}>
-            Annuler
+            {t('annuler')}
           </button>
           <button
             onClick={ajouter}
@@ -563,7 +580,7 @@ function ModalAjoutSection({
             className="flex-1 py-2.5 rounded-md text-sm font-bold text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
             style={{ background: NAVY }}
           >
-            {saving ? 'Ajout...' : 'Créer'}
+            {saving ? t('ajout_en_cours') : t('creer')}
           </button>
         </div>
       </div>
@@ -581,6 +598,9 @@ export default function OngletE3({
   readOnly: boolean
   onRefresh: () => void
 }) {
+  const t = useT()
+  const langue = useLangue()
+  const typeDispositif = useChoix(TYPE_DISPOSITIF_I18N)
   const [sections, setSections] = useState<any[]>(rapport.sections || [])
   const [filtreType, setFiltreType] = useState('Tous')
   const [modalSection, setModalSection] = useState(false)
@@ -625,17 +645,19 @@ export default function OngletE3({
     setGenerating(true)
     const token = localStorage.getItem('access_token')
     const noms: string[] = []
-    if (generateur.sousSol) noms.push('SOUS-SOL')
+    if (generateur.sousSol) noms.push(langue === 'en' ? 'BASEMENT' : 'SOUS-SOL')
     for (let i = 1; i <= generateur.nbEtages; i++) {
-      noms.push(`${i}${i === 1 ? 'ER' : 'E'} ÉTAGE`)
+      noms.push(langue === 'en'
+        ? `${i}${i === 1 ? 'ST' : i === 2 ? 'ND' : i === 3 ? 'RD' : 'TH'} FLOOR`
+        : `${i}${i === 1 ? 'ER' : 'E'} ÉTAGE`)
     }
     if (generateur.escaliers) {
-      noms.push('ESCALIER AVANT NORD')
-      noms.push('ESCALIER AVANT SUD')
-      noms.push('ESCALIER ARRIÈRE')
+      noms.push(langue === 'en' ? 'NORTH FRONT STAIRWELL' : 'ESCALIER AVANT NORD')
+      noms.push(langue === 'en' ? 'SOUTH FRONT STAIRWELL' : 'ESCALIER AVANT SUD')
+      noms.push(langue === 'en' ? 'REAR STAIRWELL' : 'ESCALIER ARRIÈRE')
     }
-    noms.push('ÉCLAIRAGE D\'URGENCE')
-    noms.push('AVERTISSEURS DE FUMÉE')
+    noms.push(langue === 'en' ? 'EMERGENCY LIGHTING' : 'ÉCLAIRAGE D\'URGENCE')
+    noms.push(langue === 'en' ? 'SMOKE DETECTORS' : 'AVERTISSEURS DE FUMÉE')
     try {
       for (const nom of noms) {
         await fetch(`${API_URL}/api/rapports/${rapport.id}/sections/`, {
@@ -667,6 +689,7 @@ export default function OngletE3({
         <ModalAjoutDispositif
           sectionId={modalDispositif}
           rapportId={rapport.id}
+          typeDispositif={typeDispositif}
           onClose={() => setModalDispositif(null)}
           onAdded={onRefresh}
         />
@@ -674,28 +697,28 @@ export default function OngletE3({
 
       {/* Légende */}
       <div className="bg-gray-50 border border-gray-100 rounded-md px-4 py-3 text-xs text-gray-500 flex flex-wrap gap-x-5 gap-y-1">
-        <span><strong style={{ color: NAVY }}>A</strong> — Installation correcte</span>
-        <span><strong style={{ color: NAVY }}>B</strong> — Nécessite entretien/réparation</span>
-        <span><strong style={{ color: NAVY }}>C</strong> — Alarme confirmée</span>
-        <span><strong style={{ color: NAVY }}>D</strong> — Statut (D=Défectueux, I=Inspecté, NI=Non inspecté)</span>
-        <span><strong style={{ color: NAVY }}>E</strong> — Zone / circuit</span>
+        <span><strong style={{ color: NAVY }}>A</strong> — {t('legende_installation_correcte')}</span>
+        <span><strong style={{ color: NAVY }}>B</strong> — {t('legende_necessite_entretien')}</span>
+        <span><strong style={{ color: NAVY }}>C</strong> — {t('legende_alarme_confirmee')}</span>
+        <span><strong style={{ color: NAVY }}>D</strong> — {t('legende_statut_detail')}</span>
+        <span><strong style={{ color: NAVY }}>E</strong> — {t('zone_circuit_label')}</span>
         <span className="flex items-center gap-1">
           <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: '#fee2e2', border: '2px solid #ef4444' }} />
-          <span className="text-red-600 font-semibold">Ligne rouge = défaut détecté</span>
+          <span className="text-red-600 font-semibold">{t('ligne_rouge_defaut')}</span>
         </span>
         <span className="flex items-center gap-1">
           <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: '#fef3c7', border: '2px solid #f59e0b' }} />
-          <span className="font-semibold" style={{ color: '#b45309' }}>Ligne jaune = non inspecté (NI)</span>
+          <span className="font-semibold" style={{ color: '#b45309' }}>{t('ligne_jaune_ni')}</span>
         </span>
       </div>
 
       {/* Sommaire */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total', value: total, bg: NAVY, color: '#fff', icon: 'ti-device-desktop-analytics' },
-          { label: 'Conformes', value: conformes, bg: '#e9f6f2', color: '#0d6b4f', icon: 'ti-check' },
-          { label: 'Entretien requis', value: entretien, bg: entretien > 0 ? '#fee2e2' : '#f8fafc', color: entretien > 0 ? '#e11324' : '#94a3b8', icon: 'ti-alert-triangle' },
-          { label: 'Non inspectés', value: ni, bg: ni > 0 ? '#fef3c7' : '#f8fafc', color: ni > 0 ? '#b45309' : '#94a3b8', icon: 'ti-eye-off' },
+          { label: t('total'), value: total, bg: NAVY, color: '#fff', icon: 'ti-device-desktop-analytics' },
+          { label: t('conformes'), value: conformes, bg: '#e9f6f2', color: '#0d6b4f', icon: 'ti-check' },
+          { label: t('entretien_requis_label'), value: entretien, bg: entretien > 0 ? '#fee2e2' : '#f8fafc', color: entretien > 0 ? '#e11324' : '#94a3b8', icon: 'ti-alert-triangle' },
+          { label: t('non_inspectes'), value: ni, bg: ni > 0 ? '#fef3c7' : '#f8fafc', color: ni > 0 ? '#b45309' : '#94a3b8', icon: 'ti-eye-off' },
         ].map(s => (
           <div key={s.label} className="bg-white rounded-md border border-gray-100 p-3.5 flex items-center gap-3 shadow-sm">
             <div className="w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: s.bg }}>
@@ -721,9 +744,9 @@ export default function OngletE3({
               </div>
               <div>
                 <p className="text-sm font-bold" style={{ color: '#e11324' }}>
-                  {defects.length} défaut{defects.length > 1 ? 's' : ''} détecté{defects.length > 1 ? 's' : ''}
+                  {defects.length} {defects.length > 1 ? t('defauts_pluriel') : t('defaut_singulier')} {defects.length > 1 ? t('detectes_pluriel') : t('detecte_singulier')}
                 </p>
-                <p className="text-xs text-red-400">Résumé des anomalies à corriger</p>
+                <p className="text-xs text-red-400">{t('resume_anomalies')}</p>
               </div>
             </div>
           </div>
@@ -731,10 +754,10 @@ export default function OngletE3({
             <table className="w-full">
               <thead>
                 <tr className="text-[10px] font-bold uppercase tracking-widest text-red-400 bg-red-50">
-                  <th className="text-left px-4 py-2.5">Section</th>
-                  <th className="text-left px-3 py-2.5">Localisation</th>
-                  <th className="text-left px-3 py-2.5">Type</th>
-                  <th className="text-left px-3 py-2.5">Problème(s)</th>
+                  <th className="text-left px-4 py-2.5">{t('col_section')}</th>
+                  <th className="text-left px-3 py-2.5">{t('localisation_label')}</th>
+                  <th className="text-left px-3 py-2.5">{t('col_type')}</th>
+                  <th className="text-left px-3 py-2.5">{t('col_probleme')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -757,22 +780,22 @@ export default function OngletE3({
                       <div className="flex flex-wrap gap-1">
                         {item.d.necessite_entretien && (
                           <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-                            <i className="ti ti-tool text-[9px]" /> Entretien requis
+                            <i className="ti ti-tool text-[9px]" /> {t('entretien_requis_label')}
                           </span>
                         )}
                         {item.d.installation_correcte === false && (
                           <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-                            <i className="ti ti-x text-[9px]" /> Installation non conforme
+                            <i className="ti ti-x text-[9px]" /> {t('installation_non_conforme')}
                           </span>
                         )}
                         {item.d.alarme_confirmee === false && (
                           <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
-                            <i className="ti ti-bell-off text-[9px]" /> Alarme non confirmée
+                            <i className="ti ti-bell-off text-[9px]" /> {t('alarme_non_confirmee')}
                           </span>
                         )}
                         {item.d.annonce_statut === 'D' && (
                           <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
-                            <i className="ti ti-speakerphone text-[9px]" /> Dispositif défectueux (D)
+                            <i className="ti ti-speakerphone text-[9px]" /> {t('dispositif_defectueux_d')}
                           </span>
                         )}
                       </div>
@@ -797,9 +820,9 @@ export default function OngletE3({
               </div>
               <div>
                 <p className="text-sm font-bold" style={{ color: '#b45309' }}>
-                  {nonInspectes.length} dispositif{nonInspectes.length > 1 ? 's' : ''} non inspecté{nonInspectes.length > 1 ? 's' : ''}
+                  {nonInspectes.length} {nonInspectes.length > 1 ? t('dispositifs_pluriel') : t('dispositif_singulier')} {nonInspectes.length > 1 ? t('non_inspectes_pluriel') : t('non_inspecte_singulier')}
                 </p>
-                <p className="text-xs" style={{ color: '#d0a24c' }}>Résumé des dispositifs au statut NI</p>
+                <p className="text-xs" style={{ color: '#d0a24c' }}>{t('resume_lignes_ni')}</p>
               </div>
             </div>
           </div>
@@ -807,10 +830,10 @@ export default function OngletE3({
             <table className="w-full">
               <thead>
                 <tr className="text-[10px] font-bold uppercase tracking-widest bg-amber-50" style={{ color: '#d0a24c' }}>
-                  <th className="text-left px-4 py-2.5">Section</th>
-                  <th className="text-left px-3 py-2.5">Localisation</th>
-                  <th className="text-left px-3 py-2.5">Type</th>
-                  <th className="text-left px-3 py-2.5">Statut</th>
+                  <th className="text-left px-4 py-2.5">{t('col_section')}</th>
+                  <th className="text-left px-3 py-2.5">{t('localisation_label')}</th>
+                  <th className="text-left px-3 py-2.5">{t('col_type')}</th>
+                  <th className="text-left px-3 py-2.5">{t('statut')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -831,7 +854,7 @@ export default function OngletE3({
                     </td>
                     <td className="px-3 py-2.5">
                       <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100" style={{ color: '#b45309' }}>
-                        <i className="ti ti-eye-off text-[9px]" /> Non inspecté (NI)
+                        <i className="ti ti-eye-off text-[9px]" /> {t('non_inspecte_ni')}
                       </span>
                     </td>
                   </tr>
@@ -848,7 +871,7 @@ export default function OngletE3({
           <button onClick={() => setModalSection(true)}
             className="flex items-center gap-2 border border-gray-200 px-4 py-2 rounded-md text-sm font-bold hover:border-[#0a0b0d] transition-colors"
             style={{ color: NAVY }}>
-            <i className="ti ti-plus" /> Ajouter une section
+            <i className="ti ti-plus" /> {t('ajouter_section_btn')}
           </button>
         </div>
       )}
@@ -861,14 +884,14 @@ export default function OngletE3({
               <i className="ti ti-building text-white" />
             </div>
             <div>
-              <h3 className="text-sm font-bold" style={{ color: NAVY }}>Configurer l'immeuble</h3>
-              <p className="text-xs text-gray-400">Générer les sections automatiquement selon la structure</p>
+              <h3 className="text-sm font-bold" style={{ color: NAVY }}>{t('configurer_immeuble')}</h3>
+              <p className="text-xs text-gray-400">{t('generer_sections_sous_titre')}</p>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: NAVY }}>
-                Nombre d'étages <span className="text-red-500">*</span>
+                {t('nombre_etages_label')} <span className="text-red-500">*</span>
               </label>
               <input type="number" min={1} max={20} value={generateur.nbEtages}
                 onChange={e => setGenerateur({ ...generateur, nbEtages: Math.min(20, Math.max(1, Number(e.target.value))) })}
@@ -876,7 +899,7 @@ export default function OngletE3({
             </div>
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: NAVY }}>
-                Appartements / étage
+                {t('appartements_etage_label')}
               </label>
               <input type="number" min={1} max={50} value={generateur.aptsParEtage}
                 onChange={e => setGenerateur({ ...generateur, aptsParEtage: Math.min(50, Math.max(1, Number(e.target.value))) })}
@@ -885,8 +908,8 @@ export default function OngletE3({
           </div>
           <div className="flex gap-6 mb-5">
             {[
-              ['sousSol', 'Inclure sous-sol'],
-              ['escaliers', 'Inclure escaliers (AVANT NORD, AVANT SUD, ARRIÈRE)'],
+              ['sousSol', t('inclure_sous_sol')],
+              ['escaliers', t('inclure_escaliers')],
             ].map(([key, label]) => (
               <label key={key} className="flex items-center gap-2 cursor-pointer select-none">
                 <input type="checkbox"
@@ -900,24 +923,24 @@ export default function OngletE3({
           <button onClick={genererSections} disabled={generating}
             className="w-full text-white py-3 rounded-md text-sm font-bold uppercase tracking-wide disabled:opacity-50 hover:opacity-90 transition-opacity"
             style={{ background: ORANGE }}>
-            {generating ? 'Génération en cours...' : 'Générer les sections'}
+            {generating ? t('generation_en_cours') : t('generer_sections_btn')}
           </button>
         </div>
       )}
 
       {/* Filtre type */}
       <div className="flex flex-wrap gap-2">
-        {['Tous', ...Object.keys(TYPE_DISPOSITIF).sort()].map(t => (
-          <button key={t} onClick={() => setFiltreType(t)}
+        {['Tous', ...Object.keys(typeDispositif).sort()].map(tp => (
+          <button key={tp} onClick={() => setFiltreType(tp)}
             className="px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-150"
-            style={{ background: filtreType === t ? NAVY : '#f1f5f9', color: filtreType === t ? '#fff' : '#64748b' }}>
-            {t}
+            style={{ background: filtreType === tp ? NAVY : '#f1f5f9', color: filtreType === tp ? '#fff' : '#64748b' }}>
+            {tp === 'Tous' ? t('tous') : tp}
           </button>
         ))}
       </div>
 
       {sections.length === 0 && readOnly && (
-        <p className="text-gray-400 text-sm text-center py-10">Aucune section créée pour ce rapport.</p>
+        <p className="text-gray-400 text-sm text-center py-10">{t('aucune_section_creee')}</p>
       )}
 
       {/* Sections */}
@@ -939,11 +962,11 @@ export default function OngletE3({
                   {section.nom}
                 </p>
                 <span className="text-xs text-gray-500">
-                  {section.dispositifs?.length || 0} dispositif{(section.dispositifs?.length || 0) !== 1 ? 's' : ''}
+                  {section.dispositifs?.length || 0} {(section.dispositifs?.length || 0) !== 1 ? t('dispositifs_pluriel') : t('dispositif_singulier')}
                 </span>
                 {nbDefectSection > 0 && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-                    <i className="ti ti-alert-triangle text-[9px]" /> {nbDefectSection} défaut{nbDefectSection > 1 ? 's' : ''}
+                    <i className="ti ti-alert-triangle text-[9px]" /> {nbDefectSection} {nbDefectSection > 1 ? t('defauts_pluriel') : t('defaut_singulier')}
                   </span>
                 )}
                 {nbNISection > 0 && (
@@ -957,14 +980,14 @@ export default function OngletE3({
                   <button onClick={() => setModalDispositif(section.id)}
                     className="text-xs px-3 py-1.5 rounded-md font-semibold flex items-center gap-1 hover:opacity-80 transition-opacity"
                     style={{ background: NAVY, color: '#fff' }}>
-                    <i className="ti ti-plus text-xs" /> Ajouter
+                    <i className="ti ti-plus text-xs" /> {t('ajouter')}
                   </button>
                   {confirmDeleteSection === section.id ? (
                     <div className="flex items-center gap-1">
                       <button onClick={() => supprimerSection(section.id)}
-                        className="text-xs px-2.5 py-1.5 rounded-md bg-red-500 text-white font-bold">Confirmer</button>
+                        className="text-xs px-2.5 py-1.5 rounded-md bg-red-500 text-white font-bold">{t('confirmer')}</button>
                       <button onClick={() => setConfirmDeleteSection(null)}
-                        className="text-xs px-2.5 py-1.5 rounded-md border border-gray-300 font-medium">Annuler</button>
+                        className="text-xs px-2.5 py-1.5 rounded-md border border-gray-300 font-medium">{t('annuler')}</button>
                     </div>
                   ) : (
                     <button onClick={() => setConfirmDeleteSection(section.id)}
@@ -979,8 +1002,8 @@ export default function OngletE3({
             {dispFiltres.length === 0 ? (
               <div className="text-center py-8 text-xs text-gray-400">
                 {filtreType !== 'Tous'
-                  ? `Aucun dispositif de type ${filtreType} dans cette section.`
-                  : readOnly ? 'Aucun dispositif dans cette section.' : 'Aucun dispositif. Cliquez sur « Ajouter » pour commencer.'}
+                  ? `${t('aucun_dispositif_type_prefix')} ${filtreType} ${t('aucun_dispositif_type_suffix')}`
+                  : readOnly ? t('aucun_dispositif_section') : t('aucun_dispositif_cliquez')}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -998,14 +1021,14 @@ export default function OngletE3({
                   </colgroup>
                   <thead>
                     <tr className="text-[10px] font-bold uppercase tracking-widest text-gray-400 bg-gray-50">
-                      <th className="text-left px-3 py-2.5">Localisation</th>
-                      <th className="text-left px-2 py-2.5">Type</th>
+                      <th className="text-left px-3 py-2.5">{t('localisation_label')}</th>
+                      <th className="text-left px-2 py-2.5">{t('col_type')}</th>
                       <th className="text-center px-2 py-2.5">A</th>
                       <th className="text-center px-2 py-2.5">B</th>
                       <th className="text-center px-2 py-2.5">C</th>
                       <th className="text-center px-2 py-2.5">D</th>
                       <th className="text-center px-2 py-2.5">E</th>
-                      <th className="text-left px-2 py-2.5">Remarque</th>
+                      <th className="text-left px-2 py-2.5">{t('col_remarque')}</th>
                       {!readOnly && <th className="px-2 py-2.5" />}
                     </tr>
                   </thead>
@@ -1016,6 +1039,7 @@ export default function OngletE3({
                         dispositif={d}
                         readOnly={readOnly}
                         filtreType={filtreType}
+                        typeDispositif={typeDispositif}
                         onDeleted={onRefresh}
                         onUpdate={(field, value) => updateDispositifLocal(d.id, field, value)}
                       />

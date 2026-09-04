@@ -1,10 +1,45 @@
+import base64
+from io import BytesIO
+
 from django.contrib.auth import get_user_model
 from django.utils.text import slugify
+from PIL import Image
 from rest_framework import serializers
 
 from .models import DemandeEssai, Module, Organisation, OrganisationModule
 
 Utilisateur = get_user_model()
+
+LOGO_TAILLE_MAX = 700_000  # ~700 Ko encodé (~500 Ko réels) — assez pour un logo, trop petit pour un abus de stockage.
+# Les gabarits PDF affichent toujours le logo à une hauteur fixe (46-52px CSS) —
+# c'est donc la hauteur de la source qui détermine la netteté, pas la largeur
+# (un logo large de type bannière, avec peu de hauteur, reste net). On exige un
+# peu plus que la hauteur d'affichage max pour éviter l'agrandissement (flou)
+# une fois imprimé/exporté en PDF à une résolution plus élevée que l'écran.
+LOGO_HAUTEUR_MIN = 80
+
+
+def valider_logo(value: str) -> str | None:
+    """Valide un logo d'organisation (data URI base64). Retourne un message
+    d'erreur si invalide, ou None si le logo est vide ou valide."""
+    if not value:
+        return None
+    if not value.startswith("data:image/"):
+        return "Le logo doit être une image encodée en data URI."
+    if len(value) > LOGO_TAILLE_MAX:
+        return "Le logo est trop volumineux (700 Ko max)."
+    try:
+        _, b64data = value.split(",", 1)
+        with Image.open(BytesIO(base64.b64decode(b64data))) as img:
+            _largeur, hauteur = img.size
+    except Exception:
+        return "Le logo est corrompu ou dans un format d'image non reconnu."
+    if hauteur < LOGO_HAUTEUR_MIN:
+        return (
+            f"Le logo est trop petit ({LOGO_HAUTEUR_MIN}px de hauteur minimum) "
+            "pour rester net sur les rapports et certificats PDF."
+        )
+    return None
 
 
 class ModuleActifSerializer(serializers.Serializer):
@@ -24,6 +59,7 @@ class OrganisationSerializer(serializers.ModelSerializer):
             "nom",
             "slug",
             "adresse",
+            "langue",
             "logo",
             "est_active",
             "date_creation",
@@ -40,13 +76,9 @@ class OrganisationSerializer(serializers.ModelSerializer):
         return obj.utilisateurs.count()
 
     def validate_logo(self, value):
-        if not value:
-            return value
-        if not value.startswith("data:image/"):
-            raise serializers.ValidationError("Le logo doit être une image encodée en data URI.")
-        # ~700 Ko encodé (~500 Ko réels) — assez pour un logo, trop petit pour un abus de stockage.
-        if len(value) > 700_000:
-            raise serializers.ValidationError("Le logo est trop volumineux (700 Ko max).")
+        erreur = valider_logo(value)
+        if erreur:
+            raise serializers.ValidationError(erreur)
         return value
 
 

@@ -3,19 +3,20 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import InviteModal from '@/components/dashboard/InviteModal'
+import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
 
-const ROLE_BADGE: Record<string, { label: string; bg: string; color: string }> = {
-  technicien: { label: 'Technicien', bg: '#fff2e8', color: '#9a4a13' },
-  citoyen: { label: 'Citoyen', bg: '#eef1f5', color: '#4b5a6a' },
-  superviseur: { label: 'Superviseur', bg: '#fdf0e4', color: '#c2410c' },
-}
-
 export default function EquipePage() {
   const router = useRouter()
+  const t = useT()
+  const ROLE_BADGE: Record<string, { label: string; bg: string; color: string }> = {
+    technicien: { label: t('role_technicien'), bg: '#fff2e8', color: '#9a4a13' },
+    citoyen: { label: t('role_citoyen'), bg: '#eef1f5', color: '#4b5a6a' },
+    superviseur: { label: t('role_superviseur'), bg: '#fdf0e4', color: '#c2410c' },
+  }
   const [membres, setMembres] = useState<any[]>([])
   const [filtre, setFiltre] = useState<'tous' | 'technicien' | 'citoyen' | 'superviseur'>('tous')
   const [loading, setLoading] = useState(true)
@@ -67,26 +68,26 @@ export default function EquipePage() {
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: NAVY }}>Équipe</h1>
-          <p className="text-gray-400 text-sm mt-1">{membres.length} membre{membres.length > 1 ? 's' : ''} au total</p>
+          <h1 className="text-2xl font-bold" style={{ color: NAVY }}>{t('equipe_titre')}</h1>
+          <p className="text-gray-400 text-sm mt-1">{membres.length} {t('membre_s_total')}</p>
         </div>
         <button
           onClick={() => setInviteOpen(true)}
           className="text-white px-5 py-2.5 rounded-md text-sm font-bold hover:opacity-90 transition-opacity flex items-center gap-2"
           style={{ background: ORANGE }}
         >
-          <i className="ti ti-user-plus" /> Inviter
+          <i className="ti ti-user-plus" /> {t('inviter')}
         </button>
       </div>
 
       {/* Stats — pas de limites, juste des compteurs */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         {[
-          { key: 'tous', label: 'Total actifs', value: membres.filter(m => m.est_actif).length, icon: 'ti-users' },
-          { key: 'superviseur', label: 'Superviseurs', value: superviseurs.length, icon: 'ti-shield-check' },
-          { key: 'technicien', label: 'Techniciens', value: techniciens.length, icon: 'ti-tool' },
-          { key: 'citoyen', label: 'Citoyens', value: citoyens.length, icon: 'ti-user' },
-          { key: 'inactifs', label: 'Inactifs', value: inactifs.length, icon: 'ti-user-off' },
+          { key: 'tous', label: t('total_actifs'), value: membres.filter(m => m.est_actif).length, icon: 'ti-users' },
+          { key: 'superviseur', label: t('superviseurs_label'), value: superviseurs.length, icon: 'ti-shield-check' },
+          { key: 'technicien', label: t('techniciens_label'), value: techniciens.length, icon: 'ti-tool' },
+          { key: 'citoyen', label: t('citoyens_label'), value: citoyens.length, icon: 'ti-user' },
+          { key: 'inactifs', label: t('inactifs_label'), value: inactifs.length, icon: 'ti-user-off' },
         ].map(s => (
           <button
             key={s.key}
@@ -108,10 +109,10 @@ export default function EquipePage() {
       {/* Filtres rapides */}
       <div className="flex gap-2 mb-4">
         {[
-          { key: 'tous', label: 'Tous' },
-          { key: 'superviseur', label: 'Superviseurs' },
-          { key: 'technicien', label: 'Techniciens' },
-          { key: 'citoyen', label: 'Citoyens' },
+          { key: 'tous', label: t('tous') },
+          { key: 'superviseur', label: t('superviseurs_label') },
+          { key: 'technicien', label: t('techniciens_label') },
+          { key: 'citoyen', label: t('citoyens_label') },
         ].map(f => (
           <button
             key={f.key}
@@ -131,7 +132,7 @@ export default function EquipePage() {
       {/* Liste */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {visibles.length === 0 ? (
-          <p className="text-gray-300 text-sm col-span-2 text-center py-10">Aucun membre pour ce filtre</p>
+          <p className="text-gray-300 text-sm col-span-2 text-center py-10">{t('aucun_membre_filtre')}</p>
         ) : visibles.map(m => {
           const badge = ROLE_BADGE[m.role] || ROLE_BADGE.citoyen
           return (
@@ -152,17 +153,17 @@ export default function EquipePage() {
                 </div>
                 <p className="text-xs text-gray-400 truncate">{m.email}</p>
                 {m.role === 'technicien' && m.permis_recq && (
-                  <p className="text-xs text-gray-300">Permis R.E.C.Q. {m.permis_recq}</p>
+                  <p className="text-xs text-gray-300">{t('permis_recq_label')} {m.permis_recq}</p>
                 )}
               </div>
               <button
                 onClick={() => toggleActif(m.id)}
                 className="flex items-center gap-1.5 text-xs font-medium flex-shrink-0"
                 style={{ color: m.est_actif ? '#0d6b4f' : '#9ca3af' }}
-                title={m.est_actif ? 'Désactiver ce compte' : 'Réactiver ce compte'}
+                title={m.est_actif ? t('desactiver_compte') : t('reactiver_compte')}
               >
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: m.est_actif ? '#2fbf6e' : '#c7cfd8' }} />
-                {m.est_actif ? 'Actif' : 'Inactif'}
+                {m.est_actif ? t('actif_label') : t('inactif_label')}
               </button>
             </div>
           )

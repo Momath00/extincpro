@@ -5,24 +5,26 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import TableExtincteurs from '@/components/rapports-extincteurs/TableExtincteurs'
 import TableBoyaux from '@/components/rapports-extincteurs/TableBoyaux'
+import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
-
-const STATUT_BADGE: Record<string, { label: string; bg: string; color: string }> = {
-  ouvert: { label: 'Ouvert', bg: '#fff2e8', color: '#9a4a13' },
-  ferme: { label: 'Fermé', bg: '#e9f6f2', color: '#0d6b4f' },
-}
 
 type OngletPrincipal = 'extincteurs' | 'historique'
 
 export default function TechnicienRapportExtincteurDetailPage() {
   const router = useRouter()
   const params = useParams()
+  const t = useT()
   const [rapport, setRapport] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [onglet, setOnglet] = useState<OngletPrincipal>('extincteurs')
+
+  const STATUT_BADGE: Record<string, { label: string; bg: string; color: string }> = {
+    ouvert: { label: t('ouvert'), bg: '#fff2e8', color: '#9a4a13' },
+    ferme: { label: t('ferme'), bg: '#e9f6f2', color: '#0d6b4f' },
+  }
 
   function charger() {
     const token = localStorage.getItem('access_token')
@@ -56,11 +58,14 @@ export default function TechnicienRapportExtincteurDetailPage() {
   return (
     <div>
       <Link href="/technicien/rapports-extincteurs" className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1 mb-4">
-        <i className="ti ti-arrow-left" /> Retour aux rapports
+        <i className="ti ti-arrow-left" /> {t('retour_aux_rapports')}
       </Link>
 
       <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-5">
         <div>
+          <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: ORANGE }}>
+            {rapport.batiment?.client_nom || '—'}
+          </p>
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <h1 className="text-xl sm:text-2xl font-bold" style={{ color: NAVY }}>
               {rapport.batiment?.adresse_complete || '—'}
@@ -71,14 +76,28 @@ export default function TechnicienRapportExtincteurDetailPage() {
             </span>
           </div>
           <p className="text-gray-500 text-sm">
-            {rapport.batiment?.client_nom || '—'}
-            {rapport.numero_job ? ` · Job ${rapport.numero_job}` : ''}
+            {rapport.numero_job ? `${t('job')} ${rapport.numero_job}` : ''}
             {rapport.date_inspection
-              ? ` · ${new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })}`
+              ? ` ${rapport.numero_job ? '· ' : ''}${new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })}`
               : ''}
           </p>
         </div>
       </div>
+
+      {rapport.rapport_eclairage_lie && (
+        <Link
+          href={`/technicien/rapports-eclairage-urgence/${rapport.rapport_eclairage_lie.id}`}
+          className="mb-4 flex items-center gap-3 px-4 py-3 rounded-md border text-sm hover:shadow-sm transition-shadow"
+          style={{ background: '#fff2e8', borderColor: '#fde3cc' }}
+        >
+          <i className="ti ti-bulb flex-shrink-0" style={{ color: ORANGE }} />
+          <span className="flex-1" style={{ color: NAVY }}>
+            {t('rapport_eclairage_lie_texte')}{' '}
+            <strong>{rapport.rapport_eclairage_lie.statut === 'ferme' ? t('ferme') : t('ouvert')}</strong>
+          </span>
+          <i className="ti ti-chevron-right flex-shrink-0" style={{ color: ORANGE }} />
+        </Link>
+      )}
 
       {readOnly && (
         <div className="mb-5 flex items-center gap-3 px-4 py-3 rounded-md border text-sm font-semibold"
@@ -88,16 +107,16 @@ export default function TechnicienRapportExtincteurDetailPage() {
             <i className="ti ti-lock text-white text-sm" />
           </div>
           <div>
-            <p className="font-bold" style={{ color: NAVY }}>Rapport fermé — lecture seule</p>
-            <p className="text-xs font-normal text-gray-400 mt-0.5">Seul le superviseur peut modifier un rapport fermé.</p>
+            <p className="font-bold" style={{ color: NAVY }}>{t('rapport_ferme_lecture_seule')}</p>
+            <p className="text-xs font-normal text-gray-400 mt-0.5">{t('seul_superviseur_modifie')}</p>
           </div>
         </div>
       )}
 
       <div className="flex gap-0.5 sm:gap-1 mb-6 border-b border-gray-100 overflow-x-auto">
         {([
-          { key: 'extincteurs', label: `Extincteurs (${rapport.extincteurs?.length || 0})`, shortLabel: `Extincteurs (${rapport.extincteurs?.length || 0})` },
-          { key: 'historique', label: `Historique (${rapport.historique?.length || 0})`, shortLabel: `Hist. (${rapport.historique?.length || 0})` },
+          { key: 'extincteurs', label: `${t('col_extincteurs')} (${rapport.extincteurs?.length || 0})`, shortLabel: `${t('col_extincteurs')} (${rapport.extincteurs?.length || 0})` },
+          { key: 'historique', label: `${t('historique')} (${rapport.historique?.length || 0})`, shortLabel: `${t('historique')} (${rapport.historique?.length || 0})` },
         ] as { key: OngletPrincipal; label: string; shortLabel: string }[]).map(o => (
           <button
             key={o.key}
@@ -124,7 +143,7 @@ export default function TechnicienRapportExtincteurDetailPage() {
       {onglet === 'historique' && (
         <div className="bg-white rounded-md border border-gray-100 p-5">
           {(!rapport.historique || rapport.historique.length === 0) ? (
-            <p className="text-gray-300 text-sm text-center py-10">Aucune activité enregistrée</p>
+            <p className="text-gray-300 text-sm text-center py-10">{t('aucune_activite')}</p>
           ) : (
             <div className="flex flex-col">
               {rapport.historique.map((h: any, i: number) => (

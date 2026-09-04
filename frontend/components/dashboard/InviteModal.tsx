@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -15,13 +16,13 @@ function Spinner({ size = 17 }: { size?: number }) {
   )
 }
 
-const ROLES = [
-  { value: 'technicien', label: 'Technicien', icon: 'ti-tool', desc: 'Remplit et ferme les fiches d\'inspection' },
-  { value: 'superviseur', label: 'Superviseur', icon: 'ti-shield-check', desc: 'Crée les rapports, gère l\'équipe' },
-  { value: 'citoyen', label: 'Citoyen', icon: 'ti-user', desc: 'Consulte son rapport et son certificat' },
-]
-
 export default function InviteModal({ onClose, onInvited }: { onClose: () => void; onInvited?: () => void }) {
+  const t = useT()
+  const ROLES = [
+    { value: 'technicien', label: t('role_technicien'), icon: 'ti-tool', desc: t('desc_role_technicien') },
+    { value: 'superviseur', label: t('role_superviseur'), icon: 'ti-shield-check', desc: t('desc_role_superviseur') },
+    { value: 'citoyen', label: t('role_citoyen'), icon: 'ti-user', desc: t('desc_role_citoyen') },
+  ]
   const [role, setRole] = useState('technicien')
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
@@ -46,9 +47,9 @@ export default function InviteModal({ onClose, onInvited }: { onClose: () => voi
       })
       const data = await res.json() as any
       if (!res.ok) {
-        throw new Error(data.error || (Object.values(data) as any[])?.[0]?.[0] || 'Erreur lors de l\'invitation.')
+        throw new Error(data.error || (Object.values(data) as any[])?.[0]?.[0] || t('erreur_invitation'))
       }
-      setSuccess(data.message || 'Invitation envoyée.')
+      setSuccess(data.message || t('invitation_envoyee'))
       setUsername('')
       setEmail('')
       onInvited?.()
@@ -67,7 +68,7 @@ export default function InviteModal({ onClose, onInvited }: { onClose: () => voi
       <div className="relative bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: NAVY }}>
-            Inviter un membre
+            {t('inviter_membre_titre')}
           </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700">
             <i className="ti ti-x text-lg" />
@@ -88,7 +89,7 @@ export default function InviteModal({ onClose, onInvited }: { onClose: () => voi
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label className="text-xs font-bold uppercase tracking-widest mb-2 block" style={{ color: NAVY }}>
-              Nom d'utilisateur
+              {t('nom_utilisateur_label')}
             </label>
             <input
               type="text"
@@ -102,7 +103,7 @@ export default function InviteModal({ onClose, onInvited }: { onClose: () => voi
 
           <div>
             <label className="text-xs font-bold uppercase tracking-widest mb-2 block" style={{ color: NAVY }}>
-              Email
+              {t('email_label')}
             </label>
             <input
               type="email"
@@ -116,7 +117,7 @@ export default function InviteModal({ onClose, onInvited }: { onClose: () => voi
 
           <div>
             <label className="text-xs font-bold uppercase tracking-widest mb-2 block" style={{ color: NAVY }}>
-              Rôle
+              {t('role_label')}
             </label>
             <div className="grid grid-cols-1 gap-2">
               {ROLES.map(r => (
@@ -148,7 +149,7 @@ export default function InviteModal({ onClose, onInvited }: { onClose: () => voi
           <div className="bg-gray-50 border border-gray-100 rounded-md p-3 flex gap-2">
             <i className="ti ti-info-circle text-sm flex-shrink-0 mt-0.5" style={{ color: NAVY }} />
             <p className="text-xs text-gray-500 leading-relaxed">
-              Un mot de passe temporaire sera généré et envoyé par courriel. La personne devra le changer dès sa première connexion.
+              {t('mot_de_passe_temp_note')}
             </p>
           </div>
 
@@ -158,7 +159,7 @@ export default function InviteModal({ onClose, onInvited }: { onClose: () => voi
             className="text-white py-3 rounded-md text-sm font-bold uppercase tracking-widest disabled:opacity-50 transition-opacity flex items-center justify-center"
             style={{ background: NAVY }}
           >
-            {loading ? <Spinner /> : `Inviter le ${ROLES.find(r => r.value === role)?.label.toLowerCase()}`}
+            {loading ? <Spinner /> : `${t('inviter_le_role')} ${ROLES.find(r => r.value === role)?.label.toLowerCase()}`}
           </button>
         </form>
       </div>

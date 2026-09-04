@@ -4,6 +4,7 @@ import "./globals.css";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { site } from "@/lib/site";
+import { LangueProvider } from "@/lib/i18n";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -90,9 +91,11 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        <Header />
-        <main>{children}</main>
-        <Footer />
+        <LangueProvider>
+          <Header />
+          <main>{children}</main>
+          <Footer />
+        </LangueProvider>
       </body>
     </html>
   );

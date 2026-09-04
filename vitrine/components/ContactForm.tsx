@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useT } from "@/lib/i18n";
 
 type Status = "idle" | "loading" | "success" | "error";
 
 export function ContactForm() {
+  const t = useT();
   const [status, setStatus] = useState<Status>("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -24,12 +26,12 @@ export function ContactForm() {
       });
       const result = await res.json().catch(() => null);
       if (!res.ok) {
-        throw new Error(result?.error || "Une erreur est survenue. Veuillez réessayer ou nous joindre directement.");
+        throw new Error(result?.error || t("contact_erreur_generique"));
       }
       setStatus("success");
       form.reset();
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Une erreur est survenue. Veuillez réessayer ou nous joindre directement.");
+      setErrorMessage(err instanceof Error ? err.message : t("contact_erreur_generique"));
       setStatus("error");
     }
   }
@@ -37,10 +39,9 @@ export function ContactForm() {
   if (status === "success") {
     return (
       <div className="rounded-xl border border-red/20 bg-red/5 p-8 text-center">
-        <h3 className="text-lg font-semibold text-ink">Merci !</h3>
+        <h3 className="text-lg font-semibold text-ink">{t("contact_merci_titre")}</h3>
         <p className="mt-2 text-sm text-text-muted">
-          Votre demande a bien été envoyée. Notre équipe vous répondra sous
-          peu.
+          {t("contact_merci_texte")}
         </p>
       </div>
     );
@@ -51,7 +52,7 @@ export function ContactForm() {
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div>
           <label htmlFor="name" className="text-sm font-medium text-ink">
-            Nom complet
+            {t("nom_complet_label")}
           </label>
           <input
             id="name"
@@ -63,7 +64,7 @@ export function ContactForm() {
         </div>
         <div>
           <label htmlFor="company" className="text-sm font-medium text-ink">
-            Entreprise
+            {t("entreprise_label")}
           </label>
           <input
             id="company"
@@ -77,7 +78,7 @@ export function ContactForm() {
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div>
           <label htmlFor="email" className="text-sm font-medium text-ink">
-            Courriel
+            {t("courriel_label")}
           </label>
           <input
             id="email"
@@ -89,7 +90,7 @@ export function ContactForm() {
         </div>
         <div>
           <label htmlFor="phone" className="text-sm font-medium text-ink">
-            Téléphone
+            {t("telephone_label_vitrine")}
           </label>
           <input
             id="phone"
@@ -102,7 +103,7 @@ export function ContactForm() {
 
       <div>
         <label htmlFor="message" className="text-sm font-medium text-ink">
-          Message
+          {t("message_label")}
         </label>
         <textarea
           id="message"
@@ -110,10 +111,10 @@ export function ContactForm() {
           rows={5}
           required
           minLength={10}
-          placeholder="Parlez-nous de votre entreprise et de vos besoins d'inspection..."
+          placeholder={t("message_placeholder")}
           className="mt-1.5 w-full resize-none rounded-md border border-line bg-paper px-3.5 py-2.5 text-sm text-ink outline-none focus:border-red"
         />
-        <p className="mt-1 text-xs text-text-muted">Minimum 10 caractères.</p>
+        <p className="mt-1 text-xs text-text-muted">{t("minimum_10_caracteres")}</p>
       </div>
 
       <button
@@ -121,7 +122,7 @@ export function ContactForm() {
         disabled={status === "loading"}
         className="inline-flex w-full items-center justify-center rounded-md bg-red px-6 py-3.5 text-sm font-semibold text-white transition-colors hover:bg-red-bright disabled:opacity-60 sm:w-auto"
       >
-        {status === "loading" ? "Envoi en cours..." : "Démarrer l'essai gratuit"}
+        {status === "loading" ? t("envoi_en_cours_vitrine") : t("demarrer_essai_gratuit")}
       </button>
 
       {status === "error" && (

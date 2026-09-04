@@ -7,19 +7,16 @@ import OngletE1 from '@/components/rapports/OngletE1'
 import OngletE2 from '@/components/rapports/OngletE2'
 import OngletLegende from '@/components/rapports/OngletLegende'
 import OngletE3 from '@/components/rapports/OngletE3'
+import { useT, useLangue } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
 
-const STATUT_BADGE: Record<string, { label: string; bg: string; color: string }> = {
-  ouvert: { label: 'Ouvert', bg: '#fff2e8', color: '#9a4a13' },
-  ferme: { label: 'Fermé', bg: '#e9f6f2', color: '#0d6b4f' },
-}
-
 type OngletPrincipal = 'e1' | 'e2' | 'legende' | 'e3' | 'historique'
 
 function ProgressionRapport({ rapport }: { rapport: any }) {
+  const t = useT()
   const e1 = rapport.fiche_e1
   const e2 = rapport.fiche_e2
   const totalDisp = (rapport.sections || []).reduce((s: number, sec: any) => s + (sec.dispositifs?.length || 0), 0)
@@ -27,16 +24,16 @@ function ProgressionRapport({ rapport }: { rapport: any }) {
   const aCertificat = !!rapport.certificat
 
   const etapes = [
-    { label: 'E1', desc: 'Rapport annuel', done: !!(e1 && (e1.fonctionnement_une_etape !== null || e1.reseau_fonctionnel !== null)), color: '#9a4a13' },
-    { label: 'E2', desc: 'Poste de contrôle', done: !!(e2 && Object.keys(e2.details || {}).length > 0), color: '#0d6b4f' },
-    { label: 'E3', desc: `${totalDisp} dispositif${totalDisp !== 1 ? 's' : ''}`, done: totalDisp > 0, color: '#4b2f8c' },
-    { label: 'Fermé', desc: 'Rapport fermé', done: estFerme, color: NAVY },
-    { label: 'Certificat', desc: 'Certificat émis', done: aCertificat, color: ORANGE },
+    { label: 'E1', desc: t('rapport_annuel_court'), done: !!(e1 && (e1.fonctionnement_une_etape !== null || e1.reseau_fonctionnel !== null)), color: '#9a4a13' },
+    { label: 'E2', desc: t('poste_controle_court'), done: !!(e2 && Object.keys(e2.details || {}).length > 0), color: '#0d6b4f' },
+    { label: 'E3', desc: `${totalDisp} ${totalDisp !== 1 ? t('dispositifs_pluriel') : t('dispositif_singulier')}`, done: totalDisp > 0, color: '#4b2f8c' },
+    { label: t('ferme'), desc: t('etape_rapport_ferme'), done: estFerme, color: NAVY },
+    { label: t('certificat'), desc: t('certificat_emis_court'), done: aCertificat, color: ORANGE },
   ]
 
   return (
     <div className="bg-white rounded-md border border-gray-100 p-4 mb-5">
-      <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Progression</p>
+      <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">{t('progression')}</p>
       <div className="flex items-center gap-0">
         {etapes.map((e, i) => (
           <div key={e.label} className="flex items-center flex-1">
@@ -71,6 +68,12 @@ function ProgressionRapport({ rapport }: { rapport: any }) {
 export default function TechnicienRapportDetailPage() {
   const router = useRouter()
   const params = useParams()
+  const t = useT()
+  const langue = useLangue()
+  const STATUT_BADGE: Record<string, { label: string; bg: string; color: string }> = {
+    ouvert: { label: t('ouvert'), bg: '#fff2e8', color: '#9a4a13' },
+    ferme: { label: t('ferme'), bg: '#e9f6f2', color: '#0d6b4f' },
+  }
   const [rapport, setRapport] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [onglet, setOnglet] = useState<OngletPrincipal>('e1')
@@ -110,12 +113,15 @@ export default function TechnicienRapportDetailPage() {
   return (
     <div>
       <Link href="/technicien/rapports" className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1 mb-4">
-        <i className="ti ti-arrow-left" /> Retour aux rapports
+        <i className="ti ti-arrow-left" /> {t('retour_aux_rapports')}
       </Link>
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-5">
         <div>
+          <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: ORANGE }}>
+            {rapport.batiment?.client_nom || '—'}
+          </p>
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <h1 className="text-xl sm:text-2xl font-bold" style={{ color: NAVY }}>
               {rapport.batiment?.adresse_complete || '—'}
@@ -126,9 +132,8 @@ export default function TechnicienRapportDetailPage() {
             </span>
           </div>
           <p className="text-gray-500 text-sm">
-            {rapport.batiment?.client_nom || '—'}
             {rapport.date_inspection
-              ? ` · ${new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })}`
+              ? new Date(rapport.date_inspection).toLocaleDateString(langue === 'en' ? 'en-CA' : 'fr-CA', { dateStyle: 'long' })
               : ''}
           </p>
         </div>
@@ -146,8 +151,8 @@ export default function TechnicienRapportDetailPage() {
             <i className="ti ti-lock text-white text-sm" />
           </div>
           <div>
-            <p className="font-bold" style={{ color: NAVY }}>Rapport fermé — lecture seule</p>
-            <p className="text-xs font-normal text-gray-400 mt-0.5">Seul le superviseur peut modifier un rapport fermé.</p>
+            <p className="font-bold" style={{ color: NAVY }}>{t('rapport_ferme_lecture_seule')}</p>
+            <p className="text-xs font-normal text-gray-400 mt-0.5">{t('seul_superviseur_modifie')}</p>
           </div>
         </div>
       )}
@@ -155,11 +160,11 @@ export default function TechnicienRapportDetailPage() {
       {/* Onglets */}
       <div className="flex gap-0.5 sm:gap-1 mb-6 border-b border-gray-100 overflow-x-auto">
         {([
-          { key: 'e1', label: 'E1 — Rapport annuel', shortLabel: 'E1' },
-          { key: 'e2', label: 'E2 — Poste de contrôle', shortLabel: 'E2' },
-          { key: 'legende', label: 'Légende', shortLabel: 'Légende' },
-          { key: 'e3', label: `E3 — Dispositifs (${totalDispositifs})`, shortLabel: `E3 (${totalDispositifs})` },
-          { key: 'historique', label: `Historique (${rapport.historique?.length || 0})`, shortLabel: `Hist. (${rapport.historique?.length || 0})` },
+          { key: 'e1', label: t('e1_rapport_annuel'), shortLabel: 'E1' },
+          { key: 'e2', label: t('e2_poste_controle'), shortLabel: 'E2' },
+          { key: 'legende', label: t('legende_titre'), shortLabel: t('legende_titre') },
+          { key: 'e3', label: `${t('e3_dispositifs')} (${totalDispositifs})`, shortLabel: `E3 (${totalDispositifs})` },
+          { key: 'historique', label: `${t('historique')} (${rapport.historique?.length || 0})`, shortLabel: `${t('historique')} (${rapport.historique?.length || 0})` },
         ] as { key: OngletPrincipal; label: string; shortLabel: string }[]).map(o => (
           <button
             key={o.key}
@@ -184,7 +189,7 @@ export default function TechnicienRapportDetailPage() {
       {onglet === 'historique' && (
         <div className="bg-white rounded-md border border-gray-100 p-5">
           {(!rapport.historique || rapport.historique.length === 0) ? (
-            <p className="text-gray-300 text-sm text-center py-10">Aucune activité enregistrée</p>
+            <p className="text-gray-300 text-sm text-center py-10">{t('aucune_activite')}</p>
           ) : (
             <div className="flex flex-col">
               {rapport.historique.map((h: any, i: number) => (
@@ -197,10 +202,10 @@ export default function TechnicienRapportDetailPage() {
                   </div>
                   <div className="pb-4">
                     <p className="text-sm" style={{ color: NAVY }}>
-                      <span className="font-semibold">{h.utilisateur?.username || 'Système'}</span> — {h.description}
+                      <span className="font-semibold">{h.utilisateur?.username || t('systeme')}</span> — {h.description}
                     </p>
                     <p className="text-xs text-gray-400">
-                      {new Date(h.date_heure).toLocaleString('fr-CA', { dateStyle: 'medium', timeStyle: 'short' })}
+                      {new Date(h.date_heure).toLocaleString(langue === 'en' ? 'en-CA' : 'fr-CA', { dateStyle: 'medium', timeStyle: 'short' })}
                     </p>
                   </div>
                 </div>

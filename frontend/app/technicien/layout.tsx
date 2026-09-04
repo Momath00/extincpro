@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import TechnicienSidebar from '@/components/dashboard/TechnicienSidebar'
+import { LangueProvider } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -46,6 +47,7 @@ export default function TechnicienLayout({ children }: { children: React.ReactNo
   }
 
   return (
+    <LangueProvider langue={user?.organisation?.langue || 'fr'}>
     <div className="min-h-screen bg-gray-50 flex">
 
       {/* Sidebar desktop — fixe */}
@@ -87,5 +89,6 @@ export default function TechnicienLayout({ children }: { children: React.ReactNo
         <main className="flex-1 min-w-0 p-4 md:p-8">{children}</main>
       </div>
     </div>
+    </LangueProvider>
   )
 }

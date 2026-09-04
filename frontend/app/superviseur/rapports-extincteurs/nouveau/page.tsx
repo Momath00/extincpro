@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { clientColor } from '@/lib/clientColor'
+import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -11,6 +12,7 @@ const ORANGE = '#e11324'
 
 export default function NouveauRapportExtincteurPage() {
   const router = useRouter()
+  const t = useT()
   const [clients, setClients] = useState<any[]>([])
   const [batiments, setBatiments] = useState<any[]>([])
   const [citoyens, setCitoyens] = useState<any[]>([])
@@ -71,7 +73,7 @@ export default function NouveauRapportExtincteurPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!batimentId) { setError('Choisissez un bâtiment.'); return }
+    if (!batimentId) { setError(t('choisissez_batiment_erreur')); return }
     setSubmitting(true)
     setError('')
     try {
@@ -100,11 +102,11 @@ export default function NouveauRapportExtincteurPage() {
   return (
     <div className="max-w-2xl">
       <Link href="/superviseur/rapports-extincteurs" className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1 mb-4">
-        <i className="ti ti-arrow-left" /> Retour aux rapports
+        <i className="ti ti-arrow-left" /> {t('retour_aux_rapports')}
       </Link>
-      <h1 className="text-2xl font-bold mb-1" style={{ color: NAVY }}>Nouveau rapport extincteur</h1>
+      <h1 className="text-2xl font-bold mb-1" style={{ color: NAVY }}>{t('titre_rapport_extincteur')}</h1>
       <p className="text-gray-400 text-sm mb-8">
-        Normalement créé automatiquement avec le rapport principal — utilisez ce formulaire seulement pour un rapport indépendant.
+        {t('nouveau_extincteur_sous_titre')}
       </p>
 
       {error && (
@@ -115,10 +117,10 @@ export default function NouveauRapportExtincteurPage() {
 
         <div>
           <label className="text-xs font-bold uppercase tracking-widest mb-2 block" style={{ color: NAVY }}>
-            1. Client
+            {t('etape_client')}
           </label>
           {clients.length === 0 ? (
-            <p className="text-xs text-gray-400">Aucun client — <Link href="/superviseur/clients" className="underline" style={{ color: ORANGE }}>créez-en un d'abord</Link>.</p>
+            <p className="text-xs text-gray-400">{t('aucun_client')}<Link href="/superviseur/clients" className="underline" style={{ color: ORANGE }}>{t('creez_en_un_dabord')}</Link>.</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {clients.map((c: any) => {
@@ -143,14 +145,14 @@ export default function NouveauRapportExtincteurPage() {
 
         <div>
           <label className="text-xs font-bold uppercase tracking-widest mb-2 block" style={{ color: NAVY }}>
-            2. Bâtiment
+            {t('etape_batiment')}
           </label>
           {!clientId ? (
-            <p className="text-xs text-gray-300 italic">Choisissez d'abord un client</p>
+            <p className="text-xs text-gray-300 italic">{t('choisissez_client_dabord')}</p>
           ) : loadingBatiments ? (
-            <p className="text-xs text-gray-400">Chargement des bâtiments...</p>
+            <p className="text-xs text-gray-400">{t('chargement_batiments')}</p>
           ) : batiments.length === 0 ? (
-            <p className="text-xs text-gray-400">Aucun bâtiment pour ce client — <Link href="/superviseur/batiments" className="underline" style={{ color: ORANGE }}>ajoutez-en un</Link>.</p>
+            <p className="text-xs text-gray-400">{t('aucun_batiment_client')}<Link href="/superviseur/batiments" className="underline" style={{ color: ORANGE }}>{t('ajoutez_en_un')}</Link>.</p>
           ) : (
             <select
               value={batimentId}
@@ -158,7 +160,7 @@ export default function NouveauRapportExtincteurPage() {
               className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
               required
             >
-              <option value="">— Sélectionner —</option>
+              <option value="">{t('selectionner')}</option>
               {batiments.map((b: any) => (
                 <option key={b.id} value={b.id}>{b.adresse_complete}</option>
               ))}
@@ -168,14 +170,14 @@ export default function NouveauRapportExtincteurPage() {
 
         <div>
           <label className="text-xs font-bold uppercase tracking-widest mb-2 block" style={{ color: NAVY }}>
-            3. Citoyen <span className="text-gray-300 normal-case font-normal">(optionnel)</span>
+            {t('etape_citoyen')} <span className="text-gray-300 normal-case font-normal">{t('optionnel')}</span>
           </label>
           <select
             value={citoyenId}
             onChange={e => setCitoyenId(e.target.value)}
             className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
           >
-            <option value="">— Aucun —</option>
+            <option value="">{t('aucun_tiret')}</option>
             {citoyens.map((c: any) => (
               <option key={c.id} value={c.id}>{c.username} — {c.email}</option>
             ))}
@@ -184,19 +186,19 @@ export default function NouveauRapportExtincteurPage() {
 
         <div>
           <label className="text-xs font-bold uppercase tracking-widest mb-2 block" style={{ color: NAVY }}>
-            4. Technicien(s) assigné(s)
+            {t('etape_technicien_4')}
           </label>
           {techniciens.length === 0 ? (
-            <p className="text-xs text-gray-400">Aucun technicien — invitez-en un depuis la page Équipe.</p>
+            <p className="text-xs text-gray-400">{t('aucun_technicien')}</p>
           ) : (
             <div className="flex flex-col gap-2">
-              {techniciens.map((t: any) => {
-                const checked = technicienIds.includes(t.id)
+              {techniciens.map((tech: any) => {
+                const checked = technicienIds.includes(tech.id)
                 return (
                   <button
                     type="button"
-                    key={t.id}
-                    onClick={() => toggleTechnicien(t.id)}
+                    key={tech.id}
+                    onClick={() => toggleTechnicien(tech.id)}
                     className="flex items-center gap-3 p-3 rounded-md border-2 text-left transition-colors"
                     style={{ borderColor: checked ? ORANGE : '#e5e7eb', background: checked ? '#fff2e8' : '#fff' }}
                   >
@@ -207,8 +209,8 @@ export default function NouveauRapportExtincteurPage() {
                       {checked && <i className="ti ti-check text-white text-xs" />}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: NAVY }}>{t.username}</p>
-                      {t.permis_recq && <p className="text-xs text-gray-400">Permis R.E.C.Q. {t.permis_recq}</p>}
+                      <p className="text-sm font-medium truncate" style={{ color: NAVY }}>{tech.username}</p>
+                      {tech.permis_recq && <p className="text-xs text-gray-400">{t('permis_recq')} {tech.permis_recq}</p>}
                     </div>
                   </button>
                 )
@@ -219,7 +221,7 @@ export default function NouveauRapportExtincteurPage() {
 
         <div>
           <label className="text-xs font-bold uppercase tracking-widest mb-2 block" style={{ color: NAVY }}>
-            5. Date d'inspection
+            {t('etape_date_inspection_5')}
           </label>
           <input
             type="date"
@@ -231,7 +233,7 @@ export default function NouveauRapportExtincteurPage() {
 
         <div>
           <label className="text-xs font-bold uppercase tracking-widest mb-2 block" style={{ color: NAVY }}>
-            6. Numéro de job <span className="text-gray-300 normal-case font-normal">(optionnel)</span>
+            {t('etape_numero_job_6')} <span className="text-gray-300 normal-case font-normal">{t('optionnel')}</span>
           </label>
           <input
             type="text"
@@ -247,7 +249,7 @@ export default function NouveauRapportExtincteurPage() {
           className="text-white py-3 rounded-md text-sm font-bold uppercase tracking-widest disabled:opacity-40 transition-opacity"
           style={{ background: ORANGE }}
         >
-          {submitting ? 'Création...' : 'Créer le rapport'}
+          {submitting ? t('creation_en_cours') : t('creer_le_rapport')}
         </button>
       </form>
     </div>

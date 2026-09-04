@@ -1,16 +1,10 @@
 'use client'
 
 import { useState, useEffect, type ReactNode } from 'react'
+import { useT, useChoix, LONGUEUR_CHOICES_I18N } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
-
-export const LONGUEUR_CHOICES: Record<string, string> = {
-  '50pi': '50 pi',
-  '75pi': '75 pi',
-  '100pi': '100 pi',
-  autre: 'Autre',
-}
 
 // ── Saisie d'année auto-formatée AAAA (4 chiffres, pas de jour/mois) ────────
 function AnneeMaskInput({
@@ -62,6 +56,8 @@ function LigneBoyau({
   onDeleted: () => void
   onUpdate: (field: string, value: any) => void
 }) {
+  const t = useT()
+  const LONGUEUR_CHOICES = useChoix(LONGUEUR_CHOICES_I18N)
   const [it, setIt] = useState<any>(item)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [erreurChamp, setErreurChamp] = useState<string | null>(null)
@@ -84,12 +80,12 @@ function LigneBoyau({
       if (!res.ok) {
         setIt((prev: any) => ({ ...prev, [field]: ancienneValeur }))
         onUpdate(field, ancienneValeur)
-        setErreurChamp("Non enregistré — réessayez.")
+        setErreurChamp(t('non_enregistre_reessayez'))
       }
     } catch {
       setIt((prev: any) => ({ ...prev, [field]: ancienneValeur }))
       onUpdate(field, ancienneValeur)
-      setErreurChamp('Erreur réseau — non enregistré.')
+      setErreurChamp(t('erreur_reseau_non_enregistre'))
     }
   }
 
@@ -188,13 +184,13 @@ function LigneBoyau({
         } : {}}
       >
         <td className="px-2 py-2 text-center text-xs text-gray-400">{it.ordre}</td>
-        <td className="px-2 py-2">{textInput('etage', 'Étage', 'w-full min-w-[70px]')}</td>
-        <td className="px-2 py-2">{textInput('emplacement', 'Emplacement', 'w-full min-w-[110px]')}</td>
+        <td className="px-2 py-2">{textInput('etage', t('col_etage'), 'w-full min-w-[70px]')}</td>
+        <td className="px-2 py-2">{textInput('emplacement', t('col_emplacement'), 'w-full min-w-[110px]')}</td>
         <td className="px-2 py-2">{selectInput('longueur', LONGUEUR_CHOICES)}</td>
         <td className="px-2 py-2">{anneeInput('date_fabrication')}</td>
         <td className="px-2 py-2">{anneeInput('prochain_test_hydrostatique')}</td>
         <td className="px-2 py-2">{etatInput()}</td>
-        <td className="px-2 py-2">{textInput('remarque', 'Remarque...', 'w-full min-w-[120px]')}</td>
+        <td className="px-2 py-2">{textInput('remarque', t('col_remarque') + '...', 'w-full min-w-[120px]')}</td>
         {!readOnly && (
           <td className="px-2 py-2 text-center">
             <button
@@ -211,14 +207,14 @@ function LigneBoyau({
           <td colSpan={readOnly ? 8 : 9}>
             <div className="flex items-center gap-3 px-4 py-2.5 bg-red-50 text-xs border-t border-red-100">
               <i className="ti ti-alert-circle text-red-500" />
-              <span className="text-red-700 font-semibold">Supprimer cette ligne ?</span>
+              <span className="text-red-700 font-semibold">{t('supprimer_cette_ligne')}</span>
               <button onClick={supprimer}
                 className="px-3 py-1 rounded-md bg-red-500 text-white font-bold hover:bg-red-600 transition-colors">
-                Confirmer
+                {t('confirmer')}
               </button>
               <button onClick={() => setConfirmDelete(false)}
                 className="px-3 py-1 rounded-md border border-gray-300 font-medium hover:bg-gray-50 transition-colors">
-                Annuler
+                {t('annuler')}
               </button>
             </div>
           </td>
@@ -250,6 +246,7 @@ export default function TableBoyaux({
   readOnly: boolean
   onRefresh: () => void
 }) {
+  const t = useT()
   const [items, setItems] = useState<any[]>(rapport.boyaux || [])
   const [adding, setAdding] = useState(false)
 
@@ -282,41 +279,41 @@ export default function TableBoyaux({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold" style={{ color: NAVY }}>Boyaux d'incendie</h3>
+        <h3 className="text-sm font-bold" style={{ color: NAVY }}>{t('boyaux_incendie')}</h3>
         {!readOnly && (
           <button onClick={ajouterLigne} disabled={adding}
             className="flex items-center gap-2 border border-gray-200 px-4 py-2 rounded-md text-sm font-bold hover:border-[#0a0b0d] transition-colors disabled:opacity-50"
             style={{ color: NAVY }}>
-            <i className="ti ti-plus" /> {adding ? 'Ajout...' : 'Ajouter un boyau'}
+            <i className="ti ti-plus" /> {adding ? t('ajout_en_cours') : t('ajouter_un_boyau')}
           </button>
         )}
       </div>
 
       <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-500">
-        <span><strong style={{ color: NAVY }}>Total :</strong> {total}</span>
-        <span className="font-semibold text-green-600">Conformes : {conformes}</span>
-        <span className="font-semibold" style={{ color: defectueux > 0 ? '#e11324' : '#94a3b8' }}>Défectueux : {defectueux}</span>
-        <span className="font-semibold" style={{ color: ni > 0 ? '#b45309' : '#94a3b8' }}>Non inspectés : {ni}</span>
+        <span><strong style={{ color: NAVY }}>{t('total')} :</strong> {total}</span>
+        <span className="font-semibold text-green-600">{t('conformes')} : {conformes}</span>
+        <span className="font-semibold" style={{ color: defectueux > 0 ? '#e11324' : '#94a3b8' }}>{t('defectueux')} : {defectueux}</span>
+        <span className="font-semibold" style={{ color: ni > 0 ? '#b45309' : '#94a3b8' }}>{t('non_inspectes')} : {ni}</span>
       </div>
 
       <div className="bg-white rounded-md border border-gray-100 overflow-hidden shadow-sm">
         {items.length === 0 ? (
           <div className="text-center py-10 text-xs text-gray-400">
-            {readOnly ? 'Aucun boyau enregistré.' : 'Aucun boyau. Cliquez sur « Ajouter un boyau » pour commencer.'}
+            {readOnly ? t('aucun_boyau_enregistre') : t('aucun_boyau_cliquez')}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[900px]">
               <thead>
                 <tr className="text-[10px] font-bold uppercase tracking-widest text-gray-400 bg-gray-50">
-                  <th className="text-center px-2 py-2.5 w-10">No</th>
-                  <th className="text-left px-2 py-2.5">Étage</th>
-                  <th className="text-left px-2 py-2.5">Emplacement</th>
-                  <th className="text-left px-2 py-2.5">Longueur</th>
-                  <th className="text-left px-2 py-2.5">Date fabrication</th>
-                  <th className="text-left px-2 py-2.5">Prochain test hydro.</th>
-                  <th className="text-center px-2 py-2.5 w-16" title="D=Défectueux, C=Conforme, NI=Non inspecté">État</th>
-                  <th className="text-left px-2 py-2.5">Remarque</th>
+                  <th className="text-center px-2 py-2.5 w-10">{t('col_no')}</th>
+                  <th className="text-left px-2 py-2.5">{t('col_etage')}</th>
+                  <th className="text-left px-2 py-2.5">{t('col_emplacement')}</th>
+                  <th className="text-left px-2 py-2.5">{t('col_longueur')}</th>
+                  <th className="text-left px-2 py-2.5">{t('col_date_fabrication')}</th>
+                  <th className="text-left px-2 py-2.5">{t('col_prochain_test_hydro')}</th>
+                  <th className="text-center px-2 py-2.5 w-16" title={t('etat_legende')}>{t('col_etat')}</th>
+                  <th className="text-left px-2 py-2.5">{t('col_remarque')}</th>
                   {!readOnly && <th className="px-2 py-2.5 w-10" />}
                 </tr>
               </thead>

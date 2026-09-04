@@ -5,8 +5,19 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logo } from "./Logo";
 import { site } from "@/lib/site";
+import { useT } from "@/lib/i18n";
+import { LangueToggle } from "./LangueToggle";
+
+const NAV_KEYS: Record<string, string> = {
+  "/": "nav_accueil",
+  "/services": "nav_services",
+  "/tarifs": "nav_tarifs",
+  "/a-propos": "nav_a_propos",
+  "/contact": "nav_contact",
+};
 
 export function Header() {
+  const t = useT();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -30,25 +41,26 @@ export function Header() {
                   active ? "text-white" : "text-white/65 hover:text-white"
                 }`}
               >
-                {item.label}
+                {t(NAV_KEYS[item.href] ?? item.href)}
               </Link>
             );
           })}
         </nav>
 
         <div className="hidden items-center gap-3 lg:flex">
+          <LangueToggle />
           <Link
             href="/contact"
             className="inline-flex items-center gap-2 rounded-md bg-red px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-bright"
           >
-            Essai gratuit 1 mois
+            {t("essai_gratuit_1_mois")}
           </Link>
         </div>
 
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          aria-label="Ouvrir le menu"
+          aria-label={t("ouvrir_menu")}
           aria-expanded={open}
           className="flex h-10 w-10 items-center justify-center rounded-md text-white lg:hidden"
         >
@@ -71,15 +83,16 @@ export function Header() {
                 href={item.href}
                 className="rounded-md px-3 py-2.5 text-base font-medium text-white/80 hover:bg-white/5 hover:text-white"
               >
-                {item.label}
+                {t(NAV_KEYS[item.href] ?? item.href)}
               </Link>
             ))}
-            <div className="mt-2 flex flex-col gap-2 border-t border-white/10 px-3 pt-4">
+            <div className="mt-2 flex flex-col gap-3 border-t border-white/10 px-3 pt-4">
+              <LangueToggle />
               <Link
                 href="/contact"
                 className="rounded-md bg-red py-2.5 text-center text-sm font-semibold text-white"
               >
-                Essai gratuit 1 mois
+                {t("essai_gratuit_1_mois")}
               </Link>
             </div>
           </nav>

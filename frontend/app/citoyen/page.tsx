@@ -3,42 +3,45 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ACCENT = '#e11324'
 
 function StatutBadge({ statut, certificatEnvoye, conforme }: { statut: string; certificatEnvoye?: boolean; conforme?: boolean }) {
+  const t = useT()
   if (statut === 'ferme') {
     if (certificatEnvoye) {
       if (conforme === false) {
         return (
           <span className="text-xs px-2.5 py-1 rounded-full font-semibold flex items-center gap-1 bg-red-50 text-red-600">
-            <i className="ti ti-alert-triangle text-[10px]" /> Réparations requises
+            <i className="ti ti-alert-triangle text-[10px]" /> {t('reparations_requises')}
           </span>
         )
       }
       return (
         <span className="text-xs px-2.5 py-1 rounded-full font-semibold flex items-center gap-1 bg-green-50 text-green-700">
-          <i className="ti ti-certificate text-[10px]" /> Certificat disponible
+          <i className="ti ti-certificate text-[10px]" /> {t('certificat_disponible')}
         </span>
       )
     }
     return (
       <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-gray-100 text-gray-500">
-        En attente du certificat
+        {t('attente_certificat')}
       </span>
     )
   }
   return (
     <span className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: '#fff2e8', color: '#9a4a13' }}>
-      Inspection en cours
+      {t('inspection_en_cours')}
     </span>
   )
 }
 
 export default function CitoyenPage() {
   const router = useRouter()
+  const t = useT()
   const [rapports, setRapports] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -74,8 +77,8 @@ export default function CitoyenPage() {
     <div>
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold" style={{ color: NAVY }}>Mon inspection</h1>
-        <p className="text-gray-400 text-sm mt-1">Consultez l'état de vos inspections incendie</p>
+        <h1 className="text-2xl font-bold" style={{ color: NAVY }}>{t('mon_inspection')}</h1>
+        <p className="text-gray-400 text-sm mt-1">{t('consultez_inspections_incendie')}</p>
       </div>
 
       {/* Liste des rapports */}
@@ -84,8 +87,8 @@ export default function CitoyenPage() {
           <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: '#f8f9fa' }}>
             <i className="ti ti-clipboard-off text-xl text-gray-300" />
           </div>
-          <p className="text-gray-400 text-sm font-medium">Aucun rapport à afficher pour le moment.</p>
-          <p className="text-gray-300 text-xs mt-1">Vous serez notifié lorsqu'une inspection vous est associée.</p>
+          <p className="text-gray-400 text-sm font-medium">{t('aucun_rapport_afficher')}</p>
+          <p className="text-gray-300 text-xs mt-1">{t('serez_notifie')}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
@@ -121,12 +124,12 @@ export default function CitoyenPage() {
                 r.certificat?.conforme === false ? (
                   <div className="mt-3 pt-3 border-t border-gray-50 flex items-center gap-2 text-xs text-red-600">
                     <i className="ti ti-alert-triangle text-sm" />
-                    Des réparations sont requises avant que votre certificat soit conforme
+                    {t('reparations_avant_conforme')}
                   </div>
                 ) : (
                   <div className="mt-3 pt-3 border-t border-gray-50 flex items-center gap-2 text-xs text-green-700">
                     <i className="ti ti-download text-sm" />
-                    Cliquer pour accéder à votre certificat
+                    {t('cliquer_acceder_certificat')}
                   </div>
                 )
               )}

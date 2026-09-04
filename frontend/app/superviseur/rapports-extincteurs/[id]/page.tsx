@@ -6,6 +6,7 @@ import Link from 'next/link'
 import TableExtincteurs from '@/components/rapports-extincteurs/TableExtincteurs'
 import TableBoyaux from '@/components/rapports-extincteurs/TableBoyaux'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
+import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -64,6 +65,7 @@ function CertificatTab({
   onEnvoyer: () => void
   actionLoading: boolean
 }) {
+  const t = useT()
   const cert = rapport.certificat
   const modeDirect = rapport.batiment?.client_mode_livraison === 'direct'
   const contactEmail = rapport.batiment?.client_contact_email
@@ -73,8 +75,8 @@ function CertificatTab({
     return (
       <div className="bg-white rounded-xl border border-gray-100 p-12 text-center">
         <i className="ti ti-certificate text-5xl text-gray-200" />
-        <p className="mt-4 text-sm font-semibold text-gray-400">Aucun certificat généré pour ce rapport.</p>
-        <p className="text-xs text-gray-300 mt-1">Fermez le rapport pour générer le certificat.</p>
+        <p className="mt-4 text-sm font-semibold text-gray-400">{t('aucun_certificat_genere')}</p>
+        <p className="text-xs text-gray-300 mt-1">{t('fermez_pour_generer')}</p>
       </div>
     )
   }
@@ -86,22 +88,22 @@ function CertificatTab({
           <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
             <i className="ti ti-certificate text-white text-3xl" />
           </div>
-          <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-1">Certificat de vérification</p>
+          <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-1">{t('certificat_verification')}</p>
           <p className="text-white text-2xl font-bold tracking-wide">{cert.numero}</p>
-          <p className="text-white/50 text-xs mt-2">Extincteurs portatifs</p>
+          <p className="text-white/50 text-xs mt-2">{t('extincteurs_portatifs')}</p>
         </div>
 
         <div className="p-6">
           <div className="flex flex-col divide-y divide-gray-50 mb-6">
             {[
-              ['Adresse', rapport.batiment?.adresse_complete],
-              ['Client', rapport.batiment?.client_nom],
-              ["Date d'émission", new Date(cert.date_emission).toLocaleDateString('fr-CA', { dateStyle: 'long' })],
-              ['Émis par', cert.emis_par?.username || '—'],
-              ['Date de fermeture', rapport.date_fermeture
+              [t('adresse'), rapport.batiment?.adresse_complete],
+              [t('client'), rapport.batiment?.client_nom],
+              [t('date_emission'), new Date(cert.date_emission).toLocaleDateString('fr-CA', { dateStyle: 'long' })],
+              [t('emis_par'), cert.emis_par?.username || '—'],
+              [t('date_fermeture'), rapport.date_fermeture
                 ? new Date(rapport.date_fermeture).toLocaleDateString('fr-CA', { dateStyle: 'long' })
                 : '—'],
-              ['Techniciens', (rapport.techniciens || []).map((t: any) => t.username).join(', ') || '—'],
+              [t('techniciens_col'), (rapport.techniciens || []).map((t: any) => t.username).join(', ') || '—'],
             ].map(([label, value]) => (
               <div key={String(label)} className="flex justify-between items-center py-2.5 text-sm">
                 <span className="text-gray-400 font-medium">{label}</span>
@@ -120,20 +122,20 @@ function CertificatTab({
                 <p className="text-sm font-bold"
                   style={{ color: cert.certificat_envoye ? '#166534' : '#92400e' }}>
                   {cert.certificat_envoye
-                    ? (modeDirect ? 'Certificat envoyé par courriel (PDF)' : 'Certificat envoyé au citoyen')
-                    : 'Pas encore envoyé'}
+                    ? (modeDirect ? t('certificat_envoye_email_pdf') : t('certificat_envoye_citoyen'))
+                    : t('pas_encore_envoye')}
                 </p>
                 {modeDirect && contactEmail && !cert.certificat_envoye && (
-                  <p className="text-xs text-gray-500 mt-0.5">Destinataire : {contactEmail} <span className="text-gray-300">(envoi direct, sans compte)</span></p>
+                  <p className="text-xs text-gray-500 mt-0.5">{t('destinataire')} : {contactEmail} <span className="text-gray-300">({t('envoi_direct_sans_compte')})</span></p>
                 )}
                 {modeDirect && !contactEmail && (
-                  <p className="text-xs text-red-500 mt-0.5">Ce client n'a pas d'adresse courriel de contact — ajoutez-en une dans sa fiche client.</p>
+                  <p className="text-xs text-red-500 mt-0.5">{t('client_sans_email_contact')}</p>
                 )}
                 {!modeDirect && rapport.citoyen && !cert.certificat_envoye && (
-                  <p className="text-xs text-gray-500 mt-0.5">Destinataire : {rapport.citoyen.username}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{t('destinataire')} : {rapport.citoyen.username}</p>
                 )}
                 {!modeDirect && !rapport.citoyen && (
-                  <p className="text-xs text-gray-400 mt-0.5">Aucun citoyen assigné au rapport</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{t('aucun_citoyen_assigne')}</p>
                 )}
               </div>
             </div>
@@ -148,7 +150,7 @@ function CertificatTab({
                 style={{ background: ORANGE }}
               >
                 <i className={`ti ${modeDirect ? 'ti-mail-forward' : 'ti-send'}`} />
-                {actionLoading ? 'Envoi...' : modeDirect ? 'Envoyer par courriel (PDF)' : 'Envoyer au citoyen'}
+                {actionLoading ? t('envoi_en_cours') : modeDirect ? t('envoyer_par_courriel_pdf') : t('envoyer_au_citoyen')}
               </button>
             )}
             <button
@@ -156,7 +158,7 @@ function CertificatTab({
               className="flex-1 text-sm font-bold px-4 py-3 rounded-lg border-2 flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors"
               style={{ borderColor: NAVY, color: NAVY }}
             >
-              <i className="ti ti-download" /> Télécharger PDF
+              <i className="ti ti-download" /> {t('telecharger_pdf')}
             </button>
           </div>
         </div>
@@ -170,6 +172,7 @@ type OngletType = 'extincteurs' | 'certificat' | 'historique'
 export default function SuperviseurRapportExtincteurDetailPage() {
   const router = useRouter()
   const params = useParams()
+  const t = useT()
   const [rapport, setRapport] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [onglet, setOnglet] = useState<OngletType>('extincteurs')
@@ -212,12 +215,12 @@ export default function SuperviseurRapportExtincteurDetailPage() {
     setActionLoading(false)
     setConfirmFermer(false)
     if (res.ok) {
-      showToast('Rapport fermé. Certificat généré automatiquement.', 'success')
+      showToast(t('rapport_ferme_cert_genere'), 'success')
       charger()
       setOnglet('certificat')
     } else {
       const d = await res.json().catch(() => ({}))
-      showToast(d.error || 'Erreur lors de la fermeture.', 'error')
+      showToast(d.error || t('erreur_fermeture'), 'error')
     }
   }
 
@@ -231,12 +234,12 @@ export default function SuperviseurRapportExtincteurDetailPage() {
     setActionLoading(false)
     setConfirmRouvrir(false)
     if (res.ok) {
-      showToast('Le rapport est ouvert avec succès.', 'success')
+      showToast(t('rapport_ouvert_succes'), 'success')
       setOnglet('extincteurs')
       charger()
     } else {
       const d = await res.json().catch(() => ({}))
-      showToast(d.error || 'Erreur lors de la réouverture.', 'error')
+      showToast(d.error || t('erreur_reouverture'), 'error')
     }
   }
 
@@ -250,10 +253,10 @@ export default function SuperviseurRapportExtincteurDetailPage() {
     setActionLoading(false)
     const d = await res.json().catch(() => ({}))
     if (res.ok) {
-      showToast(d.message || 'Certificat envoyé.', 'success')
+      showToast(d.message || t('certificat_envoye_toast'), 'success')
       charger()
     } else {
-      showToast(d.error || "Erreur lors de l'envoi.", 'error')
+      showToast(d.error || t('erreur_envoi'), 'error')
     }
   }
 
@@ -269,9 +272,9 @@ export default function SuperviseurRapportExtincteurDetailPage() {
   const estFerme = rapport.statut === 'ferme'
 
   const onglets: { key: OngletType; label: string; shortLabel: string }[] = [
-    { key: 'extincteurs', label: `Extincteurs (${rapport.extincteurs?.length || 0})`, shortLabel: `Extincteurs (${rapport.extincteurs?.length || 0})` },
-    ...(estFerme ? [{ key: 'certificat' as OngletType, label: '🏆 Certificat', shortLabel: '🏆' }] : []),
-    { key: 'historique', label: `Historique (${rapport.historique?.length || 0})`, shortLabel: `Hist. (${rapport.historique?.length || 0})` },
+    { key: 'extincteurs', label: `${t('col_extincteurs')} (${rapport.extincteurs?.length || 0})`, shortLabel: `${t('col_extincteurs')} (${rapport.extincteurs?.length || 0})` },
+    ...(estFerme ? [{ key: 'certificat' as OngletType, label: `🏆 ${t('certificat')}`, shortLabel: '🏆' }] : []),
+    { key: 'historique', label: `${t('historique')} (${rapport.historique?.length || 0})`, shortLabel: `${t('historique')} (${rapport.historique?.length || 0})` },
   ]
 
   return (
@@ -289,11 +292,14 @@ export default function SuperviseurRapportExtincteurDetailPage() {
 
       <Link href="/superviseur/rapports-extincteurs"
         className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1 mb-4">
-        <i className="ti ti-arrow-left" /> Retour aux rapports
+        <i className="ti ti-arrow-left" /> {t('retour_aux_rapports')}
       </Link>
 
       <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-5">
         <div>
+          <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: ORANGE }}>
+            {rapport.batiment?.client_nom || '—'}
+          </p>
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <h1 className="text-xl sm:text-2xl font-bold" style={{ color: NAVY }}>
               {rapport.batiment?.adresse_complete}
@@ -302,14 +308,13 @@ export default function SuperviseurRapportExtincteurDetailPage() {
               style={estFerme
                 ? { background: '#e9f6f2', color: '#0d6b4f' }
                 : { background: '#fff2e8', color: '#9a4a13' }}>
-              {estFerme ? 'Fermé' : 'Ouvert'}
+              {estFerme ? t('ferme') : t('ouvert')}
             </span>
           </div>
           <p className="text-gray-400 text-sm">
-            {rapport.batiment?.client_nom}
-            {rapport.numero_job ? ` · Job ${rapport.numero_job}` : ''}
+            {rapport.numero_job ? `${t('job')} ${rapport.numero_job}` : ''}
             {rapport.date_inspection
-              ? ` · ${new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })}`
+              ? ` ${rapport.numero_job ? '· ' : ''}${new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })}`
               : ''}
           </p>
         </div>
@@ -322,7 +327,7 @@ export default function SuperviseurRapportExtincteurDetailPage() {
               className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
               style={{ background: NAVY }}
             >
-              <i className="ti ti-lock" /> Fermer le rapport
+              <i className="ti ti-lock" /> {t('fermer_rapport')}
             </button>
           )}
 
@@ -335,7 +340,7 @@ export default function SuperviseurRapportExtincteurDetailPage() {
               style={{ background: ORANGE }}
             >
               <i className={`ti ${rapport.batiment?.client_mode_livraison === 'direct' ? 'ti-mail-forward' : 'ti-send'}`} />
-              {rapport.batiment?.client_mode_livraison === 'direct' ? 'Envoyer par courriel (PDF)' : 'Envoyer le certificat'}
+              {rapport.batiment?.client_mode_livraison === 'direct' ? t('envoyer_par_courriel_pdf') : t('envoyer_certificat_btn')}
             </button>
           )}
 
@@ -346,7 +351,7 @@ export default function SuperviseurRapportExtincteurDetailPage() {
               className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 border-2 disabled:opacity-50 hover:bg-gray-50 transition-colors"
               style={{ borderColor: NAVY, color: NAVY }}
             >
-              <i className="ti ti-lock-open" /> Rouvrir le rapport
+              <i className="ti ti-lock-open" /> {t('rouvrir_rapport')}
             </button>
           )}
 
@@ -356,41 +361,41 @@ export default function SuperviseurRapportExtincteurDetailPage() {
                 onClick={async () => {
                   setTelechargement('rapport')
                   const ok = await downloadHtml(`${API_URL}/api/rapports-extincteurs/${rapport.id}/telecharger/`)
-                  if (!ok) showToast('Erreur lors du téléchargement du rapport.', 'error')
+                  if (!ok) showToast(t('erreur_telechargement_rapport'), 'error')
                   setTelechargement(null)
                 }}
                 disabled={telechargement !== null}
                 className="text-sm font-bold px-4 py-2.5 rounded-md border-2 flex items-center gap-2 hover:bg-gray-50 transition-colors disabled:opacity-50"
                 style={{ borderColor: NAVY, color: NAVY }}
               >
-                {telechargement === 'rapport' ? <SpinnerBouton color={NAVY} /> : <i className="ti ti-file-download" />} Rapport
+                {telechargement === 'rapport' ? <SpinnerBouton color={NAVY} /> : <i className="ti ti-file-download" />} {t('telecharger_rapport')}
               </button>
               <button
                 onClick={async () => {
                   setTelechargement('excel')
                   const ok = await downloadFichier(`${API_URL}/api/rapports-extincteurs/${rapport.id}/excel/`, `Extincteur - ${rapport.batiment?.adresse_complete || rapport.id}.xlsx`)
-                  if (!ok) showToast("Erreur lors du téléchargement de l'Excel.", 'error')
+                  if (!ok) showToast(t('erreur_telechargement_excel'), 'error')
                   setTelechargement(null)
                 }}
                 disabled={telechargement !== null}
                 className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 text-white hover:opacity-90 transition-opacity disabled:opacity-50"
                 style={{ background: '#16a34a' }}
               >
-                {telechargement === 'excel' ? <SpinnerBouton /> : <i className="ti ti-file-spreadsheet" />} Excel
+                {telechargement === 'excel' ? <SpinnerBouton /> : <i className="ti ti-file-spreadsheet" />} {t('excel')}
               </button>
               {rapport.certificat && (
                 <button
                   onClick={async () => {
                     setTelechargement('certificat')
                     const ok = await downloadHtml(`${API_URL}/api/rapports-extincteurs/${rapport.id}/certificat-pdf/`)
-                    if (!ok) showToast('Erreur lors du téléchargement du certificat.', 'error')
+                    if (!ok) showToast(t('erreur_telechargement_certificat'), 'error')
                     setTelechargement(null)
                   }}
                   disabled={telechargement !== null}
                   className="text-sm font-bold px-4 py-2.5 rounded-md border-2 flex items-center gap-2 hover:bg-orange-50 transition-colors disabled:opacity-50"
                   style={{ borderColor: ORANGE, color: ORANGE }}
                 >
-                  {telechargement === 'certificat' ? <SpinnerBouton color={ORANGE} /> : <i className="ti ti-certificate" />} Certificat
+                  {telechargement === 'certificat' ? <SpinnerBouton color={ORANGE} /> : <i className="ti ti-certificate" />} {t('certificat')}
                 </button>
               )}
             </>
@@ -398,12 +403,27 @@ export default function SuperviseurRapportExtincteurDetailPage() {
         </div>
       </div>
 
+      {rapport.rapport_eclairage_lie && (
+        <Link
+          href={`/superviseur/rapports-eclairage-urgence/${rapport.rapport_eclairage_lie.id}`}
+          className="mb-4 flex items-center gap-3 px-4 py-3 rounded-md border text-sm hover:shadow-sm transition-shadow"
+          style={{ background: '#fff2e8', borderColor: '#fde3cc' }}
+        >
+          <i className="ti ti-bulb flex-shrink-0" style={{ color: ORANGE }} />
+          <span className="flex-1" style={{ color: NAVY }}>
+            {t('rapport_eclairage_lie_texte')}{' '}
+            <strong>{rapport.rapport_eclairage_lie.statut === 'ferme' ? t('ferme') : t('ouvert')}</strong>
+          </span>
+          <i className="ti ti-chevron-right flex-shrink-0" style={{ color: ORANGE }} />
+        </Link>
+      )}
+
       {estFerme && (
         <div className="mb-4 flex items-center gap-3 px-4 py-3 rounded-md border text-sm"
           style={{ background: '#fffbeb', borderColor: '#fde68a' }}>
           <i className="ti ti-edit text-yellow-600 flex-shrink-0" />
           <span style={{ color: '#92400e' }}>
-            Rapport fermé · En tant que superviseur vous pouvez quand même modifier toutes les données.
+            {t('rapport_ferme_superviseur_note')}
           </span>
         </div>
       )}
@@ -414,12 +434,12 @@ export default function SuperviseurRapportExtincteurDetailPage() {
           mode={modalMode}
           apiBase="/api/rapports-extincteurs/"
           onClose={() => setModalMode(null)}
-          onSaved={() => { charger(); showToast('Modification faite avec succès', 'success') }}
+          onSaved={() => { charger(); showToast(t('modification_succes'), 'success') }}
         />
       )}
 
       <div className="bg-white rounded-md border border-gray-100 p-4 mb-6 flex items-center gap-3 flex-wrap">
-        <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Techniciens</span>
+        <span className="text-xs font-bold uppercase tracking-widest text-gray-400">{t('techniciens_col')}</span>
         {rapport.techniciens?.length
           ? rapport.techniciens.map((t: any) => (
             <div key={t.id} className="flex items-center gap-1.5 bg-gray-50 rounded-full pl-1 pr-3 py-1">
@@ -430,23 +450,23 @@ export default function SuperviseurRapportExtincteurDetailPage() {
               <span className="text-xs font-medium" style={{ color: NAVY }}>{t.username}</span>
             </div>
           ))
-          : <span className="text-xs text-gray-300 italic">Aucun technicien assigné</span>}
+          : <span className="text-xs text-gray-300 italic">{t('aucun_technicien_assigne')}</span>}
         <button
           onClick={() => setModalMode('technicien')}
           className="text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-200 hover:border-[#e11324] transition-colors flex items-center gap-1"
           style={{ color: NAVY }}
         >
-          <i className="ti ti-edit text-[11px]" /> Réassigner
+          <i className="ti ti-edit text-[11px]" /> {t('reassigner')}
         </button>
 
         <span className="w-px h-4 bg-gray-200 flex-shrink-0" />
-        <span className="text-xs font-bold uppercase tracking-widest text-gray-400">Citoyen</span>
+        <span className="text-xs font-bold uppercase tracking-widest text-gray-400">{t('citoyen_col')}</span>
         <span className="text-xs font-medium" style={{ color: rapport.citoyen ? NAVY : '#9ca3af' }}>
-          {rapport.citoyen?.username || 'Aucun'}
+          {rapport.citoyen?.username || t('aucun')}
         </span>
         {rapport.certificat?.certificat_envoye && (
           <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-green-50 text-green-700 flex items-center gap-1">
-            <i className="ti ti-check text-[10px]" /> Certificat envoyé
+            <i className="ti ti-check text-[10px]" /> {t('certificat_envoye_citoyen')}
           </span>
         )}
         <button
@@ -454,7 +474,7 @@ export default function SuperviseurRapportExtincteurDetailPage() {
           className="text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-200 hover:border-[#e11324] transition-colors flex items-center gap-1"
           style={{ color: NAVY }}
         >
-          <i className="ti ti-edit text-[11px]" /> Réassigner
+          <i className="ti ti-edit text-[11px]" /> {t('reassigner')}
         </button>
       </div>
 
@@ -489,7 +509,7 @@ export default function SuperviseurRapportExtincteurDetailPage() {
       {onglet === 'historique' && (
         <div className="bg-white rounded-md border border-gray-100 p-5">
           {(!rapport.historique || rapport.historique.length === 0) ? (
-            <p className="text-gray-300 text-sm text-center py-10">Aucune activité enregistrée</p>
+            <p className="text-gray-300 text-sm text-center py-10">{t('aucune_activite')}</p>
           ) : (
             <div className="flex flex-col">
               {rapport.historique.map((h: any, i: number) => (
@@ -523,23 +543,23 @@ export default function SuperviseurRapportExtincteurDetailPage() {
               style={{ background: '#fff2e8' }}>
               <i className="ti ti-lock text-xl" style={{ color: ORANGE }} />
             </div>
-            <h3 className="text-base font-bold mb-2" style={{ color: NAVY }}>Fermer ce rapport ?</h3>
+            <h3 className="text-base font-bold mb-2" style={{ color: NAVY }}>{t('fermer_confirm_titre')}</h3>
             <p className="text-xs text-gray-400 mb-1">
-              Le rapport sera verrouillé et le certificat généré automatiquement.
+              {t('fermer_confirm_texte2')}
             </p>
             <p className="text-xs text-gray-400 mb-5">
-              En tant que superviseur, vous pourrez toujours modifier les données après la fermeture.
+              {t('superviseur_peut_modifier_apres')}
             </p>
             <div className="flex gap-2">
               <button onClick={() => setConfirmFermer(false)}
                 className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-200"
                 style={{ color: NAVY }}>
-                Annuler
+                {t('annuler')}
               </button>
               <button onClick={fermerRapport} disabled={actionLoading}
                 className="flex-1 py-2.5 rounded-md text-sm font-bold text-white disabled:opacity-50"
                 style={{ background: NAVY }}>
-                {actionLoading ? 'Fermeture...' : 'Fermer le rapport'}
+                {actionLoading ? t('fermeture_en_cours') : t('fermer_rapport')}
               </button>
             </div>
           </div>
@@ -554,20 +574,20 @@ export default function SuperviseurRapportExtincteurDetailPage() {
               style={{ background: '#fff2e8' }}>
               <i className="ti ti-lock-open text-xl" style={{ color: ORANGE }} />
             </div>
-            <h3 className="text-base font-bold mb-2" style={{ color: NAVY }}>Rouvrir ce rapport ?</h3>
+            <h3 className="text-base font-bold mb-2" style={{ color: NAVY }}>{t('rouvrir_confirm_titre')}</h3>
             <p className="text-xs text-gray-400 mb-5">
-              Le rapport repassera au statut « Ouvert » et pourra être modifié normalement.
+              {t('rouvrir_confirm_texte')}
             </p>
             <div className="flex gap-2">
               <button onClick={() => setConfirmRouvrir(false)}
                 className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-200"
                 style={{ color: NAVY }}>
-                Annuler
+                {t('annuler')}
               </button>
               <button onClick={rouvrirRapport} disabled={actionLoading}
                 className="flex-1 py-2.5 rounded-md text-sm font-bold text-white disabled:opacity-50"
                 style={{ background: NAVY }}>
-                {actionLoading ? 'Réouverture...' : 'Rouvrir le rapport'}
+                {actionLoading ? t('reouverture_en_cours') : t('rouvrir_rapport')}
               </button>
             </div>
           </div>

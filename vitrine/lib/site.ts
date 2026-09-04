@@ -9,7 +9,7 @@ export const site = {
   ogImage: "/og-image.png",
   phone: "514 546-6767",
   phoneHref: "+15145466767",
-  email: "contact@extincpro.com",
+  email: "contact@mssolutioninformatique.com",
   address: "281 Rue Riverside, Saint-Lambert, QC J4P 1A6",
   social: {
     linkedin: "https://www.linkedin.com/company/extincpro",

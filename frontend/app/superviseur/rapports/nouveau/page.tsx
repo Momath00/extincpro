@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { clientColor } from '@/lib/clientColor'
+import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -11,6 +12,7 @@ const ORANGE = '#e11324'
 
 export default function NouveauRapportPage() {
   const router = useRouter()
+  const t = useT()
   const [clients, setClients] = useState<any[]>([])
   const [batiments, setBatiments] = useState<any[]>([])
   const [citoyens, setCitoyens] = useState<any[]>([])
@@ -71,15 +73,15 @@ export default function NouveauRapportPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!batimentId) { setError('Choisissez un bâtiment.'); return }
-    if (!dateInspection) { setError("La date d'inspection est obligatoire."); return }
+    if (!batimentId) { setError(t('choisissez_batiment_erreur')); return }
+    if (!dateInspection) { setError(t('date_inspection_obligatoire_erreur')); return }
     setSubmitting(true)
     setError('')
     try {
-      const t = token()
+      const tok = token()
       const res = await fetch(`${API_URL}/api/rapports/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
         body: JSON.stringify({
           batiment: Number(batimentId),
           citoyen: citoyenId ? Number(citoyenId) : null,
@@ -88,7 +90,7 @@ export default function NouveauRapportPage() {
         }),
       })
       const data = await res.json() as any
-      if (!res.ok) throw new Error(data.error || (Object.values(data) as any[])?.[0]?.[0] || 'Erreur lors de la création.')
+      if (!res.ok) throw new Error(data.error || (Object.values(data) as any[])?.[0]?.[0] || t('erreur_creation'))
       router.push(`/superviseur/rapports/${data.id}`)
     } catch (err: any) {
       setError(err.message)
@@ -100,10 +102,10 @@ export default function NouveauRapportPage() {
   return (
     <div className="max-w-2xl">
       <Link href="/superviseur/rapports" className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1 mb-4">
-        <i className="ti ti-arrow-left" /> Retour aux rapports
+        <i className="ti ti-arrow-left" /> {t('retour_aux_rapports')}
       </Link>
-      <h1 className="text-2xl font-bold mb-1" style={{ color: NAVY }}>Nouveau rapport</h1>
-      <p className="text-gray-400 text-sm mb-8">Les fiches E1 et E2 seront créées automatiquement, prêtes à être remplies.</p>
+      <h1 className="text-2xl font-bold mb-1" style={{ color: NAVY }}>{t('nouveau_rapport')}</h1>
+      <p className="text-gray-400 text-sm mb-8">{t('fiches_e1_e2_sous_titre')}</p>
 
       {error && (
         <div className="bg-red-50 text-red-600 text-sm px-4 py-3 rounded-md mb-6 border border-red-100">{error}</div>
@@ -114,10 +116,10 @@ export default function NouveauRapportPage() {
         {/* Étape 1 — Client */}
         <div>
           <label className="text-xs font-bold uppercase tracking-widest mb-2 block" style={{ color: NAVY }}>
-            1. Client
+            {t('etape_client')}
           </label>
           {clients.length === 0 ? (
-            <p className="text-xs text-gray-400">Aucun client — <Link href="/superviseur/clients" className="underline" style={{ color: ORANGE }}>créez-en un d'abord</Link>.</p>
+            <p className="text-xs text-gray-400">{t('aucun_client')}<Link href="/superviseur/clients" className="underline" style={{ color: ORANGE }}>{t('creez_en_un_dabord')}</Link>.</p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {clients.map((c: any) => {
@@ -143,14 +145,14 @@ export default function NouveauRapportPage() {
         {/* Étape 2 — Bâtiment (dynamique) */}
         <div>
           <label className="text-xs font-bold uppercase tracking-widest mb-2 block" style={{ color: NAVY }}>
-            2. Bâtiment
+            {t('etape_batiment')}
           </label>
           {!clientId ? (
-            <p className="text-xs text-gray-300 italic">Choisissez d'abord un client</p>
+            <p className="text-xs text-gray-300 italic">{t('choisissez_client_dabord')}</p>
           ) : loadingBatiments ? (
-            <p className="text-xs text-gray-400">Chargement des bâtiments...</p>
+            <p className="text-xs text-gray-400">{t('chargement_batiments')}</p>
           ) : batiments.length === 0 ? (
-            <p className="text-xs text-gray-400">Aucun bâtiment pour ce client — <Link href="/superviseur/batiments" className="underline" style={{ color: ORANGE }}>ajoutez-en un</Link>.</p>
+            <p className="text-xs text-gray-400">{t('aucun_batiment_client')}<Link href="/superviseur/batiments" className="underline" style={{ color: ORANGE }}>{t('ajoutez_en_un')}</Link>.</p>
           ) : (
             <select
               value={batimentId}
@@ -158,7 +160,7 @@ export default function NouveauRapportPage() {
               className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
               required
             >
-              <option value="">— Sélectionner —</option>
+              <option value="">{t('selectionner')}</option>
               {batiments.map((b: any) => (
                 <option key={b.id} value={b.id}>{b.adresse_complete}</option>
               ))}
@@ -169,14 +171,14 @@ export default function NouveauRapportPage() {
         {/* Étape 3 — Citoyen */}
         <div>
           <label className="text-xs font-bold uppercase tracking-widest mb-2 block" style={{ color: NAVY }}>
-            3. Citoyen <span className="text-gray-300 normal-case font-normal">(optionnel)</span>
+            {t('etape_citoyen')} <span className="text-gray-300 normal-case font-normal">{t('optionnel')}</span>
           </label>
           <select
             value={citoyenId}
             onChange={e => setCitoyenId(e.target.value)}
             className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
           >
-            <option value="">— Aucun —</option>
+            <option value="">{t('aucun_tiret')}</option>
             {citoyens.map((c: any) => (
               <option key={c.id} value={c.id}>{c.username} — {c.email}</option>
             ))}
@@ -186,19 +188,19 @@ export default function NouveauRapportPage() {
         {/* Étape 4 — Techniciens (plusieurs) */}
         <div>
           <label className="text-xs font-bold uppercase tracking-widest mb-2 block" style={{ color: NAVY }}>
-            4. Technicien(s) assigné(s)
+            {t('etape_technicien_4')}
           </label>
           {techniciens.length === 0 ? (
-            <p className="text-xs text-gray-400">Aucun technicien — invitez-en un depuis la page Équipe.</p>
+            <p className="text-xs text-gray-400">{t('aucun_technicien')}</p>
           ) : (
             <div className="flex flex-col gap-2">
-              {techniciens.map((t: any) => {
-                const checked = technicienIds.includes(t.id)
+              {techniciens.map((tech: any) => {
+                const checked = technicienIds.includes(tech.id)
                 return (
                   <button
                     type="button"
-                    key={t.id}
-                    onClick={() => toggleTechnicien(t.id)}
+                    key={tech.id}
+                    onClick={() => toggleTechnicien(tech.id)}
                     className="flex items-center gap-3 p-3 rounded-md border-2 text-left transition-colors"
                     style={{ borderColor: checked ? ORANGE : '#e5e7eb', background: checked ? '#fff2e8' : '#fff' }}
                   >
@@ -209,8 +211,8 @@ export default function NouveauRapportPage() {
                       {checked && <i className="ti ti-check text-white text-xs" />}
                     </span>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: NAVY }}>{t.username}</p>
-                      {t.permis_recq && <p className="text-xs text-gray-400">Permis R.E.C.Q. {t.permis_recq}</p>}
+                      <p className="text-sm font-medium truncate" style={{ color: NAVY }}>{tech.username}</p>
+                      {tech.permis_recq && <p className="text-xs text-gray-400">{t('permis_recq')} {tech.permis_recq}</p>}
                     </div>
                   </button>
                 )
@@ -222,7 +224,7 @@ export default function NouveauRapportPage() {
         {/* Étape 5 — Date */}
         <div>
           <label className="text-xs font-bold uppercase tracking-widest mb-2 block" style={{ color: NAVY }}>
-            5. Date d'inspection prévue <span className="text-red-500">*</span>
+            {t('etape_date_inspection_prevue_5')} <span className="text-red-500">*</span>
           </label>
           <input
             type="date"
@@ -231,7 +233,7 @@ export default function NouveauRapportPage() {
             required
             className="w-full sm:w-64 border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
           />
-          <p className="text-xs text-gray-400 mt-1.5">Obligatoire — sert au filtre « aujourd'hui » du technicien.</p>
+          <p className="text-xs text-gray-400 mt-1.5">{t('note_date_obligatoire_filtre')}</p>
         </div>
 
         <button
@@ -240,7 +242,7 @@ export default function NouveauRapportPage() {
           className="text-white py-3 rounded-md text-sm font-bold uppercase tracking-widest disabled:opacity-40 transition-opacity"
           style={{ background: ORANGE }}
         >
-          {submitting ? 'Création...' : 'Créer le rapport'}
+          {submitting ? t('creation_en_cours') : t('creer_le_rapport')}
         </button>
       </form>
     </div>

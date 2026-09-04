@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { E2_STRUCTURE } from '@/lib/e2Structure'
+import { resoudreE2Structure } from '@/lib/e2Structure'
+import { useT, useLangue } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -29,6 +30,9 @@ export default function OngletE2({
   readOnly: boolean
   onSaved: () => void
 }) {
+  const t = useT()
+  const langue = useLangue()
+  const E2_STRUCTURE = resoudreE2Structure(langue)
   const [sectionActive, setSectionActive] = useState('e2_1')
   const [details, setDetails] = useState<Record<string, any>>({})
   const [saving, setSaving] = useState(false)
@@ -61,14 +65,14 @@ export default function OngletE2({
         body: JSON.stringify({ details }),
       })
       if (res.ok) {
-        showToast(`Section ${sectionId.replace('_', '.').toUpperCase()} sauvegardée.`, 'success')
+        showToast(`${t('section_prefix')} ${sectionId.replace('_', '.').toUpperCase()} ${t('sauvegardee_suffix')}`, 'success')
         onSaved()
       } else {
         const d = await res.json().catch(() => ({}))
-        showToast(d.error || 'Erreur lors de la sauvegarde.', 'error')
+        showToast(d.error || t('erreur_sauvegarde'), 'error')
       }
     } catch {
-      showToast('Erreur réseau.', 'error')
+      showToast(t('erreur_reseau'), 'error')
     } finally {
       setSaving(false)
     }
@@ -127,7 +131,7 @@ export default function OngletE2({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5 pb-5 border-b border-gray-100">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: NAVY }}>
-                  Localisation
+                  {t('localisation_label')}
                 </label>
                 {readOnly ? (
                   <p className="text-sm px-3 py-2 bg-gray-50 rounded-md" style={{ color: sectionData.localisation ? NAVY : '#9ca3af' }}>
@@ -138,14 +142,14 @@ export default function OngletE2({
                     type="text"
                     value={sectionData.localisation || ''}
                     onChange={e => updateSectionField(sectionActive, 'localisation', e.target.value)}
-                    placeholder="ex. Rez-de-chaussée, local 101"
+                    placeholder={t('placeholder_localisation_ex')}
                     className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
                   />
                 )}
               </div>
               <div>
                 <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: NAVY }}>
-                  Description
+                  {t('description_label')}
                 </label>
                 {readOnly ? (
                   <p className="text-sm px-3 py-2 bg-gray-50 rounded-md" style={{ color: sectionData.description ? NAVY : '#9ca3af' }}>
@@ -156,7 +160,7 @@ export default function OngletE2({
                     type="text"
                     value={sectionData.description || ''}
                     onChange={e => updateSectionField(sectionActive, 'description', e.target.value)}
-                    placeholder="ex. Panneau VIGILANT XL"
+                    placeholder={t('placeholder_description_ex')}
                     className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
                   />
                 )}
@@ -175,7 +179,7 @@ export default function OngletE2({
                 <textarea
                   value={sectionData.remarques || ''}
                   onChange={e => updateSectionField(sectionActive, 'remarques', e.target.value)}
-                  placeholder={section.items[0]?.placeholder || 'Saisir vos remarques...'}
+                  placeholder={section.items[0]?.placeholder || t('saisir_remarques_placeholder')}
                   rows={5}
                   className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324] resize-none"
                 />
@@ -195,7 +199,7 @@ export default function OngletE2({
                       readOnly ? (
                         <p className="text-xs font-semibold"
                           style={{ color: sectionData[item.id] === 'oui' ? '#0d6b4f' : sectionData[item.id] === 'non' ? '#c0392b' : '#9ca3af' }}>
-                          {sectionData[item.id] === 'oui' ? 'Oui' : sectionData[item.id] === 'non' ? 'Non' : sectionData[item.id] === 'sans_objet' ? 'Sans objet' : '—'}
+                          {sectionData[item.id] === 'oui' ? t('oui') : sectionData[item.id] === 'non' ? t('non') : sectionData[item.id] === 'sans_objet' ? t('sans_objet') : '—'}
                         </p>
                       ) : (
                         <select
@@ -204,9 +208,9 @@ export default function OngletE2({
                           className="border border-gray-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#e11324]"
                         >
                           <option value="">—</option>
-                          <option value="oui">Oui</option>
-                          <option value="non">Non</option>
-                          <option value="sans_objet">Sans objet</option>
+                          <option value="oui">{t('oui')}</option>
+                          <option value="non">{t('non')}</option>
+                          <option value="sans_objet">{t('sans_objet')}</option>
                         </select>
                       )
                     ) : (
@@ -238,7 +242,7 @@ export default function OngletE2({
               className="mt-6 w-full text-white py-3 rounded-md text-sm font-bold uppercase disabled:opacity-50 hover:opacity-90 transition-opacity"
               style={{ background: NAVY }}
             >
-              {saving ? 'Sauvegarde...' : `Sauvegarder ${sectionActive.replace('_', '.').toUpperCase()}`}
+              {saving ? t('sauvegarde_en_cours') : `${t('sauvegarder_prefix')} ${sectionActive.replace('_', '.').toUpperCase()}`}
             </button>
           )}
         </div>

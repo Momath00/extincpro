@@ -3,35 +3,38 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
 
 function StatutBadge({ statut, certificatEnvoye }: { statut: string; certificatEnvoye?: boolean }) {
+  const t = useT()
   if (statut === 'ferme') {
     if (certificatEnvoye) {
       return (
         <span className="text-xs px-2.5 py-1 rounded-full font-semibold flex items-center gap-1 bg-green-50 text-green-700">
-          <i className="ti ti-certificate text-[10px]" /> Certificat disponible
+          <i className="ti ti-certificate text-[10px]" /> {t('certificat_disponible')}
         </span>
       )
     }
     return (
       <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-gray-100 text-gray-500">
-        En attente du certificat
+        {t('attente_certificat')}
       </span>
     )
   }
   return (
     <span className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: '#fff2e8', color: '#9a4a13' }}>
-      Inspection en cours
+      {t('inspection_en_cours')}
     </span>
   )
 }
 
 export default function CitoyenRapportsExtincteursPage() {
   const router = useRouter()
+  const t = useT()
   const [rapports, setRapports] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -66,8 +69,8 @@ export default function CitoyenRapportsExtincteursPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold" style={{ color: NAVY }}>Rapport Extincteur</h1>
-        <p className="text-gray-400 text-sm mt-1">Consultez l'état de la vérification de vos extincteurs portatifs</p>
+        <h1 className="text-2xl font-bold" style={{ color: NAVY }}>{t('titre_rapport_extincteur')}</h1>
+        <p className="text-gray-400 text-sm mt-1">{t('consultez_inspections_extincteur')}</p>
       </div>
 
       {rapports.length === 0 ? (
@@ -75,8 +78,8 @@ export default function CitoyenRapportsExtincteursPage() {
           <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3" style={{ background: '#f8f9fa' }}>
             <i className="ti ti-fire-extinguisher text-xl text-gray-300" />
           </div>
-          <p className="text-gray-400 text-sm font-medium">Aucun rapport à afficher pour le moment.</p>
-          <p className="text-gray-300 text-xs mt-1">Vous serez notifié lorsqu'une inspection vous est associée.</p>
+          <p className="text-gray-400 text-sm font-medium">{t('aucun_rapport_afficher')}</p>
+          <p className="text-gray-300 text-xs mt-1">{t('serez_notifie')}</p>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
