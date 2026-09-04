@@ -210,6 +210,18 @@ I18N = {
         "fr": "Ce certificat atteste la vérification des extincteurs portatifs et de l'éclairage d'urgence à la date d'inspection indiquée.",
         "en": "This certificate attests to the verification of portable fire extinguishers and emergency lighting on the inspection date indicated.",
     },
+    "footer_certificat_incendie": {
+        "fr": "Ce certificat atteste la conformité du réseau d'alarme incendie à la date d'inspection indiquée.",
+        "en": "This certificate attests to the compliance of the fire alarm system on the inspection date indicated.",
+    },
+    "footer_rapport_incendie": {
+        "fr": "Ce rapport présente le détail de l'inspection annuelle du réseau d'alarme incendie à la date indiquée.",
+        "en": "This report presents the details of the fire alarm system's annual inspection on the date indicated.",
+    },
+    "footer_rapport_extincteur": {
+        "fr": "Ce rapport présente le détail de la vérification des extincteurs portatifs et de l'éclairage d'urgence à la date indiquée.",
+        "en": "This report presents the details of the portable fire extinguisher and emergency lighting verification on the date indicated.",
+    },
     "rapport_verification": {"fr": "Rapport de vérification", "en": "Verification Report"},
     "detail_extincteurs": {"fr": "Détail des extincteurs", "en": "Fire extinguisher details"},
     "detail_boyaux": {"fr": "Détail des boyaux d'incendie", "en": "Fire hose details"},
@@ -495,6 +507,346 @@ class BatimentViewSet(viewsets.ModelViewSet):
         if self.action in ["create", "update", "partial_update", "destroy"]:
             return [permissions.IsAuthenticated(), EstSuperviseur()]
         return super().get_permissions()
+
+
+def _html_certificat_incendie(rapport) -> str:
+    """HTML du certificat d'inspection annuelle (réseau d'alarme incendie) —
+    même chrome (ligne rouge, bandeau noir, pied de page bouclier) que le
+    certificat extincteurs, avec son propre contenu (inventaire des
+    dispositifs + conformité E1)."""
+    from .pdf_design import CSS_DOCUMENT, ICONE_CALENDRIER, ICONE_PERSONNE, ICONE_PIN, entete, icone, pied_de_page
+
+    cert = rapport.certificat
+    bat = rapport.batiment
+    adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
+    if bat.code_postal:
+        adresse += f"  {bat.code_postal}"
+    langue = bat.client.organisation.langue
+    t = lambda cle: _t(langue, cle)
+
+    date_insp = _date_fr(rapport.date_inspection)
+    date_cert = _date_fr(cert.date_emission)
+    techniciens = list(rapport.techniciens.all())
+    tech_noms = ", ".join(t2.get_full_name() or t2.username for t2 in techniciens) or "—"
+    e1 = rapport.fiche_e1 if hasattr(rapport, "fiche_e1") else None
+
+    dispositifs = list(rapport.dispositifs.all())
+    type_counts = Counter(d.get_type_dispositif_display() or "—" for d in dispositifs)
+    total = sum(type_counts.values())
+
+    inv_rows = "".join(
+        f"<tr><td>{ty}</td><td class='center bold'>{c}</td></tr>"
+        for ty, c in sorted(type_counts.items())
+    ) or "<tr><td colspan='2' class='muted center'>Aucun dispositif enregistré</td></tr>"
+
+    def conf_item(condition, label):
+        ok = condition and bool(condition)
+        ic = "✔" if ok else "✖"
+        color = "#0d6b4f" if ok else "#e11324"
+        return f"<div class='conf-item'><span style='color:{color};font-weight:900;font-size:11pt;flex-shrink:0;'>{ic}</span><span>{label}</span></div>"
+
+    conf_html = ""
+    if e1:
+        conf_html += conf_item(e1.inspection_essai_conforme, "Inspection et mise à l'essai conforme à la norme CAN/ULC-S536")
+        conf_html += conf_item(e1.reseau_fonctionnel, "Réseau surveillé complètement fonctionnel")
+        conf_html += conf_item(not e1.lacunes_constatees if e1.lacunes_constatees is not None else None, "Aucune lacune constatée sur le réseau")
+        conf_html += conf_item(e1.documentation_sur_place, "Documentation du réseau présente sur place")
+        if e1.commentaires:
+            conf_html += f"<div style='margin-top:6px;font-size:8.5pt;color:#555;font-style:italic;'>Commentaires : {e1.commentaires}</div>"
+
+    logo_content = organisation_logo_content(bat.client.organisation, 46)
+    organisation_nom = bat.client.organisation.nom
+    emetteur = cert.emis_par.get_full_name() or cert.emis_par.username if cert.emis_par else "—"
+    conforme = cert.conforme
+    conf_badge_bg = "#dcfce7" if conforme else "#fee2e2"
+    conf_badge_color = "#16a34a" if conforme else "#e11324"
+    conf_badge_texte = t("conforme_badge") if conforme else t("non_conforme_badge")
+
+    entete_html = entete(
+        logo_content, organisation_nom, f"{t('inspection_certification')} — Norme CAN/ULC-S536",
+        t("certificat_no"), cert.numero, t("date_inspection"), date_insp, t("technicien_s"), tech_noms,
+    )
+
+    return f"""<!DOCTYPE html>
+<html lang="{langue}">
+<head>
+<meta charset="UTF-8">
+<title>{t("certificat_no")} {cert.numero}</title>
+<style>{CSS_DOCUMENT}</style>
+</head>
+<body>
+<div class="no-print" style="text-align:right;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
+  <button onclick="window.print()" style="background:#0a0b0d;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">{t("imprimer_pdf")}</button>
+</div>
+<div style="padding:20px 24px;">
+{entete_html}
+<div class="title-banner">
+  <h2>Certificat d'inspection annuelle</h2>
+  <div style="width:140px;height:1.5px;background:linear-gradient(90deg, transparent, #e11324, transparent);margin:6px auto;"></div>
+  <p>Réseau d'alarme incendie — CAN/ULC-S536</p>
+</div>
+<div style="text-align:center;margin-bottom:14px;">
+  <span style="display:inline-block;background:{conf_badge_bg};border:1.5px solid {conf_badge_color};color:{conf_badge_color};font-size:11pt;font-weight:900;letter-spacing:2px;padding:5px 22px;border-radius:100px;">{conf_badge_texte}</span>
+  {'<p style="margin-top:6px;font-size:8pt;color:#e11324;">Des réparations sont requises avant que ce certificat ne soit conforme.</p>' if not conforme else ''}
+</div>
+<div style="text-align:left;margin-bottom:6px;">
+  <div class="card-title">{t("client")}</div>
+  <div class="card-main" style="font-size:11pt;">{bat.client.nom}</div>
+</div>
+<div style="text-align:center;margin-bottom:6px;">
+  <div class="card-title">{t("adresse_inspectee")}</div>
+</div>
+<div class="info-card" style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:18px;">
+  <span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:#f1f5f9;flex-shrink:0;">{icone(ICONE_PIN, 16, '#6b7280')}</span>
+  <div class="card-main" style="font-size:20pt; font-weight:900;">{adresse}</div>
+</div>
+<div class="sec-title">Inventaire des dispositifs</div>
+<table>
+  <thead><tr><th>Type de dispositif</th><th class="center">Qté</th></tr></thead>
+  <tbody>{inv_rows}<tr style="font-weight:700;background:#f8fafc;border-top:1.5px solid #e5e7eb;"><td>Total</td><td class="center bold">{total}</td></tr></tbody>
+</table>
+<div class="sec-title">Conformité — Mise à l'essai</div>
+<div class="conf-box">{conf_html or '<p style="color:#9ca3af;font-style:italic;font-size:9pt;">Données E1 non disponibles.</p>'}</div>
+<div class="sig-row">
+  <div class="sig-block" style="display:flex;align-items:center;gap:10px;">
+    <span class="sig-icon">{icone(ICONE_PERSONNE, 14, '#e11324')}</span>
+    <div>
+      <div class="sig-label">Superviseur / Responsable</div>
+      <div class="sig-name">{emetteur}</div>
+      <div style="font-size:8pt;color:#555;">{organisation_nom}</div>
+    </div>
+  </div>
+  <div class="sig-block" style="display:flex;align-items:center;gap:10px;">
+    <span class="sig-icon">{icone(ICONE_CALENDRIER, 14, '#e11324')}</span>
+    <div>
+      <div class="sig-label">Date d'émission</div>
+      <div class="sig-name">{date_cert}</div>
+      <div style="font-size:8pt;color:#555;">{t("certificat_no")} {cert.numero}</div>
+    </div>
+  </div>
+</div>
+{pied_de_page(organisation_nom, t("footer_certificat_incendie"))}
+</div>
+</body>
+</html>"""
+
+
+def _html_rapport_incendie_complet(rapport) -> str:
+    """HTML du rapport technique complet (E1 + E2 + légende + E3) — même
+    chrome (ligne rouge, bandeau noir, pied de page bouclier) que le
+    certificat, avec le contenu technique détaillé."""
+    from .pdf_design import CSS_DOCUMENT, entete, pied_de_page
+
+    bat = rapport.batiment
+    adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
+    fabricant_panneau = bat.fabricant_reseau or "—"
+    modele_panneau = bat.modele_systeme or "—"
+    langue = bat.client.organisation.langue
+    t = lambda cle: _t(langue, cle)
+    date_insp = _date_fr(rapport.date_inspection)
+    techniciens = list(rapport.techniciens.all())
+    tech_noms = ", ".join(t2.get_full_name() or t2.username for t2 in techniciens) or "—"
+
+    e1 = rapport.fiche_e1 if hasattr(rapport, "fiche_e1") else None
+    e2 = rapport.fiche_e2 if hasattr(rapport, "fiche_e2") else None
+    legende = rapport.fiche_legende.dispositifs if hasattr(rapport, "fiche_legende") else {}
+    dispositifs = list(rapport.dispositifs.select_related("section").all())
+
+    type_counts = Counter(d.get_type_dispositif_display() or "—" for d in dispositifs)
+    total_disp = sum(type_counts.values())
+    inv_rows = "".join(
+        f"<tr><td>{ty}</td><td class='center bold'>{c}</td></tr>"
+        for ty, c in sorted(type_counts.items())
+    ) or "<tr><td colspan='2' class='muted center'>Aucun dispositif</td></tr>"
+
+    e1_html = ""
+    if e1:
+        CHAMPS_E1 = [
+            ("A", "Fonctionnement en une étape",                        e1.fonctionnement_une_etape),
+            ("B", "Fonctionnement en deux étapes",                      e1.fonctionnement_deux_etapes),
+            ("C", "Inspection et mise à l'essai (CAN/ULC-S536)",       e1.inspection_essai_conforme),
+            ("D", "Documentation du réseau sur place",                  e1.documentation_sur_place),
+            ("E", "Réseau fonctionnel",                                 e1.reseau_fonctionnel),
+            ("F", "Lacunes constatées",                                 e1.lacunes_constatees),
+            ("H", "Copie remise au responsable",                        e1.copie_remise_responsable),
+        ]
+        rows = "".join(
+            f"<tr><td class='bold' style='width:30px;'>{l}</td><td>{label}</td><td class='center'>{_val_oui_non(v)}</td></tr>"
+            for l, label, v in CHAMPS_E1
+        )
+        e1_html = f"""<div class="sec-title">E1 — Rapport annuel de mise à l'essai</div>
+<table><thead><tr><th></th><th>Champ</th><th class='center'>Valeur</th></tr></thead><tbody>{rows}</tbody></table>
+{'<p style="margin-top:6px;font-size:9pt;"><strong>Commentaires :</strong> ' + (e1.commentaires or '—') + '</p>' if e1 else ''}"""
+
+    e2_html = ""
+    e2_parts = []
+    for key, titre in E2_TITRES.items():
+        sec_data = (e2.details or {}).get(key, {}) if (e2 and e2.details) else {}
+        items_defs = E2_ITEMS.get(key, [])
+        loc = sec_data.get("localisation", "")
+        loc_str = f" <span style='font-size:8pt;color:#444;'>({loc})</span>" if loc else ""
+        if key in ("e2_11", "e2_12"):
+            val = sec_data.get("remarques", "")
+            content = f"<p style='font-size:9pt;color:#111;padding:4px 0;'>{val or '—'}</p>"
+        else:
+            rows = "".join(
+                f"<tr>"
+                f"<td class='bold' style='width:36px;vertical-align:top;'>{iid}</td>"
+                f"<td style='line-height:1.4;'>{lbl}</td>"
+                f"<td class='center' style='width:64px;vertical-align:top;'>{_val_so(sec_data.get(iid))}</td>"
+                f"</tr>"
+                for iid, lbl in items_defs
+            )
+            content = (
+                f"<table><thead><tr>"
+                f"<th style='width:36px;'></th>"
+                f"<th>Élément vérifié</th>"
+                f"<th class='center' style='width:64px;'>Résultat</th>"
+                f"</tr></thead><tbody>{rows}</tbody></table>"
+            )
+        e2_parts.append(
+            f"<div style='margin-bottom:14px;page-break-inside:avoid;'>"
+            f"<div class='sec-sub'>{titre}{loc_str}</div>"
+            f"{content}"
+            f"</div>"
+        )
+    if e2_parts:
+        e2_html = '<div class="sec-title">E2 — Essai du poste de contrôle</div>' + "".join(e2_parts)
+
+    legende_rows = "".join(
+        f"<tr><td class='bold'>{code}</td><td>{desc}</td>"
+        f"<td>{(legende.get(code) or {}).get('type') or '—'}</td>"
+        f"<td>{(legende.get(code) or {}).get('modele') or '—'}</td></tr>"
+        for code, desc in LEGENDE_DISPOSITIFS
+    )
+    legende_html = (
+        '<div class="sec-title">Légende des dispositifs</div>'
+        "<table><thead><tr><th>Dispositif</th><th>Description</th><th>Type</th><th>No de modèle</th></tr></thead>"
+        f"<tbody>{legende_rows}</tbody></table>"
+    )
+
+    sections_html = ""
+    for section in rapport.sections.prefetch_related("dispositifs").all():
+        devs = list(section.dispositifs.all())
+        if not devs:
+            continue
+        rows = ""
+        for d in devs:
+            is_defect = d.est_defectueux
+            is_ni = not is_defect and d.annonce_statut == "NI"
+            bg = ' style="background:#fef2f2;"' if is_defect else ' style="background:#fef3c7;"' if is_ni else ""
+            a = "1" if d.installation_correcte is True else "S.O." if d.installation_correcte is None else "0"
+            b = "1" if d.necessite_entretien is True else "S.O." if d.necessite_entretien is None else "0"
+            c_val = "1" if d.alarme_confirmee is True else "S.O." if d.alarme_confirmee is None else "0"
+            d_val = d.annonce_statut or "—"
+            e_val = d.zone_circuit or "—"
+            loc_style = ' style="color:#cc0000;font-weight:700;"' if is_defect else ' style="color:#b45309;font-weight:700;"' if is_ni else ""
+            rows += (
+                f"<tr{bg}>"
+                f"<td{loc_style}>{d.localisation}</td>"
+                f"<td class='center bold'>{d.type_dispositif or '—'}</td>"
+                f"<td class='center'>{a}</td>"
+                f"<td class='center'>{b}</td>"
+                f"<td class='center'>{c_val}</td>"
+                f"<td class='center'>{d_val}</td>"
+                f"<td class='center'>{e_val}</td>"
+                f"<td>{d.remarque or ''}</td>"
+                f"</tr>"
+            )
+        sections_html += (
+            f"<div class='sec-sub'>{section.nom}</div>"
+            f"<table>"
+            f"<thead><tr>"
+            f"<th>Localisation</th>"
+            f"<th class='center'>Type</th>"
+            f"<th class='center' title='Installation correcte'>A</th>"
+            f"<th class='center' title='Nécessite entretien'>B</th>"
+            f"<th class='center' title='Alarme confirmée'>C</th>"
+            f"<th class='center' title='D=Défectueux, I=Inspecté, NI=Non inspecté'>D</th>"
+            f"<th class='center' title='Zone / Circuit'>E</th>"
+            f"<th>Remarque</th>"
+            f"</tr></thead>"
+            f"<tbody>{rows}</tbody></table>"
+        )
+    if not sections_html:
+        sections_html = "<p class='muted' style='font-size:9pt;'>Aucun dispositif enregistré.</p>"
+
+    cert_html = ""
+    if hasattr(rapport, "certificat"):
+        c = rapport.certificat
+        badge_color = "#0d6b4f" if c.conforme else "#e11324"
+        badge_bg = "#e9f6f2" if c.conforme else "#fef2f2"
+        badge_texte = "Conforme" if c.conforme else "Non conforme"
+        cert_html = (
+            f'<div style="display:flex;align-items:center;gap:8px;background:#fff7ed;border:1.5px solid #ff6b1a;'
+            f'border-radius:6px;padding:8px 14px;margin-top:12px;">'
+            f'<span style="font-size:7pt;font-weight:700;text-transform:uppercase;color:#9a4a13;">Certificat</span>'
+            f'<span style="font-size:11pt;font-weight:900;color:#ff6b1a;">{c.numero}</span>'
+            f'<span style="font-size:8pt;color:#555;">· Émis le {_date_fr(c.date_emission)}</span>'
+            f'<span style="background:{badge_bg};color:{badge_color};font-size:7pt;font-weight:700;padding:2px 8px;border-radius:100px;border:1px solid {badge_color};">{badge_texte}</span>'
+            f'{"<span style=\"background:#0d6b4f;color:#fff;font-size:7pt;font-weight:700;padding:2px 7px;border-radius:100px;\">Envoyé</span>" if c.certificat_envoye else ""}'
+            f'</div>'
+        )
+
+    logo_content = organisation_logo_content(bat.client.organisation, 46)
+    organisation_nom = bat.client.organisation.nom
+
+    entete_html = entete(
+        logo_content, organisation_nom, "Rapport d'inspection annuelle — CAN/ULC-S536",
+        t("certificat_no"), (rapport.certificat.numero if hasattr(rapport, "certificat") else "—"),
+        t("date_inspection"), date_insp, t("technicien_s"), tech_noms,
+    )
+
+    return f"""<!DOCTYPE html>
+<html lang="{langue}">
+<head>
+<meta charset="UTF-8">
+<title>Rapport d'inspection — {adresse}</title>
+<style>{CSS_DOCUMENT}
+  .info-grid{{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:18px; }}
+</style>
+</head>
+<body>
+<div class="no-print" style="text-align:right;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
+  <button onclick="window.print()" style="background:#0a0b0d;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">{t("imprimer_pdf")}</button>
+</div>
+<div style="padding:20px 24px;">
+{entete_html}
+<div class="title-banner">
+  <h2>Rapport d'inspection annuelle</h2>
+  <div style="width:140px;height:1.5px;background:linear-gradient(90deg, transparent, #e11324, transparent);margin:6px auto;"></div>
+  <p>Réseau d'alarme incendie — CAN/ULC-S536</p>
+</div>
+<div class="info-grid">
+  <div class="info-card">
+    <div class="card-title">Adresse</div>
+    <div class="card-main">{adresse}</div>
+  </div>
+  <div class="info-card">
+    <div class="card-title">Fabricant du panneau</div>
+    <div class="card-main">{fabricant_panneau}</div>
+  </div>
+  <div class="info-card">
+    <div class="card-title">Modèle du panneau</div>
+    <div class="card-main">{modele_panneau}</div>
+  </div>
+</div>
+{e1_html}
+{e2_html}
+{legende_html}
+<div class="sec-title">E3 — Inventaire global</div>
+<table>
+  <thead><tr><th>Type de dispositif</th><th class="center">Qté</th></tr></thead>
+  <tbody>{inv_rows}<tr style="font-weight:700;background:#f8fafc;border-top:1.5px solid #e5e7eb;"><td>Total</td><td class="center bold">{total_disp}</td></tr></tbody>
+</table>
+<div class="sec-title">E3 — Détail par section</div>
+<div style="font-size:7.5pt;color:#000;margin-bottom:8px;font-style:italic;">A = Installation correcte &nbsp;|&nbsp; B = Nécessite entretien &nbsp;|&nbsp; C = Alarme confirmée &nbsp;|&nbsp; D = Statut (D=Défectueux, I=Inspecté, NI=Non inspecté) &nbsp;|&nbsp; E = Zone/Circuit &nbsp;&nbsp;(A/B/C : 1 = Oui, 0 = Non)</div>
+{sections_html}
+{cert_html}
+{pied_de_page(organisation_nom, t("footer_rapport_incendie"))}
+</div>
+</body>
+</html>"""
 
 
 # ── Rapport ──────────────────────────────────────────────────────────────
@@ -800,407 +1152,13 @@ class RapportViewSet(viewsets.ModelViewSet):
         if not hasattr(rapport, "certificat"):
             return Response({"error": "Aucun certificat pour ce rapport."}, status=status.HTTP_404_NOT_FOUND)
 
-        cert = rapport.certificat
-        bat = rapport.batiment
-        adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
-        if bat.code_postal:
-            adresse += f"  {bat.code_postal}"
-        date_insp = _date_fr(rapport.date_inspection)
-        date_cert = _date_fr(cert.date_emission)
-        techniciens = list(rapport.techniciens.all())
-        e1 = rapport.fiche_e1 if hasattr(rapport, "fiche_e1") else None
-
-        # Inventaire des dispositifs par type
-        dispositifs = list(rapport.dispositifs.all())
-        type_counts = Counter(d.get_type_dispositif_display() or "—" for d in dispositifs)
-        total = sum(type_counts.values())
-
-        inv_rows = "".join(
-            f"<tr><td>{t}</td><td class='center bold'>{c}</td></tr>"
-            for t, c in sorted(type_counts.items())
-        ) or "<tr><td colspan='2' class='muted center'>Aucun dispositif enregistré</td></tr>"
-
-        tech_rows = "".join(
-            f"<tr><td>{t.get_full_name() or t.username}</td></tr>"
-            for t in techniciens
-        ) or "<tr><td class='muted'>—</td></tr>"
-
-        def conf_item(condition, label):
-            ok = condition and bool(condition)
-            icon = "✔" if ok else "✖"
-            color = "#0d6b4f" if ok else "#e11324"
-            return f"<div class='conf-item'><span style='color:{color};font-weight:900;font-size:11pt;flex-shrink:0;'>{icon}</span><span>{label}</span></div>"
-
-        conf_html = ""
-        if e1:
-            conf_html += conf_item(e1.inspection_essai_conforme, "Inspection et mise à l'essai conforme à la norme CAN/ULC-S536")
-            conf_html += conf_item(e1.reseau_fonctionnel, "Réseau surveillé complètement fonctionnel")
-            conf_html += conf_item(not e1.lacunes_constatees if e1.lacunes_constatees is not None else None, "Aucune lacune constatée sur le réseau")
-            conf_html += conf_item(e1.documentation_sur_place, "Documentation du réseau présente sur place")
-            if e1.commentaires:
-                conf_html += f"<div style='margin-top:6px;font-size:8.5pt;color:#555;font-style:italic;'>Commentaires : {e1.commentaires}</div>"
-
-        logo_content = organisation_logo_content(bat.client.organisation, 46)
-        organisation_nom = bat.client.organisation.nom
-        emetteur = cert.emis_par.get_full_name() or cert.emis_par.username if cert.emis_par else "—"
-        conforme = cert.conforme
-        conf_badge_color = "#0d6b4f" if conforme else "#e11324"
-        conf_badge_bg = "#e9f6f2" if conforme else "#fef2f2"
-        conf_badge_texte = "CONFORME" if conforme else "NON CONFORME"
-
-        html = f"""<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<title>Certificat {cert.numero}</title>
-<style>
-  @page {{ margin: 18mm 15mm; }}
-  *{{ box-sizing:border-box; margin:0; padding:0; }}
-  body{{ font-family:Arial,Helvetica,sans-serif; font-size:10pt; color:#111; background:#fff; }}
-  .header{{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #0a0b0d; padding-bottom:12px; margin-bottom:18px; }}
-  .brand{{ display:flex; align-items:center; gap:12px; }}
-  .logo-box{{ height:52px; max-width:170px; display:flex; align-items:center; flex-shrink:0; }}
-  .logo-box img{{ max-height:100%; max-width:100%; }}
-  .brand-text h1{{ font-size:13pt; font-weight:900; color:#0a0b0d; text-transform:uppercase; letter-spacing:1px; }}
-  .brand-text p{{ font-size:8pt; color:#555; margin-top:1px; }}
-  .cert-badge{{ text-align:right; }}
-  .cert-num{{ font-size:15pt; font-weight:900; color:#ff6b1a; letter-spacing:1px; }}
-  .cert-label{{ font-size:7.5pt; color:#777; text-transform:uppercase; letter-spacing:1px; margin-top:2px; }}
-  .title-banner{{ background:#0a0b0d; color:#fff; text-align:center; padding:10px 0; border-radius:4px; margin-bottom:18px; }}
-  .title-banner h2{{ font-size:12pt; font-weight:700; letter-spacing:2px; text-transform:uppercase; }}
-  .title-banner p{{ font-size:8pt; color:rgba(255,255,255,0.7); margin-top:3px; letter-spacing:1px; }}
-  .info-grid{{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px; }}
-  .info-card{{ border:1px solid #e5e7eb; border-radius:6px; padding:10px 14px; }}
-  .card-title{{ font-size:7pt; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:#ff6b1a; margin-bottom:6px; }}
-  .card-main{{ font-size:11pt; font-weight:700; color:#0a0b0d; line-height:1.3; }}
-  .card-sub{{ font-size:8.5pt; color:#555; margin-top:2px; }}
-  .sec-title{{ font-size:8pt; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:#0a0b0d; border-bottom:1.5px solid #0a0b0d; padding-bottom:4px; margin-bottom:8px; margin-top:16px; }}
-  table{{ width:100%; border-collapse:collapse; font-size:9pt; }}
-  th{{ background:#f1f5f9; color:#0a0b0d; font-weight:700; padding:6px 10px; text-align:left; font-size:8pt; text-transform:uppercase; }}
-  td{{ padding:5px 10px; border-bottom:1px solid #f1f5f9; color:#111; }}
-  .center{{ text-align:center; }} .bold{{ font-weight:700; }} .muted{{ color:#9ca3af; font-style:italic; }}
-  .conf-box{{ border:1.5px solid #0a0b0d; border-radius:6px; padding:12px 16px; background:#f8fafc; }}
-  .conf-item{{ display:flex; align-items:flex-start; gap:8px; margin-bottom:6px; font-size:9pt; }}
-  .conf-item:last-child{{ margin-bottom:0; }}
-  .sig-row{{ display:flex; gap:24px; margin-top:18px; }}
-  .sig-block{{ flex:1; border-top:1.5px solid #111; padding-top:6px; }}
-  .sig-label{{ font-size:7.5pt; color:#777; text-transform:uppercase; letter-spacing:1px; }}
-  .sig-name{{ font-size:10pt; font-weight:700; color:#0a0b0d; margin-top:2px; }}
-  .footer{{ margin-top:24px; padding-top:10px; border-top:1px solid #e5e7eb; display:flex; justify-content:space-between; font-size:7.5pt; color:#9ca3af; }}
-  @media print{{ body{{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }} .no-print{{ display:none!important; }} }}
-</style>
-</head>
-<body>
-<div class="no-print" style="text-align:right;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
-  <button onclick="window.print()" style="background:#0a0b0d;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">Imprimer / Enregistrer PDF</button>
-</div>
-<div style="padding:20px 24px;">
-<div class="header">
-  <div class="brand">
-    <div class="logo-box">{logo_content}</div>
-    <div class="brand-text">
-      <h1>{organisation_nom}</h1>
-      <p>Inspection &amp; Certification — Norme CAN/ULC-S536</p>
-    </div>
-  </div>
-  <div class="cert-badge">
-    <div style="font-size:11pt; font-weight:700; color:#0a0b0d;">{date_insp}</div>
-    <div class="cert-label">Date d'inspection</div>
-    <div style="font-size:8pt;color:#555;margin-top:3px;">Certificat N° {cert.numero}</div>
-  </div>
-</div>
-<div class="title-banner">
-  <h2>Certificat d'inspection annuelle</h2>
-  <p>Réseau d'alarme incendie — CAN/ULC-S536</p>
-</div>
-<div style="text-align:center;margin-bottom:18px;">
-  <span style="display:inline-block;background:{conf_badge_bg};color:{conf_badge_color};border:1.5px solid {conf_badge_color};font-weight:900;font-size:12pt;letter-spacing:2px;padding:8px 28px;border-radius:100px;">{conf_badge_texte}</span>
-  {'<p style="margin-top:6px;font-size:8pt;color:#e11324;">Des réparations sont requises avant que ce certificat ne soit conforme.</p>' if not conforme else ''}
-</div>
-<div class="info-card" style="text-align:center;margin-bottom:18px;">
-  <div class="card-title">Adresse inspectée</div>
-  <div class="card-main" style="font-size:20pt; font-weight:900;">{adresse}</div>
-</div>
-<div class="sec-title">Inventaire des dispositifs</div>
-<table>
-  <thead><tr><th>Type de dispositif</th><th class="center">Qté</th></tr></thead>
-  <tbody>{inv_rows}<tr style="font-weight:700;background:#f8fafc;border-top:1.5px solid #e5e7eb;"><td>Total</td><td class="center bold">{total}</td></tr></tbody>
-</table>
-<div class="sec-title">Conformité — Mise à l'essai</div>
-<div class="conf-box">{conf_html or '<p style="color:#9ca3af;font-style:italic;font-size:9pt;">Données E1 non disponibles.</p>'}</div>
-<div class="sec-title">Technicien(s)</div>
-<table><thead><tr><th>Nom</th></tr></thead><tbody>{tech_rows}</tbody></table>
-<div class="sig-row">
-  <div class="sig-block">
-    <div class="sig-label">Superviseur / Responsable</div>
-    <div class="sig-name">{emetteur}</div>
-    <div style="font-size:8pt;color:#555;">{organisation_nom}</div>
-  </div>
-  <div class="sig-block">
-    <div class="sig-label">Date d'émission</div>
-    <div class="sig-name">{date_cert}</div>
-    <div style="font-size:8pt;color:#555;">Certificat N° {cert.numero}</div>
-  </div>
-</div>
-<div class="footer">
-  <div><strong>{organisation_nom}</strong></div>
-  <div>Norme CAN/ULC-S536 — Ce certificat atteste la conformité à la date d'inspection indiquée.</div>
-</div>
-</div>
-</body>
-</html>"""
+        html = _html_certificat_incendie(rapport)
         return HttpResponse(html, content_type="text/html; charset=utf-8")
 
     @action(detail=True, methods=["get"], url_path="telecharger")
     def telecharger(self, request, pk=None):
         rapport = self.get_object()
-        bat = rapport.batiment
-        adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
-        fabricant_panneau = bat.fabricant_reseau or "—"
-        modele_panneau = bat.modele_systeme or "—"
-        date_insp = _date_fr(rapport.date_inspection)
-        techniciens = list(rapport.techniciens.all())
-        tech_noms = ", ".join(t.get_full_name() or t.username for t in techniciens) or "—"
-
-        e1 = rapport.fiche_e1 if hasattr(rapport, "fiche_e1") else None
-        e2 = rapport.fiche_e2 if hasattr(rapport, "fiche_e2") else None
-        legende = rapport.fiche_legende.dispositifs if hasattr(rapport, "fiche_legende") else {}
-        dispositifs = list(rapport.dispositifs.select_related("section").all())
-
-        # Inventaire par type
-        type_counts = Counter(d.get_type_dispositif_display() or "—" for d in dispositifs)
-        total_disp = sum(type_counts.values())
-        inv_rows = "".join(
-            f"<tr><td>{t}</td><td class='center bold'>{c}</td></tr>"
-            for t, c in sorted(type_counts.items())
-        ) or "<tr><td colspan='2' class='muted center'>Aucun dispositif</td></tr>"
-
-        # E1 fields
-        e1_html = ""
-        if e1:
-            CHAMPS_E1 = [
-                ("A", "Fonctionnement en une étape",                        e1.fonctionnement_une_etape),
-                ("B", "Fonctionnement en deux étapes",                      e1.fonctionnement_deux_etapes),
-                ("C", "Inspection et mise à l'essai (CAN/ULC-S536)",       e1.inspection_essai_conforme),
-                ("D", "Documentation du réseau sur place",                  e1.documentation_sur_place),
-                ("E", "Réseau fonctionnel",                                 e1.reseau_fonctionnel),
-                ("F", "Lacunes constatées",                                 e1.lacunes_constatees),
-                ("H", "Copie remise au responsable",                        e1.copie_remise_responsable),
-            ]
-            rows = "".join(
-                f"<tr><td class='bold' style='width:30px;'>{l}</td><td>{label}</td><td class='center'>{_val_oui_non(v)}</td></tr>"
-                for l, label, v in CHAMPS_E1
-            )
-            e1_html = f"""<div class="sec-title">E1 — Rapport annuel de mise à l'essai</div>
-<table><thead><tr><th></th><th>Champ</th><th class='center'>Valeur</th></tr></thead><tbody>{rows}</tbody></table>
-{'<p style="margin-top:6px;font-size:9pt;"><strong>Commentaires :</strong> ' + (e1.commentaires or '—') + '</p>' if e1 else ''}"""
-
-        # E2 — toutes les sections et tous les items
-        e2_html = ""
-        e2_parts = []
-        for key, titre in E2_TITRES.items():
-            sec_data = (e2.details or {}).get(key, {}) if (e2 and e2.details) else {}
-            items_defs = E2_ITEMS.get(key, [])
-            loc = sec_data.get("localisation", "")
-            loc_str = f" <span style='font-size:8pt;color:#444;'>({loc})</span>" if loc else ""
-            if key in ("e2_11", "e2_12"):
-                val = sec_data.get("remarques", "")
-                content = f"<p style='font-size:9pt;color:#111;padding:4px 0;'>{val or '—'}</p>"
-            else:
-                rows = "".join(
-                    f"<tr>"
-                    f"<td class='bold' style='width:36px;vertical-align:top;'>{iid}</td>"
-                    f"<td style='line-height:1.4;'>{lbl}</td>"
-                    f"<td class='center' style='width:64px;vertical-align:top;'>{_val_so(sec_data.get(iid))}</td>"
-                    f"</tr>"
-                    for iid, lbl in items_defs
-                )
-                content = (
-                    f"<table><thead><tr>"
-                    f"<th style='width:36px;'></th>"
-                    f"<th>Élément vérifié</th>"
-                    f"<th class='center' style='width:64px;'>Résultat</th>"
-                    f"</tr></thead><tbody>{rows}</tbody></table>"
-                )
-            e2_parts.append(
-                f"<div style='margin-bottom:14px;page-break-inside:avoid;'>"
-                f"<div class='sec-sub'>{titre}{loc_str}</div>"
-                f"{content}"
-                f"</div>"
-            )
-        if e2_parts:
-            e2_html = f'<div class="sec-title">E2 — Essai du poste de contrôle</div>' + "".join(e2_parts)
-
-        # Légende des dispositifs — référence des abréviations E3
-        legende_rows = "".join(
-            f"<tr><td class='bold'>{code}</td><td>{desc}</td>"
-            f"<td>{(legende.get(code) or {}).get('type') or '—'}</td>"
-            f"<td>{(legende.get(code) or {}).get('modele') or '—'}</td></tr>"
-            for code, desc in LEGENDE_DISPOSITIFS
-        )
-        legende_html = (
-            f'<div class="sec-title">Légende des dispositifs</div>'
-            f"<table><thead><tr><th>Dispositif</th><th>Description</th><th>Type</th><th>No de modèle</th></tr></thead>"
-            f"<tbody>{legende_rows}</tbody></table>"
-        )
-
-        # E3 sections detail — columns A B C D E
-        sections_html = ""
-        for section in rapport.sections.prefetch_related("dispositifs").all():
-            devs = list(section.dispositifs.all())
-            if not devs:
-                continue
-            rows = ""
-            for d in devs:
-                is_defect = d.est_defectueux
-                is_ni = not is_defect and d.annonce_statut == "NI"
-                bg = ' style="background:#fef2f2;"' if is_defect else ' style="background:#fef3c7;"' if is_ni else ""
-                a = "1" if d.installation_correcte is True else "S.O." if d.installation_correcte is None else "0"
-                b = "1" if d.necessite_entretien is True else "S.O." if d.necessite_entretien is None else "0"
-                c_val = "1" if d.alarme_confirmee is True else "S.O." if d.alarme_confirmee is None else "0"
-                d_val = d.annonce_statut or "—"
-                e_val = d.zone_circuit or "—"
-                loc_style = ' style="color:#cc0000;font-weight:700;"' if is_defect else ' style="color:#b45309;font-weight:700;"' if is_ni else ""
-                rows += (
-                    f"<tr{bg}>"
-                    f"<td{loc_style}>{d.localisation}</td>"
-                    f"<td class='center bold'>{d.type_dispositif or '—'}</td>"
-                    f"<td class='center'>{a}</td>"
-                    f"<td class='center'>{b}</td>"
-                    f"<td class='center'>{c_val}</td>"
-                    f"<td class='center'>{d_val}</td>"
-                    f"<td class='center'>{e_val}</td>"
-                    f"<td>{d.remarque or ''}</td>"
-                    f"</tr>"
-                )
-            sections_html += (
-                f"<div class='sec-sub'>{section.nom}</div>"
-                f"<table>"
-                f"<thead><tr>"
-                f"<th>Localisation</th>"
-                f"<th class='center'>Type</th>"
-                f"<th class='center' title='Installation correcte'>A</th>"
-                f"<th class='center' title='Nécessite entretien'>B</th>"
-                f"<th class='center' title='Alarme confirmée'>C</th>"
-                f"<th class='center' title='D=Défectueux, I=Inspecté, NI=Non inspecté'>D</th>"
-                f"<th class='center' title='Zone / Circuit'>E</th>"
-                f"<th>Remarque</th>"
-                f"</tr></thead>"
-                f"<tbody>{rows}</tbody></table>"
-            )
-        if not sections_html:
-            sections_html = "<p class='muted' style='font-size:9pt;'>Aucun dispositif enregistré.</p>"
-
-        # Certificate badge
-        cert_html = ""
-        if hasattr(rapport, "certificat"):
-            c = rapport.certificat
-            badge_color = "#0d6b4f" if c.conforme else "#e11324"
-            badge_bg = "#e9f6f2" if c.conforme else "#fef2f2"
-            badge_texte = "Conforme" if c.conforme else "Non conforme"
-            cert_html = (
-                f'<div style="display:flex;align-items:center;gap:8px;background:#fff7ed;border:1.5px solid #ff6b1a;'
-                f'border-radius:6px;padding:8px 14px;margin-top:12px;">'
-                f'<span style="font-size:7pt;font-weight:700;text-transform:uppercase;color:#9a4a13;">Certificat</span>'
-                f'<span style="font-size:11pt;font-weight:900;color:#ff6b1a;">{c.numero}</span>'
-                f'<span style="font-size:8pt;color:#555;">· Émis le {_date_fr(c.date_emission)}</span>'
-                f'<span style="background:{badge_bg};color:{badge_color};font-size:7pt;font-weight:700;padding:2px 8px;border-radius:100px;border:1px solid {badge_color};">{badge_texte}</span>'
-                f'{"<span style=\"background:#0d6b4f;color:#fff;font-size:7pt;font-weight:700;padding:2px 7px;border-radius:100px;\">Envoyé</span>" if c.certificat_envoye else ""}'
-                f'</div>'
-            )
-
-        logo_content = organisation_logo_content(bat.client.organisation, 46)
-        organisation_nom = bat.client.organisation.nom
-
-        html = f"""<!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8">
-<title>Rapport d'inspection — {adresse}</title>
-<style>
-  @page {{ margin: 18mm 15mm; }}
-  *{{ box-sizing:border-box; margin:0; padding:0; }}
-  body{{ font-family:Arial,Helvetica,sans-serif; font-size:10pt; color:#000; background:#fff; }}
-  .header{{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #0a0b0d; padding-bottom:12px; margin-bottom:18px; }}
-  .brand{{ display:flex; align-items:center; gap:12px; }}
-  .logo-box{{ height:52px; max-width:170px; display:flex; align-items:center; flex-shrink:0; }}
-  .logo-box img{{ max-height:100%; max-width:100%; }}
-  .brand-text h1{{ font-size:13pt; font-weight:900; color:#0a0b0d; text-transform:uppercase; }}
-  .brand-text p{{ font-size:8pt; color:#444; margin-top:1px; }}
-  .title-banner{{ background:#0a0b0d; color:#fff; text-align:center; padding:10px 0; border-radius:4px; margin-bottom:18px; }}
-  .title-banner h2{{ font-size:12pt; font-weight:700; letter-spacing:2px; text-transform:uppercase; }}
-  .title-banner p{{ font-size:8pt; color:rgba(255,255,255,0.8); margin-top:3px; }}
-  .info-grid{{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:18px; }}
-  .info-card{{ border:1px solid #ccc; border-radius:4px; padding:8px 12px; }}
-  .card-title{{ font-size:7pt; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:#555; margin-bottom:4px; }}
-  .card-main{{ font-size:10pt; font-weight:700; color:#000; }}
-  .card-sub{{ font-size:8.5pt; color:#333; margin-top:1px; }}
-  .sec-title{{ font-size:9pt; font-weight:700; text-transform:uppercase; color:#000; border-bottom:2px solid #000; padding-bottom:3px; margin-bottom:8px; margin-top:18px; }}
-  .sec-sub{{ font-size:8.5pt; font-weight:700; color:#000; border-bottom:1px solid #999; padding-bottom:2px; margin-top:10px; margin-bottom:4px; }}
-  table{{ width:100%; border-collapse:collapse; font-size:9pt; }}
-  th{{ background:#e8e8e8; color:#000; font-weight:700; padding:5px 8px; text-align:left; font-size:8pt; text-transform:uppercase; border:1px solid #ccc; }}
-  td{{ padding:4px 8px; border:1px solid #ddd; color:#000; }}
-  .center{{ text-align:center; }} .bold{{ font-weight:700; }} .muted{{ color:#777; font-style:italic; }}
-  .footer{{ margin-top:24px; padding-top:10px; border-top:1px solid #ccc; display:flex; justify-content:space-between; font-size:7.5pt; color:#555; }}
-  @media print{{ body{{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }} .no-print{{ display:none!important; }} }}
-</style>
-</head>
-<body>
-<div class="no-print" style="text-align:right;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
-  <button onclick="window.print()" style="background:#0a0b0d;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">Imprimer / Enregistrer PDF</button>
-</div>
-<div style="padding:20px 24px;">
-<div class="header">
-  <div class="brand">
-    <div class="logo-box">{logo_content}</div>
-    <div class="brand-text">
-      <h1>{organisation_nom}</h1>
-      <p>Rapport d'inspection annuelle — CAN/ULC-S536</p>
-    </div>
-  </div>
-  <div style="text-align:right;">
-    <div style="font-size:8pt;font-weight:700;text-transform:uppercase;color:{'#0d6b4f' if rapport.statut == 'ferme' else '#ff6b1a'};">{rapport.get_statut_display()}</div>
-    <div style="font-size:7.5pt;color:#555;margin-top:4px;">Date d'inspection : <strong style="color:#000;">{date_insp}</strong></div>
-    <div style="font-size:7.5pt;color:#555;margin-top:1px;">Technicien(s) : <strong style="color:#000;">{tech_noms}</strong></div>
-  </div>
-</div>
-<div class="title-banner">
-  <h2>Rapport d'inspection annuelle</h2>
-  <p>Réseau d'alarme incendie</p>
-</div>
-<div class="info-grid">
-  <div class="info-card">
-    <div class="card-title">Adresse</div>
-    <div class="card-main">{adresse}</div>
-  </div>
-  <div class="info-card">
-    <div class="card-title">Fabricant du panneau</div>
-    <div class="card-main">{fabricant_panneau}</div>
-  </div>
-  <div class="info-card">
-    <div class="card-title">Modèle du panneau</div>
-    <div class="card-main">{modele_panneau}</div>
-  </div>
-</div>
-{e1_html}
-{e2_html}
-{legende_html}
-<div class="sec-title">E3 — Inventaire global</div>
-<table>
-  <thead><tr><th>Type de dispositif</th><th class="center">Qté</th></tr></thead>
-  <tbody>{inv_rows}<tr style="font-weight:700;background:#f8fafc;border-top:1.5px solid #e5e7eb;"><td>Total</td><td class="center bold">{total_disp}</td></tr></tbody>
-</table>
-<div class="sec-title">E3 — Détail par section</div>
-<div style="font-size:7.5pt;color:#000;margin-bottom:8px;font-style:italic;">A = Installation correcte &nbsp;|&nbsp; B = Nécessite entretien &nbsp;|&nbsp; C = Alarme confirmée &nbsp;|&nbsp; D = Statut (D=Défectueux, I=Inspecté, NI=Non inspecté) &nbsp;|&nbsp; E = Zone/Circuit &nbsp;&nbsp;(A/B/C : 1 = Oui, 0 = Non)</div>
-{sections_html}
-{cert_html}
-<div class="footer">
-  <div><strong>{organisation_nom}</strong></div>
-  <div>{adresse}</div>
-</div>
-</div>
-</body>
-</html>"""
+        html = _html_rapport_incendie_complet(rapport)
         return HttpResponse(html, content_type="text/html; charset=utf-8")
 
     @action(detail=True, methods=["get"])
@@ -1379,6 +1337,300 @@ class DispositifViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import ValidationError
             raise ValidationError("Le rapport associé est fermé.")
         serializer.save()
+
+
+def _html_certificat_extincteur(rapport) -> str:
+    """HTML du certificat de vérification extincteurs portatifs — couvre
+    l'éclairage d'urgence lié le cas échéant (un seul certificat pour les
+    deux équipements)."""
+    from .pdf_design import CSS_DOCUMENT, ICONE_BOUCLIER, ICONE_CALENDRIER, ICONE_CUISINE, ICONE_EXTINCTEUR, ICONE_PERSONNE, ICONE_PIN, ICONE_SORTIE, case, entete, icone, icone_badge, pied_de_page
+
+    cert = rapport.certificat
+    bat = rapport.batiment
+    adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
+    if bat.code_postal:
+        adresse += f"  {bat.code_postal}"
+
+    langue = bat.client.organisation.langue
+    t = lambda cle: _t(langue, cle)
+
+    date_insp = _date_fr(rapport.date_inspection)
+    date_cert = _date_fr(cert.date_emission)
+    techniciens = list(rapport.techniciens.all())
+    items = list(rapport.extincteurs.all())
+    tech_noms = ", ".join(t2.get_full_name() or t2.username for t2 in techniciens) or "—"
+
+    # ── Certificat unifié : une visite couvre extincteurs + éclairage
+    # d'urgence en même temps (voir rapport_eclairage_lie) — un seul
+    # certificat reflète donc l'état des deux équipements. Non conforme
+    # dès qu'un extincteur OU une unité d'éclairage est défectueux.
+    rapport_eclairage = getattr(rapport, "rapport_eclairage_lie", None)
+    eclairages = list(rapport_eclairage.eclairages_urgence.all()) if rapport_eclairage else []
+    est_conforme = not any(it.etat == "D" for it in items) and not any(it.etat == "D" for it in eclairages)
+    conformite_bg = "#dcfce7" if est_conforme else "#fee2e2"
+    conformite_color = "#16a34a" if est_conforme else "#e11324"
+
+    def _badge_equipement(conforme, non_conforme, so):
+        if so:
+            return f"<span style='display:inline-block;font-size:7.5pt;font-weight:800;letter-spacing:0.5px;color:#9ca3af;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:100px;padding:3px 10px;'>{t('so')}</span>"
+        if non_conforme:
+            return f"<span style='display:inline-block;font-size:7.5pt;font-weight:800;letter-spacing:0.5px;color:#e11324;background:#fee2e2;border:1px solid #fecaca;border-radius:100px;padding:3px 10px;'>{t('non_conforme_badge')}</span>"
+        if conforme:
+            return f"<span style='display:inline-block;font-size:7.5pt;font-weight:800;letter-spacing:0.5px;color:#16a34a;background:#dcfce7;border:1px solid #bbf7d0;border-radius:100px;padding:3px 10px;'>{t('conforme_badge')}</span>"
+        return "<span class='muted' style='font-size:8pt;'>—</span>"
+
+    def _ligne_equipement(nom, icone_svg, applicable, items_liste):
+        so = not applicable or not items_liste
+        defectueux = applicable and any(it.etat == "D" for it in items_liste)
+        conforme = applicable and bool(items_liste) and not defectueux
+        return (
+            f"<tr><td class='bold'><span style='display:inline-flex;align-items:center;gap:8px;'>"
+            f"{icone_badge(icone_svg)}<span>{nom}</span></span></td>"
+            f"<td class='center'>{case(conforme, '#16a34a')}</td>"
+            f"<td class='center'>{case(defectueux, '#e11324')}</td>"
+            f"<td class='center'>{case(so, '#9ca3af')}</td>"
+            f"<td class='center'>{_badge_equipement(conforme, defectueux, so)}</td></tr>"
+        )
+
+    equipement_rows = (
+        _ligne_equipement(t("systeme_cuisine"), ICONE_CUISINE, False, [])
+        + _ligne_equipement(t("extincteur_label"), ICONE_EXTINCTEUR, True, items)
+        + _ligne_equipement(t("eclairage_urgence_label"), ICONE_SORTIE, rapport_eclairage is not None, eclairages)
+    )
+
+    logo_content = organisation_logo_content(bat.client.organisation, 46)
+    organisation_nom = bat.client.organisation.nom
+    emetteur = cert.emis_par.get_full_name() or cert.emis_par.username if cert.emis_par else "—"
+
+    entete_html = entete(
+        logo_content, organisation_nom, f"{t('inspection_certification')} — {t('extincteurs_portatifs')}",
+        t("certificat_no"), cert.numero, t("date_inspection"), date_insp, t("technicien_s"), tech_noms,
+    )
+
+    return f"""<!DOCTYPE html>
+<html lang="{langue}">
+<head>
+<meta charset="UTF-8">
+<title>{t("certificat_no")} {cert.numero}</title>
+<style>{CSS_DOCUMENT}</style>
+</head>
+<body>
+<div class="no-print" style="text-align:right;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
+  <button onclick="window.print()" style="background:#0a0b0d;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">{t("imprimer_pdf")}</button>
+</div>
+<div style="padding:20px 24px;">
+{entete_html}
+<div class="title-banner">
+  <h2>{t("certificat_verification")}</h2>
+  <div style="width:140px;height:1.5px;background:linear-gradient(90deg, transparent, #e11324, transparent);margin:6px auto;"></div>
+  <p>{t("extincteurs_portatifs")}</p>
+</div>
+<div style="text-align:center;margin-bottom:14px;">
+  <span style="display:inline-block;background:{conformite_bg};border:1.5px solid {conformite_color};color:{conformite_color};font-size:11pt;font-weight:900;letter-spacing:2px;padding:5px 22px;border-radius:100px;">{t("conforme_badge") if est_conforme else t("non_conforme_badge")}</span>
+</div>
+<div style="text-align:left;margin-bottom:6px;">
+  <div class="card-title">{t("client")}</div>
+  <div class="card-main" style="font-size:11pt;">{bat.client.nom}</div>
+</div>
+<div style="text-align:center;margin-bottom:6px;">
+  <div class="card-title">{t("adresse_inspectee")}</div>
+</div>
+<div class="info-card" style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:18px;">
+  <span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:#f1f5f9;flex-shrink:0;">{icone(ICONE_PIN, 16, '#6b7280')}</span>
+  <div class="card-main" style="font-size:20pt; font-weight:900;">{adresse}</div>
+</div>
+<div style="background:#0a0b0d;color:#fff;text-align:center;padding:7px 10px;border-radius:4px;margin-bottom:8px;">
+  <span style="display:inline-flex;align-items:center;gap:6px;font-size:8pt;font-weight:800;letter-spacing:0.3px;">{icone(ICONE_BOUCLIER, 13, '#fff')}{t("conformite_bandeau")}</span>
+</div>
+<table class="equip-table">
+  <thead><tr><th>{t("equipement")}</th><th class="center">{t("conforme_col")}</th><th class="center">{t("non_conforme_col")}</th><th class="center">{t("so")}</th><th class="center">{t("statut_col")}</th></tr></thead>
+  <tbody>{equipement_rows}</tbody>
+</table>
+<p style="text-align:center;font-weight:700;font-size:8.5pt;color:#0a0b0d;margin-top:14px;line-height:1.4;">
+  {t("inspection_entretien")}
+</p>
+<div class="sig-row">
+  <div class="sig-block" style="display:flex;align-items:center;gap:10px;">
+    <span class="sig-icon">{icone(ICONE_PERSONNE, 14, '#e11324')}</span>
+    <div>
+      <div class="sig-label">{t("superviseur_responsable")}</div>
+      <div class="sig-name">{emetteur}</div>
+      <div style="font-size:8pt;color:#555;">{organisation_nom}</div>
+    </div>
+  </div>
+  <div class="sig-block" style="display:flex;align-items:center;gap:10px;">
+    <span class="sig-icon">{icone(ICONE_CALENDRIER, 14, '#e11324')}</span>
+    <div>
+      <div class="sig-label">{t("date_emission")}</div>
+      <div class="sig-name">{date_cert}</div>
+      <div style="font-size:8pt;color:#555;">{t("certificat_no")} {cert.numero}</div>
+    </div>
+  </div>
+</div>
+{pied_de_page(organisation_nom, t("footer_certificat_extincteur"))}
+</div>
+</body>
+</html>"""
+
+
+def _html_rapport_extincteur_complet(rapport) -> str:
+    """HTML du rapport technique complet de vérification des extincteurs
+    portatifs — même chrome que le certificat, inclut l'éclairage d'urgence
+    lié le cas échéant."""
+    from .pdf_design import CSS_DOCUMENT, entete, pied_de_page
+
+    bat = rapport.batiment
+    adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
+    langue = bat.client.organisation.langue
+    t = lambda cle: _t(langue, cle)
+
+    date_insp = _date_fr(rapport.date_inspection)
+    techniciens = list(rapport.techniciens.all())
+    tech_noms = ", ".join(t2.get_full_name() or t2.username for t2 in techniciens) or "—"
+
+    legende_rows = "".join(
+        f"<tr><td class='bold' style='width:50px;'>{code}</td><td>{desc}</td></tr>"
+        for code, desc in LEGENDE_EXTINCTEURS
+    )
+
+    items = list(rapport.extincteurs.all())
+    item_rows = ""
+    for it in items:
+        is_defect = it.etat == ExtincteurItem.Etat.DEFECTUEUX
+        is_ni = not is_defect and it.etat == "NI"
+        bg = ' style="background:#fef2f2;"' if is_defect else ' style="background:#fef3c7;"' if is_ni else ""
+        etat_style = ' style="color:#cc0000;"' if is_defect else ' style="color:#b45309;"' if is_ni else ""
+        item_rows += (
+            f"<tr{bg}>"
+            f"<td class='center'>{it.ordre}</td>"
+            f"<td>{it.etage or '—'}</td>"
+            f"<td>{it.emplacement or '—'}</td>"
+            f"<td class='center'>{_td(langue, 'type_extincteur', it.type_extincteur) or '—'}</td>"
+            f"<td class='center'>{_td(langue, 'format', it.format) or '—'}</td>"
+            f"<td>{_td(langue, 'marque', it.marque) or '—'}</td>"
+            f"<td>{it.numero_serie or '—'}</td>"
+            f"<td class='center'>{it.date_fabrication or '—'}</td>"
+            f"<td class='center'>{it.prochaine_maintenance or '—'}</td>"
+            f"<td class='center'>{it.prochain_test_hydrostatique or '—'}</td>"
+            f"<td class='center bold'{etat_style}>{it.etat or '—'}</td>"
+            f"<td>{it.remarque or ''}</td>"
+            f"</tr>"
+        )
+    if not item_rows:
+        item_rows = f"<tr><td colspan='12' class='muted center'>{t('aucun_extincteur')}</td></tr>"
+
+    boyaux = list(rapport.boyaux.all())
+    boyau_rows = ""
+    for b in boyaux:
+        is_defect = b.etat == BoyauItem.Etat.DEFECTUEUX
+        is_ni = not is_defect and b.etat == "NI"
+        bg = ' style="background:#fef2f2;"' if is_defect else ' style="background:#fef3c7;"' if is_ni else ""
+        etat_style = ' style="color:#cc0000;"' if is_defect else ' style="color:#b45309;"' if is_ni else ""
+        boyau_rows += (
+            f"<tr{bg}>"
+            f"<td class='center'>{b.ordre}</td>"
+            f"<td>{b.etage or '—'}</td>"
+            f"<td class='center bold'{etat_style}>{b.etat or '—'}</td>"
+            f"<td>{b.emplacement or '—'}</td>"
+            f"<td class='center'>{_td(langue, 'longueur', b.longueur) or '—'}</td>"
+            f"<td class='center'>{b.date_fabrication or '—'}</td>"
+            f"<td class='center'>{b.prochain_test_hydrostatique or '—'}</td>"
+            f"<td>{b.remarque or ''}</td>"
+            f"</tr>"
+        )
+    if not boyau_rows:
+        boyau_rows = f"<tr><td colspan='8' class='muted center'>{t('aucun_boyau')}</td></tr>"
+
+    # ── Éclairage d'urgence lié (même visite, voir rapport_eclairage_lie) ──
+    rapport_eclairage = getattr(rapport, "rapport_eclairage_lie", None)
+    eclairages = list(rapport_eclairage.eclairages_urgence.all()) if rapport_eclairage else []
+    eclairage_section = ""
+    if eclairages:
+        eclairage_rows = ""
+        for it in eclairages:
+            is_defect = it.etat == "D"
+            is_ni = not is_defect and it.etat == "NI"
+            bg = ' style="background:#fef2f2;"' if is_defect else ' style="background:#fef3c7;"' if is_ni else ""
+            etat_style = ' style="color:#cc0000;"' if is_defect else ' style="color:#b45309;"' if is_ni else ""
+            eclairage_rows += (
+                f"<tr{bg}>"
+                f"<td class='center'>{it.ordre}</td>"
+                f"<td>{it.etage or '—'}</td>"
+                f"<td>{it.emplacement or '—'}</td>"
+                f"<td>{it.modele or '—'}</td>"
+                f"<td class='center'>{it.voltage or '—'}</td>"
+                f"<td class='center bold'{etat_style}>{it.etat or '—'}</td>"
+                f"<td>{it.remarque or ''}</td>"
+                f"</tr>"
+            )
+        eclairage_section = f"""<div class="sec-title">{t("detail_unites_eclairage")}</div>
+<table>
+  <thead><tr>
+    <th>{t("col_no")}</th><th>{t("col_etage")}</th><th>{t("col_emplacement")}</th><th>{t("col_modele")}</th>
+    <th>{t("col_voltage")}</th><th title="{t('etat_titre_abbr')}">{t("col_etat")}</th><th>{t("col_remarque")}</th>
+  </tr></thead>
+  <tbody>{eclairage_rows}</tbody>
+</table>"""
+
+    logo_content = organisation_logo_content(bat.client.organisation, 46)
+    organisation_nom = bat.client.organisation.nom
+
+    entete_html = entete(
+        logo_content, organisation_nom, f"{t('rapport_verification')} — {t('extincteurs_portatifs')}",
+        t("certificat_no"), (rapport.certificat.numero if hasattr(rapport, "certificat") else "—"),
+        t("date_inspection"), date_insp, t("technicien_s"), tech_noms,
+    )
+
+    return f"""<!DOCTYPE html>
+<html lang="{langue}">
+<head>
+<meta charset="UTF-8">
+<title>{t("rapport_verification")} — {t("extincteurs_portatifs")} — {adresse}</title>
+<style>{CSS_DOCUMENT}</style>
+</head>
+<body>
+<div class="no-print" style="text-align:right;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
+  <button onclick="window.print()" style="background:#0a0b0d;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">{t("imprimer_pdf")}</button>
+</div>
+<div style="padding:16px 20px;">
+{entete_html}
+<div class="title-banner">
+  <h2>{t("rapport_verification")} — {t("extincteurs_portatifs")}</h2>
+  <div style="width:140px;height:1.5px;background:linear-gradient(90deg, transparent, #e11324, transparent);margin:6px auto;"></div>
+</div>
+<div style="text-align:left;margin-bottom:6px;">
+  <div class="card-title">{t("client")}</div>
+  <div class="card-main" style="font-size:10.5pt;">{bat.client.nom}</div>
+</div>
+<div class="info-card" style="text-align:center;margin-bottom:18px;">
+  <div class="card-title">{t("adresse")}</div>
+  <div class="card-main" style="font-size:14pt;">{adresse}</div>
+</div>
+<div class="legende-box">
+<table><tbody>{legende_rows}</tbody></table>
+</div>
+<div class="sec-title">{t("detail_extincteurs")}</div>
+<table>
+  <thead><tr>
+    <th>{t("col_no")}</th><th>{t("col_etage")}</th><th>{t("col_emplacement")}</th><th>{t("col_type")}</th><th>{t("col_format")}</th><th>{t("col_marque")}</th><th>{t("col_numero_serie")}</th>
+    <th>{t("col_date_fabrication")}</th><th>{t("col_prochaine_maintenance")}</th><th>{t("col_prochain_test_hydro")}</th>
+    <th title="{t('etat_titre_abbr')}">{t("col_etat")}</th><th>{t("col_remarque")}</th>
+  </tr></thead>
+  <tbody>{item_rows}</tbody>
+</table>
+<div class="sec-title">{t("detail_boyaux")}</div>
+<table>
+  <thead><tr>
+    <th>{t("col_no")}</th><th>{t("col_etage")}</th><th title="{t('etat_titre_abbr')}">{t("col_etat")}</th><th>{t("col_emplacement")}</th>
+    <th>{t("col_longueur")}</th><th>{t("col_annee_fabrication")}</th><th>{t("col_prochain_test_hydro")}</th><th>{t("col_remarque")}</th>
+  </tr></thead>
+  <tbody>{boyau_rows}</tbody>
+</table>
+{eclairage_section}
+{pied_de_page(organisation_nom, t("footer_rapport_extincteur"))}
+</div>
+</body>
+</html>"""
 
 
 # ── Rapport extincteurs portatifs ────────────────────────────────────────
@@ -1606,382 +1858,13 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
         if not hasattr(rapport, "certificat"):
             return Response({"error": "Aucun certificat pour ce rapport."}, status=status.HTTP_404_NOT_FOUND)
 
-        cert = rapport.certificat
-        bat = rapport.batiment
-        adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
-        if bat.code_postal:
-            adresse += f"  {bat.code_postal}"
-        from django.utils import timezone
-
-        langue = bat.client.organisation.langue
-        t = lambda cle: _t(langue, cle)
-
-        date_insp = _date_fr(timezone.localdate())
-        date_cert = _date_fr(timezone.localdate())
-        techniciens = list(rapport.techniciens.all())
-        items = list(rapport.extincteurs.all())
-
-        tech_noms = ", ".join(t2.get_full_name() or t2.username for t2 in techniciens) or "—"
-
-        # ── Certificat unifié : une visite couvre extincteurs + éclairage
-        # d'urgence en même temps (voir rapport_eclairage_lie) — un seul
-        # certificat reflète donc l'état des deux équipements. Non conforme
-        # dès qu'un extincteur OU une unité d'éclairage est défectueux.
-        rapport_eclairage = getattr(rapport, "rapport_eclairage_lie", None)
-        eclairages = list(rapport_eclairage.eclairages_urgence.all()) if rapport_eclairage else []
-        est_conforme = not any(it.etat == "D" for it in items) and not any(it.etat == "D" for it in eclairages)
-        conformite_bg = "#dcfce7" if est_conforme else "#fee2e2"
-        conformite_color = "#16a34a" if est_conforme else "#e11324"
-        conformite_texte = "CONFORME" if est_conforme else "NON CONFORME"
-
-        def _case(actif, couleur=None):
-            if actif:
-                fond = couleur or "#0a0b0d"
-                return (
-                    f"<span style='display:inline-flex;align-items:center;justify-content:center;"
-                    f"width:20px;height:20px;border-radius:4px;background:{fond};color:#fff;"
-                    f"font-size:13px;font-weight:900;line-height:1;box-shadow:0 1px 2px rgba(0,0,0,0.15);'>&#10003;</span>"
-                )
-            return (
-                "<span style='display:inline-block;width:20px;height:20px;border-radius:4px;"
-                "border:1.5px solid #d1d5db;background:#fafafa;'></span>"
-            )
-
-        def _badge_equipement(conforme, non_conforme, so):
-            if so:
-                return f"<span style='display:inline-block;font-size:7.5pt;font-weight:800;letter-spacing:0.5px;color:#9ca3af;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:100px;padding:3px 10px;'>{t('so')}</span>"
-            if non_conforme:
-                return f"<span style='display:inline-block;font-size:7.5pt;font-weight:800;letter-spacing:0.5px;color:#e11324;background:#fee2e2;border:1px solid #fecaca;border-radius:100px;padding:3px 10px;'>{t('non_conforme_badge')}</span>"
-            if conforme:
-                return f"<span style='display:inline-block;font-size:7.5pt;font-weight:800;letter-spacing:0.5px;color:#16a34a;background:#dcfce7;border:1px solid #bbf7d0;border-radius:100px;padding:3px 10px;'>{t('conforme_badge')}</span>"
-            return "<span class='muted' style='font-size:8pt;'>—</span>"
-
-        # ── Icônes inline SVG — autonomes, sans police ni ressource externe,
-        # pour un rendu fiable à l'impression/export PDF.
-        def _icone(path_svg, taille=15, couleur="#e11324"):
-            return (
-                f"<svg width='{taille}' height='{taille}' viewBox='0 0 24 24' fill='none' "
-                f"stroke='{couleur}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' "
-                f"style='vertical-align:middle;flex-shrink:0;'>{path_svg}</svg>"
-            )
-
-        def _icone_badge(path_svg, taille_badge=22, taille_icone=13, fond="#0a0b0d", couleur_icone="#fff"):
-            return (
-                f"<span style='display:inline-flex;align-items:center;justify-content:center;"
-                f"width:{taille_badge}px;height:{taille_badge}px;border-radius:5px;background:{fond};"
-                f"flex-shrink:0;'>{_icone(path_svg, taille_icone, couleur_icone)}</span>"
-            )
-
-        ICONE_BOUCLIER = "<path d='M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z'/><path d='M9 12l2 2 4-4'/>"
-        ICONE_CUISINE = "<path d='M12 2c-1 3-4 4-4 8a4 4 0 008 0c0-1.5-.5-2.5-1-3.5.5 2-.5 3-1.5 3-1.5 0-1.5-2-1.5-3.5 0-1.5.5-2.5 0-4z'/>"
-        ICONE_EXTINCTEUR = "<path d='M9 2h3v2h2a1 1 0 011 1v2h-1v13a2 2 0 01-2 2h-2a2 2 0 01-2-2V7H7V5a1 1 0 011-1h1V2z'/><path d='M17 9c2 1 3 3 3 5'/>"
-        ICONE_SORTIE = "<rect x='4' y='4' width='10' height='16' rx='1'/><path d='M14 12h6m0 0l-3-3m3 3l-3 3'/>"
-        ICONE_PERSONNE = "<circle cx='12' cy='8' r='4'/><path d='M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8'/>"
-        ICONE_CALENDRIER = "<rect x='3' y='5' width='18' height='16' rx='2'/><path d='M16 3v4M8 3v4M3 10h18'/>"
-        ICONE_PIN = "<path d='M12 2a7 7 0 00-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 00-7-7z'/><circle cx='12' cy='9' r='2.5'/>"
-
-        def _ligne_equipement(nom, icone_svg, applicable, items_liste):
-            so = not applicable or not items_liste
-            defectueux = applicable and any(it.etat == "D" for it in items_liste)
-            conforme = applicable and bool(items_liste) and not defectueux
-            return (
-                f"<tr><td class='bold'><span style='display:inline-flex;align-items:center;gap:8px;'>"
-                f"{_icone_badge(icone_svg)}<span>{nom}</span></span></td>"
-                f"<td class='center'>{_case(conforme, '#16a34a')}</td>"
-                f"<td class='center'>{_case(defectueux, '#e11324')}</td>"
-                f"<td class='center'>{_case(so, '#9ca3af')}</td>"
-                f"<td class='center'>{_badge_equipement(conforme, defectueux, so)}</td></tr>"
-            )
-
-        equipement_rows = (
-            _ligne_equipement(t("systeme_cuisine"), ICONE_CUISINE, False, [])
-            + _ligne_equipement(t("extincteur_label"), ICONE_EXTINCTEUR, True, items)
-            + _ligne_equipement(t("eclairage_urgence_label"), ICONE_SORTIE, rapport_eclairage is not None, eclairages)
-        )
-
-        logo_content = organisation_logo_content(bat.client.organisation, 46)
-        organisation_nom = bat.client.organisation.nom
-        emetteur = cert.emis_par.get_full_name() or cert.emis_par.username if cert.emis_par else "—"
-
-        html = f"""<!DOCTYPE html>
-<html lang="{langue}">
-<head>
-<meta charset="UTF-8">
-<title>{t("certificat_no")} {cert.numero}</title>
-<style>
-  @page {{ margin: 18mm 15mm; }}
-  *{{ box-sizing:border-box; margin:0; padding:0; }}
-  body{{ font-family:Arial,Helvetica,sans-serif; font-size:10pt; color:#111; background:#fff; }}
-  .header{{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #e11324; padding-bottom:12px; margin-bottom:18px; }}
-  .brand{{ display:flex; align-items:center; gap:12px; }}
-  .logo-box{{ height:52px; max-width:170px; display:flex; align-items:center; flex-shrink:0; }}
-  .logo-box img{{ max-height:100%; max-width:100%; }}
-  .brand-text h1{{ font-size:13pt; font-weight:900; color:#0a0b0d; text-transform:uppercase; letter-spacing:1px; }}
-  .brand-text p{{ font-size:8pt; color:#555; margin-top:1px; }}
-  .cert-badge{{ text-align:right; }}
-  .title-banner{{ background:#0a0b0d; color:#fff; text-align:center; padding:10px 0; border-radius:4px; margin-bottom:18px; }}
-  .title-banner h2{{ font-size:12pt; font-weight:700; letter-spacing:2px; text-transform:uppercase; }}
-  .title-banner p{{ font-size:8pt; color:rgba(255,255,255,0.7); margin-top:3px; letter-spacing:1px; }}
-  .info-card{{ border:1px solid #e5e7eb; border-radius:6px; padding:10px 14px; }}
-  .card-title{{ font-size:7pt; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:#e11324; margin-bottom:6px; }}
-  .card-main{{ font-size:11pt; font-weight:700; color:#0a0b0d; line-height:1.3; }}
-  .sec-title{{ font-size:8pt; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:#0a0b0d; border-bottom:1.5px solid #0a0b0d; padding-bottom:4px; margin-bottom:8px; margin-top:16px; }}
-  table{{ width:100%; border-collapse:collapse; font-size:9pt; }}
-  th{{ background:#f1f5f9; color:#0a0b0d; font-weight:700; padding:6px 10px; text-align:left; font-size:8pt; text-transform:uppercase; }}
-  td{{ padding:5px 10px; border-bottom:1px solid #f1f5f9; color:#111; }}
-  .center{{ text-align:center; }} .bold{{ font-weight:700; }} .muted{{ color:#9ca3af; font-style:italic; }}
-  .sig-row{{ display:flex; gap:24px; margin-top:18px; }}
-  .sig-block{{ flex:1; border-top:1.5px solid #111; padding-top:6px; }}
-  .sig-icon{{ display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%; border:1.5px solid #e11324; flex-shrink:0; }}
-  .sig-label{{ font-size:7.5pt; color:#e11324; font-weight:800; text-transform:uppercase; letter-spacing:1px; }}
-  .sig-name{{ font-size:10pt; font-weight:700; color:#0a0b0d; margin-top:2px; }}
-  .footer{{ margin-top:24px; background:#0a0b0d; color:rgba(255,255,255,0.55); padding:10px 16px; border-radius:4px 4px 0 0; border-top:2px solid #e11324; border-bottom:4px solid #e11324; display:flex; justify-content:space-between; align-items:center; font-size:7.5pt; }}
-  .footer strong{{ color:#fff; }}
-  .equip-table{{ border:1.5px solid #0a0b0d; border-radius:6px; overflow:hidden; }}
-  .equip-table th{{ background:#0a0b0d; color:#fff; padding:6px 12px; font-size:7.5pt; border:none; border-right:1px solid rgba(255,255,255,0.15); }}
-  .equip-table th:last-child{{ border-right:none; }}
-  .equip-table td{{ padding:6px 12px; border-bottom:1px solid #e5e7eb; border-right:1px solid #e5e7eb; vertical-align:middle; }}
-  .equip-table td:last-child{{ border-right:none; }}
-  .equip-table tr:last-child td{{ border-bottom:none; }}
-  @media print{{ body{{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }} .no-print{{ display:none!important; }} }}
-</style>
-</head>
-<body>
-<div class="no-print" style="text-align:right;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
-  <button onclick="window.print()" style="background:#0a0b0d;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">{t("imprimer_pdf")}</button>
-</div>
-<div style="padding:20px 24px;">
-<div class="header">
-  <div class="brand">
-    <div class="logo-box">{logo_content}</div>
-    <div class="brand-text">
-      <h1>{organisation_nom}</h1>
-      <p>{t("inspection_certification")} — {t("extincteurs_portatifs")}</p>
-    </div>
-  </div>
-  <div class="cert-badge">
-    <div style="font-size:11pt; font-weight:700; color:#0a0b0d;">{date_insp}</div>
-    <div style="font-size:7.5pt;color:#777;text-transform:uppercase;letter-spacing:1px;">{t("date_inspection")}</div>
-    <div style="font-size:8pt;color:#555;margin-top:3px;">{t("certificat_no")} {cert.numero}</div>
-    <div style="font-size:7.5pt;color:#777;margin-top:3px;">{t("technicien_s")} : {tech_noms}</div>
-  </div>
-</div>
-<div class="title-banner">
-  <h2>{t("certificat_verification")}</h2>
-  <div style="width:140px;height:1.5px;background:linear-gradient(90deg, transparent, #e11324, transparent);margin:6px auto;"></div>
-  <p>{t("extincteurs_portatifs")}</p>
-</div>
-<div style="text-align:center;margin-bottom:14px;">
-  <span style="display:inline-block;background:{conformite_bg};border:1.5px solid {conformite_color};color:{conformite_color};font-size:11pt;font-weight:900;letter-spacing:2px;padding:5px 22px;border-radius:100px;">{t("conforme_badge") if est_conforme else t("non_conforme_badge")}</span>
-</div>
-<div style="text-align:left;margin-bottom:6px;">
-  <div class="card-title">{t("client")}</div>
-  <div class="card-main" style="font-size:11pt;">{bat.client.nom}</div>
-</div>
-<div style="text-align:center;margin-bottom:6px;">
-  <div class="card-title">{t("adresse_inspectee")}</div>
-</div>
-<div class="info-card" style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:18px;">
-  <span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:#f1f5f9;flex-shrink:0;">{_icone(ICONE_PIN, 16, '#6b7280')}</span>
-  <div class="card-main" style="font-size:20pt; font-weight:900;">{adresse}</div>
-</div>
-<div style="background:#0a0b0d;color:#fff;text-align:center;padding:7px 10px;border-radius:4px;margin-bottom:8px;">
-  <span style="display:inline-flex;align-items:center;gap:6px;font-size:8pt;font-weight:800;letter-spacing:0.3px;">{_icone(ICONE_BOUCLIER, 13, '#fff')}{t("conformite_bandeau")}</span>
-</div>
-<table class="equip-table">
-  <thead><tr><th>{t("equipement")}</th><th class="center">{t("conforme_col")}</th><th class="center">{t("non_conforme_col")}</th><th class="center">{t("so")}</th><th class="center">{t("statut_col")}</th></tr></thead>
-  <tbody>{equipement_rows}</tbody>
-</table>
-<p style="text-align:center;font-weight:700;font-size:8.5pt;color:#0a0b0d;margin-top:14px;line-height:1.4;">
-  {t("inspection_entretien")}
-</p>
-<div class="sig-row">
-  <div class="sig-block" style="display:flex;align-items:center;gap:10px;">
-    <span class="sig-icon">{_icone(ICONE_PERSONNE, 14, '#e11324')}</span>
-    <div>
-      <div class="sig-label">{t("superviseur_responsable")}</div>
-      <div class="sig-name">{emetteur}</div>
-      <div style="font-size:8pt;color:#555;">{organisation_nom}</div>
-    </div>
-  </div>
-  <div class="sig-block" style="display:flex;align-items:center;gap:10px;">
-    <span class="sig-icon">{_icone(ICONE_CALENDRIER, 14, '#e11324')}</span>
-    <div>
-      <div class="sig-label">{t("date_emission")}</div>
-      <div class="sig-name">{date_cert}</div>
-      <div style="font-size:8pt;color:#555;">{t("certificat_no")} {cert.numero}</div>
-    </div>
-  </div>
-</div>
-<div class="footer">
-  <div><strong>{organisation_nom}</strong></div>
-  <div style="display:flex;align-items:center;gap:8px;">
-    <span>{t("footer_certificat_extincteur")}</span>
-    {_icone(ICONE_BOUCLIER, 16, '#e11324')}
-  </div>
-</div>
-</div>
-</body>
-</html>"""
+        html = _html_certificat_extincteur(rapport)
         return HttpResponse(html, content_type="text/html; charset=utf-8")
 
     @action(detail=True, methods=["get"], url_path="telecharger")
     def telecharger(self, request, pk=None):
         rapport = self.get_object()
-        bat = rapport.batiment
-        adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
-        from django.utils import timezone
-
-        langue = bat.client.organisation.langue
-        t = lambda cle: _t(langue, cle)
-
-        date_insp = _date_fr(timezone.localdate())
-        techniciens = list(rapport.techniciens.all())
-        tech_noms = ", ".join(t2.get_full_name() or t2.username for t2 in techniciens) or "—"
-
-        legende_rows = "".join(
-            f"<tr><td class='bold' style='width:50px;'>{code}</td><td>{desc}</td></tr>"
-            for code, desc in LEGENDE_EXTINCTEURS
-        )
-
-        items = list(rapport.extincteurs.all())
-        item_rows = ""
-        for it in items:
-            is_defect = it.etat == ExtincteurItem.Etat.DEFECTUEUX
-            is_ni = not is_defect and it.etat == "NI"
-            bg = ' style="background:#fef2f2;"' if is_defect else ' style="background:#fef3c7;"' if is_ni else ""
-            etat_style = ' style="color:#cc0000;"' if is_defect else ' style="color:#b45309;"' if is_ni else ""
-            item_rows += (
-                f"<tr{bg}>"
-                f"<td class='center'>{it.ordre}</td>"
-                f"<td>{it.etage or '—'}</td>"
-                f"<td>{it.emplacement or '—'}</td>"
-                f"<td class='center'>{_td(langue, 'type_extincteur', it.type_extincteur) or '—'}</td>"
-                f"<td class='center'>{_td(langue, 'format', it.format) or '—'}</td>"
-                f"<td>{_td(langue, 'marque', it.marque) or '—'}</td>"
-                f"<td>{it.numero_serie or '—'}</td>"
-                f"<td class='center'>{it.date_fabrication or '—'}</td>"
-                f"<td class='center'>{it.prochaine_maintenance or '—'}</td>"
-                f"<td class='center'>{it.prochain_test_hydrostatique or '—'}</td>"
-                f"<td class='center bold'{etat_style}>{it.etat or '—'}</td>"
-                f"<td>{it.remarque or ''}</td>"
-                f"</tr>"
-            )
-        if not item_rows:
-            item_rows = f"<tr><td colspan='12' class='muted center'>{t('aucun_extincteur')}</td></tr>"
-
-        boyaux = list(rapport.boyaux.all())
-        boyau_rows = ""
-        for b in boyaux:
-            is_defect = b.etat == BoyauItem.Etat.DEFECTUEUX
-            is_ni = not is_defect and b.etat == "NI"
-            bg = ' style="background:#fef2f2;"' if is_defect else ' style="background:#fef3c7;"' if is_ni else ""
-            etat_style = ' style="color:#cc0000;"' if is_defect else ' style="color:#b45309;"' if is_ni else ""
-            boyau_rows += (
-                f"<tr{bg}>"
-                f"<td class='center'>{b.ordre}</td>"
-                f"<td>{b.etage or '—'}</td>"
-                f"<td class='center bold'{etat_style}>{b.etat or '—'}</td>"
-                f"<td>{b.emplacement or '—'}</td>"
-                f"<td class='center'>{_td(langue, 'longueur', b.longueur) or '—'}</td>"
-                f"<td class='center'>{b.date_fabrication or '—'}</td>"
-                f"<td class='center'>{b.prochain_test_hydrostatique or '—'}</td>"
-                f"<td>{b.remarque or ''}</td>"
-                f"</tr>"
-            )
-        if not boyau_rows:
-            boyau_rows = f"<tr><td colspan='8' class='muted center'>{t('aucun_boyau')}</td></tr>"
-
-        logo_content = organisation_logo_content(bat.client.organisation, 46)
-        organisation_nom = bat.client.organisation.nom
-
-        html = f"""<!DOCTYPE html>
-<html lang="{langue}">
-<head>
-<meta charset="UTF-8">
-<title>{t("rapport_verification")} — {t("extincteurs_portatifs")} — {adresse}</title>
-<style>
-  @page {{ margin: 14mm 12mm; }}
-  *{{ box-sizing:border-box; margin:0; padding:0; }}
-  body{{ font-family:Arial,Helvetica,sans-serif; font-size:9pt; color:#000; background:#fff; }}
-  .header{{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #0a0b0d; padding-bottom:10px; margin-bottom:14px; }}
-  .brand{{ display:flex; align-items:center; gap:12px; }}
-  .logo-box{{ height:46px; max-width:150px; display:flex; align-items:center; flex-shrink:0; }}
-  .logo-box img{{ max-height:100%; max-width:100%; }}
-  .brand-text h1{{ font-size:12pt; font-weight:900; color:#0a0b0d; text-transform:uppercase; }}
-  .brand-text p{{ font-size:7.5pt; color:#444; margin-top:1px; }}
-  .info-grid{{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:18px; }}
-  .info-card{{ border:1px solid #ccc; border-radius:4px; padding:8px 12px; }}
-  .card-title{{ font-size:7pt; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:#555; margin-bottom:4px; }}
-  .card-main{{ font-size:10pt; font-weight:700; color:#000; }}
-  .title-banner{{ background:#0a0b0d; color:#fff; text-align:center; padding:8px 0; border-radius:4px; margin-bottom:12px; }}
-  .title-banner h2{{ font-size:11pt; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; }}
-  .sec-title{{ font-size:8.5pt; font-weight:700; text-transform:uppercase; color:#000; border-bottom:2px solid #000; padding-bottom:3px; margin-bottom:6px; margin-top:14px; }}
-  table{{ width:100%; border-collapse:collapse; font-size:8pt; }}
-  th{{ background:#e8e8e8; color:#000; font-weight:700; padding:4px 6px; text-align:left; font-size:7.5pt; border:1px solid #ccc; }}
-  td{{ padding:4px 6px; border:1px solid #ddd; color:#000; }}
-  .center{{ text-align:center; }} .bold{{ font-weight:700; }} .muted{{ color:#777; font-style:italic; }}
-  .legende-box{{ border:1px solid #999; border-radius:4px; padding:8px 10px; margin-bottom:10px; background:#fafafa; }}
-  .legende-box table td{{ border:none; padding:2px 8px; font-size:8pt; }}
-  .footer{{ margin-top:20px; padding-top:8px; border-top:1px solid #ccc; display:flex; justify-content:space-between; font-size:7pt; color:#555; }}
-  @media print{{ body{{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }} .no-print{{ display:none!important; }} }}
-</style>
-</head>
-<body>
-<div class="no-print" style="text-align:right;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
-  <button onclick="window.print()" style="background:#0a0b0d;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">{t("imprimer_pdf")}</button>
-</div>
-<div style="padding:16px 20px;">
-<div class="header">
-  <div class="brand">
-    <div class="logo-box">{logo_content}</div>
-    <div class="brand-text">
-      <h1>{organisation_nom}</h1>
-      <p>{t("rapport_verification")} — {t("extincteurs_portatifs")}</p>
-    </div>
-  </div>
-  <div style="text-align:right;">
-    <div style="font-size:8pt;font-weight:700;text-transform:uppercase;color:{'#0d6b4f' if rapport.statut == 'ferme' else '#ff6b1a'};">{t('statut_ferme') if rapport.statut == 'ferme' else t('statut_ouvert')}</div>
-    <div style="font-size:7.5pt;color:#555;margin-top:4px;">{t("date_inspection")} : <strong style="color:#000;">{date_insp}</strong></div>
-    <div style="font-size:7.5pt;color:#555;margin-top:1px;">{t("technicien_s")} : <strong style="color:#000;">{tech_noms}</strong></div>
-  </div>
-</div>
-<div class="title-banner"><h2>{t("rapport_verification")} — {t("extincteurs_portatifs")}</h2></div>
-<div style="text-align:left;margin-bottom:6px;">
-  <div class="card-title">{t("client")}</div>
-  <div class="card-main" style="font-size:10.5pt;">{bat.client.nom}</div>
-</div>
-<div class="info-card" style="text-align:center;margin-bottom:18px;">
-  <div class="card-title">{t("adresse")}</div>
-  <div class="card-main" style="font-size:14pt;">{adresse}</div>
-</div>
-<div class="legende-box">
-<table><tbody>{legende_rows}</tbody></table>
-</div>
-<div class="sec-title">{t("detail_extincteurs")}</div>
-<table>
-  <thead><tr>
-    <th>{t("col_no")}</th><th>{t("col_etage")}</th><th>{t("col_emplacement")}</th><th>{t("col_type")}</th><th>{t("col_format")}</th><th>{t("col_marque")}</th><th>{t("col_numero_serie")}</th>
-    <th>{t("col_date_fabrication")}</th><th>{t("col_prochaine_maintenance")}</th><th>{t("col_prochain_test_hydro")}</th>
-    <th title="{t('etat_titre_abbr')}">{t("col_etat")}</th><th>{t("col_remarque")}</th>
-  </tr></thead>
-  <tbody>{item_rows}</tbody>
-</table>
-<div class="sec-title">{t("detail_boyaux")}</div>
-<table>
-  <thead><tr>
-    <th>{t("col_no")}</th><th>{t("col_etage")}</th><th title="{t('etat_titre_abbr')}">{t("col_etat")}</th><th>{t("col_emplacement")}</th>
-    <th>{t("col_longueur")}</th><th>{t("col_annee_fabrication")}</th><th>{t("col_prochain_test_hydro")}</th><th>{t("col_remarque")}</th>
-  </tr></thead>
-  <tbody>{boyau_rows}</tbody>
-</table>
-<div class="footer">
-  <div><strong>{organisation_nom}</strong></div>
-  <div>{adresse}</div>
-</div>
-</div>
-</body>
-</html>"""
+        html = _html_rapport_extincteur_complet(rapport)
         return HttpResponse(html, content_type="text/html; charset=utf-8")
 
     @action(detail=True, methods=["get"])
