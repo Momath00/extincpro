@@ -190,7 +190,7 @@ export const DICT: Dict = {
   stat_non_conformes: { fr: 'Non conformes', en: 'Non-compliant' },
   numero_placeholder: { fr: 'Numéro, adresse, client...', en: 'Number, address, client...' },
   tous_types: { fr: 'Tous types', en: 'All types' },
-  incendie: { fr: 'Incendie', en: 'Fire' },
+  incendie: { fr: "Système d'alarme", en: 'Fire alarm system' },
   extincteur: { fr: 'Extincteur', en: 'Extinguisher' },
   extincteur_eclairage: { fr: 'Extincteur & éclairage', en: 'Extinguisher & lighting' },
   tous_statuts: { fr: 'Tous statuts', en: 'All statuses' },
