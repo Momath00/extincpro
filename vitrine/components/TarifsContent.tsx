@@ -8,7 +8,7 @@ const modules = [
   {
     name: { fr: "Module Inspection sécurité incendie", en: "Fire Safety Inspection Module" },
     desc: { fr: "Inspection générale de sécurité incendie de vos bâtiments.", en: "General fire safety inspection of your buildings." },
-    prix: 130,
+    prix: 160,
     highlight: true,
     features: [
       { fr: "Inspection complète par bâtiment", en: "Complete inspection per building" },
