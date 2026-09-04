@@ -217,6 +217,7 @@ def envoyer_certificats_directs_batiment(batiment, utilisateur) -> tuple[bool, s
     que le client reçoive tout en une fois plutôt que plusieurs courriels."""
     from .models import Client
     from .pdf import (
+        conformite_extincteur,
         generer_pdf_certificat,
         generer_pdf_certificat_extincteur,
         generer_pdf_rapport_complet,
@@ -251,7 +252,7 @@ def envoyer_certificats_directs_batiment(batiment, utilisateur) -> tuple[bool, s
             elements.append({
                 "label": "Extincteurs portatifs" + (" et éclairage d'urgence" if getattr(rapport_ext, "rapport_eclairage_lie", None) else ""),
                 "numero": cert.numero,
-                "conforme": None,
+                "conforme": conformite_extincteur(rapport_ext),
                 "attachments": [
                     (f"rapport-extincteurs-{cert.numero}.pdf", generer_pdf_rapport_extincteur_complet(rapport_ext), "application/pdf"),
                     (f"certificat-extincteurs-{cert.numero}.pdf", generer_pdf_certificat_extincteur(rapport_ext), "application/pdf"),

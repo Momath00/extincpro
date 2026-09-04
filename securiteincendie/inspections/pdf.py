@@ -177,8 +177,26 @@ def generer_pdf_certificat(rapport) -> bytes:
     return _html_to_pdf_bytes(html)
 
 
+def _eclairages_lies(rapport) -> list:
+    """Unités d'éclairage d'urgence de la visite liée, s'il y en a une — une
+    même visite technicien couvre souvent extincteurs + éclairage d'urgence
+    en même temps (voir `rapport_eclairage_lie`)."""
+    rapport_eclairage = getattr(rapport, "rapport_eclairage_lie", None)
+    return list(rapport_eclairage.eclairages_urgence.all()) if rapport_eclairage else []
+
+
+def conformite_extincteur(rapport) -> bool:
+    """Conformité unifiée du certificat extincteurs : non conforme dès qu'un
+    extincteur OU une unité d'éclairage d'urgence liée est défectueux."""
+    items = list(rapport.extincteurs.all())
+    eclairages = _eclairages_lies(rapport)
+    return not any(it.etat == "D" for it in items) and not any(it.etat == "D" for it in eclairages)
+
+
 def generer_pdf_certificat_extincteur(rapport) -> bytes:
-    """PDF du certificat de vérification des extincteurs portatifs."""
+    """PDF du certificat de vérification des extincteurs portatifs — inclut
+    l'éclairage d'urgence lorsqu'une visite liée existe (un seul certificat
+    couvre les deux équipements)."""
     cert = rapport.certificat
     bat = rapport.batiment
     adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
@@ -194,11 +212,25 @@ def generer_pdf_certificat_extincteur(rapport) -> bytes:
         f"<tr><td>{t}</td><td class='center'>{c}</td></tr>" for t, c in sorted(type_counts.items())
     ) or "<tr><td colspan='2' class='center' style='color:#9ca3af;'>Aucun extincteur enregistré</td></tr>"
 
+    eclairages = _eclairages_lies(rapport)
+    eclairage_html = ""
+    if eclairages:
+        n_defectueux = sum(1 for it in eclairages if it.etat == "D")
+        eclairage_html = f"""
+<div class="sec-title">Éclairage d'urgence</div>
+<table class="data-table">
+  <tr><th>Unités vérifiées</th><th class="center">Défectueuses</th></tr>
+  <tr><td>{len(eclairages)}</td><td class="center">{n_defectueux}</td></tr>
+</table>"""
+
     tech_rows = "".join(
         f"<tr><td>{t.get_full_name() or t.username}</td></tr>" for t in techniciens
     ) or "<tr><td style='color:#9ca3af;'>—</td></tr>"
 
     emetteur = (cert.emis_par.get_full_name() or cert.emis_par.username) if cert.emis_par else "—"
+    conforme = conformite_extincteur(rapport)
+    badge_classe = "badge-conforme" if conforme else "badge-nonconforme"
+    badge_texte = "CONFORME" if conforme else "NON CONFORME"
 
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><style>{_BASE_CSS}</style></head>
@@ -206,8 +238,9 @@ def generer_pdf_certificat_extincteur(rapport) -> bytes:
 {_header_html(bat.client.organisation, "Inspection &amp; certification — Extincteurs portatifs", cert.numero, "Date d'inspection", _date_fr(rapport.date_inspection))}
 <div class="banner">
   <div class="banner-title">CERTIFICAT DE VÉRIFICATION</div>
-  <div class="banner-sub">Extincteurs portatifs</div>
+  <div class="banner-sub">Extincteurs portatifs{" et éclairage d'urgence" if eclairages else ""}</div>
 </div>
+<div class="{badge_classe}">{badge_texte}</div>
 <div class="addr-box">
   <div class="addr-title">ADRESSE INSPECTÉE</div>
   <div class="addr-main">{adresse}</div>
@@ -218,6 +251,7 @@ def generer_pdf_certificat_extincteur(rapport) -> bytes:
   {inv_rows}
   <tr class="total-row"><td>Total</td><td class="center">{total}</td></tr>
 </table>
+{eclairage_html}
 <div class="sec-title">Technicien(s)</div>
 <table class="data-table"><tr><th>Nom</th></tr>{tech_rows}</table>
 <table class="sig-table" style="margin-top:12px;">
@@ -232,7 +266,7 @@ def generer_pdf_certificat_extincteur(rapport) -> bytes:
     </td>
   </tr>
 </table>
-<div class="footer">{bat.client.organisation.nom} — Ce certificat atteste la vérification des extincteurs à la date d'inspection indiquée.</div>
+<div class="footer">{bat.client.organisation.nom} — Ce certificat atteste la vérification des extincteurs{" et de l'éclairage d'urgence" if eclairages else ""} à la date d'inspection indiquée.</div>
 </body></html>"""
 
     return _html_to_pdf_bytes(html)
@@ -409,7 +443,29 @@ def generer_pdf_rapport_extincteur_complet(rapport) -> bytes:
         for b in boyaux
     ) or "<tr><td colspan='8' class='center' style='color:#9ca3af;'>Aucun boyau enregistré</td></tr>"
 
-    cert_html = f"<div class='badge-conforme' style='margin:8px 0 4px 0;'>Certificat {cert.numero}</div>" if cert else ""
+    eclairages = _eclairages_lies(rapport)
+    eclairage_section = ""
+    if eclairages:
+        eclairage_rows = "".join(
+            f"<tr><td class='center'>{it.ordre}</td><td>{it.etage or '—'}</td><td>{it.emplacement or '—'}</td>"
+            f"<td>{it.modele or '—'}</td><td class='center'>{it.voltage or '—'}</td>"
+            f"<td class='center bold'>{it.etat or '—'}</td><td>{it.remarque or ''}</td></tr>"
+            for it in eclairages
+        )
+        eclairage_section = f"""
+<div class="sec-title">Éclairage d'urgence</div>
+<table class="wide-table">
+  <tr><th>#</th><th>Étage</th><th>Emplacement</th><th>Modèle</th><th>Voltage</th><th>État</th><th>Remarque</th></tr>
+  {eclairage_rows}
+</table>"""
+
+    if cert:
+        conforme = conformite_extincteur(rapport)
+        badge_classe = "badge-conforme" if conforme else "badge-nonconforme"
+        badge_texte = "CONFORME" if conforme else "NON CONFORME"
+        cert_html = f"<div class='{badge_classe}' style='margin:8px 0 4px 0;'>Certificat {cert.numero} — {badge_texte}</div>"
+    else:
+        cert_html = ""
 
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><style>{_BASE_CSS}</style></head>
@@ -417,7 +473,7 @@ def generer_pdf_rapport_extincteur_complet(rapport) -> bytes:
 {_header_html(bat.client.organisation, "Rapport de vérification — Extincteurs portatifs", cert.numero if cert else "—", "Date d'inspection", _date_fr(rapport.date_inspection))}
 <div class="banner">
   <div class="banner-title">RAPPORT DE VÉRIFICATION</div>
-  <div class="banner-sub">Extincteurs portatifs</div>
+  <div class="banner-sub">Extincteurs portatifs{" et éclairage d'urgence" if eclairages else ""}</div>
 </div>
 <div class="addr-box">
   <div class="addr-title">ADRESSE INSPECTÉE</div>
@@ -438,6 +494,7 @@ def generer_pdf_rapport_extincteur_complet(rapport) -> bytes:
   <tr><th>#</th><th>Étage</th><th>État</th><th>Emplacement</th><th>Longueur</th><th>Fab.</th><th>Test hydro</th><th>Remarque</th></tr>
   {boyau_rows}
 </table>
+{eclairage_section}
 <div class="footer">{bat.client.organisation.nom} — Rapport technique détaillé de la vérification des extincteurs portatifs.</div>
 </body></html>"""
 
