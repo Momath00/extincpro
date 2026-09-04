@@ -19,27 +19,19 @@ const modules = [
     ],
   },
   {
-    name: { fr: "Module Extincteurs", en: "Fire Extinguisher Module" },
-    desc: { fr: "Inspection, entretien et conformité de vos extincteurs.", en: "Inspection, maintenance, and compliance for your extinguishers." },
-    prix: 100,
+    name: { fr: "Module Extincteurs & Éclairage d'urgence", en: "Extinguishers & Emergency Lighting Module" },
+    desc: {
+      fr: "Inspection, entretien et conformité de vos extincteurs et de l'éclairage d'urgence — une même visite, un même rapport.",
+      en: "Inspection, maintenance, and compliance for your extinguishers and emergency lighting — one visit, one report.",
+    },
+    prix: 140,
     highlight: false,
     features: [
+      { fr: "Extincteurs et éclairage d'urgence couverts", en: "Extinguishers and emergency lighting covered" },
+      { fr: "Tests d'autonomie planifiés (éclairage)", en: "Scheduled battery-life tests (lighting)" },
       { fr: "Rapports d'inspection illimités", en: "Unlimited inspection reports" },
       { fr: "Photos et notes par appareil", en: "Photos and notes per device" },
-      { fr: "Historique complet par extincteur", en: "Complete history per extinguisher" },
-      { fr: "Portail client inclus", en: "Client portal included" },
-      { fr: "Accès mobile terrain", en: "Mobile field access" },
-    ],
-  },
-  {
-    name: { fr: "Module Éclairage d'urgence", en: "Emergency Lighting Module" },
-    desc: { fr: "Vérification périodique de vos blocs d'éclairage d'urgence.", en: "Periodic verification of your emergency lighting units." },
-    prix: 65,
-    highlight: false,
-    features: [
-      { fr: "Tests d'autonomie planifiés", en: "Scheduled battery-life tests" },
-      { fr: "Rapports d'inspection illimités", en: "Unlimited inspection reports" },
-      { fr: "Suivi de conformité par bâtiment", en: "Compliance tracking per building" },
+      { fr: "Historique complet par appareil", en: "Complete history per device" },
       { fr: "Portail client inclus", en: "Client portal included" },
       { fr: "Accès mobile terrain", en: "Mobile field access" },
     ],
@@ -64,8 +56,8 @@ const faq = [
   {
     q: { fr: "Puis-je activer plusieurs modules ?", en: "Can I activate several modules?" },
     a: {
-      fr: "Oui. La plupart de nos clients combinent plusieurs modules (inspection incendie, extincteurs, éclairage d'urgence) sous un seul abonnement annuel et un seul accès.",
-      en: "Yes. Most of our clients combine several modules (fire inspection, extinguishers, emergency lighting) under a single annual subscription and a single login.",
+      fr: "Oui. La plupart de nos clients combinent plusieurs modules (inspection incendie, extincteurs & éclairage d'urgence) sous un seul abonnement annuel et un seul accès.",
+      en: "Yes. Most of our clients combine several modules (fire inspection, extinguishers & emergency lighting) under a single annual subscription and a single login.",
     },
   },
 ];
