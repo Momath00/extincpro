@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     "inspection extincteurs",
     "logiciel inspection extincteur",
     "inspection éclairage d'urgence",
-    "inspection gicleurs",
+    "inspection système de cuisine",
     "conformité incendie",
     "gestion extincteurs Québec",
     "rapport extincteur",

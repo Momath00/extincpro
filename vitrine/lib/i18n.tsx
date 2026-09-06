@@ -40,8 +40,8 @@ export const DICT: Dict = {
     en: "The fire safety platform connecting the field, compliance, and your clients",
   },
   hero_texte: {
-    fr: "centralise l'inspection incendie, les rapports et la conformité de vos systèmes de sécurité incendie — extincteurs, éclairage d'urgence et gicleurs — du technicien sur le terrain jusqu'à la direction.",
-    en: "centralizes fire inspections, reports, and compliance for your fire safety systems — extinguishers, emergency lighting, and sprinklers — from the field technician to management.",
+    fr: "centralise l'inspection incendie, les rapports et la conformité de vos systèmes de sécurité incendie — extincteurs, éclairage d'urgence et système de cuisine — du technicien sur le terrain jusqu'à la direction.",
+    en: "centralizes fire inspections, reports, and compliance for your fire safety systems — extinguishers, emergency lighting, and kitchen suppression — from the field technician to management.",
   },
   hero_essai_btn: { fr: "Essai gratuit — 1 mois", en: "Free trial — 1 month" },
   decouvrir_plateforme: { fr: "Découvrir la plateforme", en: "Discover the platform" },
@@ -80,6 +80,19 @@ export const DICT: Dict = {
   detection_alt: {
     fr: "Détection automatique des anomalies sur un rapport d'inspection ExtincPro",
     en: "Automatic anomaly detection on an ExtincPro inspection report",
+  },
+  cuisine_kicker: { fr: "Système de cuisine", en: "Kitchen suppression system" },
+  cuisine_titre: {
+    fr: "Le schéma d'installation de votre hotte, appareil par appareil",
+    en: "Your hood's installation diagram, appliance by appliance",
+  },
+  cuisine_desc: {
+    fr: "Placez chaque appareil et chaque buse à sa position réelle sous la hotte — le technicien voit exactement ce qui est protégé, directement dans le rapport.",
+    en: "Place each appliance and each nozzle at its real position under the hood — the technician sees exactly what's protected, directly in the report.",
+  },
+  cuisine_alt: {
+    fr: "Schéma interactif du système d'extinction de cuisine dans ExtincPro",
+    en: "Interactive kitchen fire suppression system diagram in ExtincPro",
   },
   fonctionnalites_kicker: { fr: "Fonctionnalités", en: "Features" },
   fonctionnalites_titre: {
@@ -126,8 +139,8 @@ export const DICT: Dict = {
     en: "A complete software, from inspection to compliance",
   },
   services_hero_texte: {
-    fr: "couvre l'ensemble du cycle d'inspection de vos systèmes de sécurité incendie — extincteurs, éclairage d'urgence et gicleurs : inspection, rapport, correction, conformité et communication client, dans une seule application.",
-    en: "covers the entire inspection cycle for your fire safety systems — extinguishers, emergency lighting, and sprinklers: inspection, reporting, correction, compliance, and client communication, in a single application.",
+    fr: "couvre l'ensemble du cycle d'inspection de vos systèmes de sécurité incendie — extincteurs, éclairage d'urgence et système de cuisine : inspection, rapport, correction, conformité et communication client, dans une seule application.",
+    en: "covers the entire inspection cycle for your fire safety systems — extinguishers, emergency lighting, and kitchen suppression: inspection, reporting, correction, compliance, and client communication, in a single application.",
   },
   services_systemes_titre: { fr: "Quatre systèmes, un seul logiciel", en: "Four systems, one software" },
   conformite_kicker: { fr: "Conformité", en: "Compliance" },

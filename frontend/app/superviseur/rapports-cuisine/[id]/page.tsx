@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import TableEclairageUrgence from '@/components/rapports-eclairage-urgence/TableEclairageUrgence'
+import InfoSystemeForm from '@/components/rapports-cuisine/InfoSystemeForm'
+import SchemaHottes from '@/components/rapports-cuisine/SchemaHottes'
+import ChecklistCuisine from '@/components/rapports-cuisine/ChecklistCuisine'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 import ModuleBadge from '@/components/dashboard/ModuleBadge'
 import { downloadHtml } from '@/lib/download'
@@ -11,17 +13,17 @@ import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
-const ORANGE = '#e11324'
+const ORANGE = '#dc2626'
 
-type OngletType = 'eclairages' | 'historique'
+type OngletType = 'systeme' | 'historique'
 
-export default function SuperviseurRapportEclairageUrgenceDetailPage() {
+export default function SuperviseurRapportCuisineDetailPage() {
   const router = useRouter()
   const params = useParams()
   const t = useT()
   const [rapport, setRapport] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [onglet, setOnglet] = useState<OngletType>('eclairages')
+  const [onglet, setOnglet] = useState<OngletType>('systeme')
   const [actionLoading, setActionLoading] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [confirmFermer, setConfirmFermer] = useState(false)
@@ -31,12 +33,12 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
   function charger() {
     const token = localStorage.getItem('access_token')
     if (!token) { router.push('/login'); return }
-    fetch(`${API_URL}/api/rapports-eclairage-urgence/${params.id}/`, {
+    fetch(`${API_URL}/api/rapports-cuisine/${params.id}/`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => {
         if (res.status === 401) { router.push('/login'); return null }
-        if (res.status === 404) { router.push('/superviseur/rapports-eclairage-urgence'); return null }
+        if (res.status === 404) { router.push('/superviseur/rapports-cuisine'); return null }
         return res.json()
       })
       .then(data => { if (data) { setRapport(data); setLoading(false) } })
@@ -53,7 +55,7 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
   async function fermerRapport() {
     setActionLoading(true)
     const token = localStorage.getItem('access_token')
-    const res = await fetch(`${API_URL}/api/rapports-eclairage-urgence/${rapport.id}/fermer/`, {
+    const res = await fetch(`${API_URL}/api/rapports-cuisine/${rapport.id}/fermer/`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -64,14 +66,14 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
       charger()
     } else {
       const d = await res.json().catch(() => ({}))
-      showToast(d.error || 'Erreur lors de la fermeture.', 'error')
+      showToast(d.error || t('erreur_fermeture'), 'error')
     }
   }
 
   async function rouvrirRapport() {
     setActionLoading(true)
     const token = localStorage.getItem('access_token')
-    const res = await fetch(`${API_URL}/api/rapports-eclairage-urgence/${rapport.id}/rouvrir/`, {
+    const res = await fetch(`${API_URL}/api/rapports-cuisine/${rapport.id}/rouvrir/`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -79,11 +81,11 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
     setConfirmRouvrir(false)
     if (res.ok) {
       showToast(t('ouvert') + '.', 'success')
-      setOnglet('eclairages')
+      setOnglet('systeme')
       charger()
     } else {
       const d = await res.json().catch(() => ({}))
-      showToast(d.error || 'Erreur lors de la réouverture.', 'error')
+      showToast(d.error || t('erreur_reouverture'), 'error')
     }
   }
 
@@ -99,7 +101,7 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
   const estFerme = rapport.statut === 'ferme'
 
   const onglets: { key: OngletType; label: string; shortLabel: string }[] = [
-    { key: 'eclairages', label: `${t('titre_rapport_eclairage')} (${rapport.eclairages_urgence?.length || 0})`, shortLabel: `${t('titre_rapport_eclairage')} (${rapport.eclairages_urgence?.length || 0})` },
+    { key: 'systeme', label: t('onglet_systeme_cuisine'), shortLabel: t('onglet_systeme_cuisine') },
     { key: 'historique', label: `${t('historique')} (${rapport.historique?.length || 0})`, shortLabel: `${t('historique')} (${rapport.historique?.length || 0})` },
   ]
 
@@ -117,11 +119,11 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
       )}
 
       <div className="flex items-center justify-between mb-4 gap-3">
-        <Link href="/superviseur/rapports-eclairage-urgence"
+        <Link href="/superviseur/rapports-cuisine"
           className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1">
           <i className="ti ti-arrow-left" /> {t('retour_aux_rapports')}
         </Link>
-        <ModuleBadge type="eclairage" />
+        <ModuleBadge type="cuisine" />
       </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-5">
@@ -174,7 +176,7 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
           )}
 
           <button
-            onClick={() => downloadHtml(`${API_URL}/api/rapports-eclairage-urgence/${rapport.id}/telecharger/`)}
+            onClick={() => downloadHtml(`${API_URL}/api/rapports-cuisine/${rapport.id}/telecharger/`)}
             className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 hover:opacity-90 transition-opacity"
             style={{ background: '#e0e7ff', color: '#3730a3' }}
           >
@@ -211,7 +213,7 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
         <ModalModifierRapport
           rapport={rapport}
           mode={modalMode}
-          apiBase="/api/rapports-eclairage-urgence/"
+          apiBase="/api/rapports-cuisine/"
           onClose={() => setModalMode(null)}
           onSaved={() => { charger(); showToast(t('modification_succes'), 'success') }}
         />
@@ -220,19 +222,19 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
       <div className="bg-white rounded-md border border-gray-100 p-4 mb-6 flex items-center gap-3 flex-wrap">
         <span className="text-xs font-bold uppercase tracking-widest text-gray-400">{t('techniciens_col')}</span>
         {rapport.techniciens?.length
-          ? rapport.techniciens.map((t: any) => (
-            <div key={t.id} className="flex items-center gap-1.5 bg-gray-50 rounded-full pl-1 pr-3 py-1">
+          ? rapport.techniciens.map((tc: any) => (
+            <div key={tc.id} className="flex items-center gap-1.5 bg-gray-50 rounded-full pl-1 pr-3 py-1">
               <span className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
                 style={{ background: NAVY }}>
-                {t.username?.[0]?.toUpperCase()}
+                {tc.username?.[0]?.toUpperCase()}
               </span>
-              <span className="text-xs font-medium" style={{ color: NAVY }}>{t.username}</span>
+              <span className="text-xs font-medium" style={{ color: NAVY }}>{tc.username}</span>
             </div>
           ))
           : <span className="text-xs text-gray-300 italic">{t('aucun_technicien_assigne')}</span>}
         <button
           onClick={() => setModalMode('technicien')}
-          className="text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-200 hover:border-[#e11324] transition-colors flex items-center gap-1"
+          className="text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-200 hover:border-[#dc2626] transition-colors flex items-center gap-1"
           style={{ color: NAVY }}
         >
           <i className="ti ti-edit text-[11px]" /> {t('reassigner')}
@@ -256,7 +258,13 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
         ))}
       </div>
 
-      {onglet === 'eclairages' && <TableEclairageUrgence rapport={rapport} readOnly={false} onRefresh={charger} />}
+      {onglet === 'systeme' && (
+        <div className="flex flex-col gap-6">
+          <InfoSystemeForm rapport={rapport} readOnly={false} onRefresh={charger} />
+          <SchemaHottes rapport={rapport} readOnly={false} onRefresh={charger} />
+          <ChecklistCuisine rapport={rapport} readOnly={false} onRefresh={charger} />
+        </div>
+      )}
 
       {onglet === 'historique' && (
         <div className="bg-white rounded-md border border-gray-100 p-5">

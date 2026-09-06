@@ -4,7 +4,10 @@ import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
+import Pagination from '@/components/dashboard/Pagination'
 import { useT } from '@/lib/i18n'
+
+const PAGE_SIZE = 25
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -15,12 +18,16 @@ function RapportsExtincteursListContent() {
   const searchParams = useSearchParams()
   const t = useT()
   const [rapports, setRapports] = useState<any[]>([])
+  const [count, setCount] = useState(0)
+  const [compteurs, setCompteurs] = useState({ tous: 0, ouvert: 0, ferme: 0 })
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
 
   const initialFiltre = (searchParams.get('f') as 'tous' | 'ouvert' | 'ferme') || 'tous'
   const [filtre, setFiltre] = useState<'tous' | 'ouvert' | 'ferme'>(initialFiltre)
+  const [page, setPage] = useState(Number(searchParams.get('page')) || 1)
   const [recherche, setRecherche] = useState('')
+  const [rechercheDebouncee, setRechercheDebouncee] = useState('')
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [modif, setModif] = useState<{ rapport: any; mode: 'technicien' | 'adresse' | 'citoyen' } | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -48,11 +55,22 @@ function RapportsExtincteursListContent() {
     charger(true)
   }
 
+  function chargerCompteurs() {
+    const token = localStorage.getItem('access_token')
+    fetch(`${API_URL}/api/rapports-extincteurs/compteurs/`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => { if (data) setCompteurs(data) })
+      .catch(() => {})
+  }
+
   function charger(silent = false) {
     const token = localStorage.getItem('access_token')
     if (!token) { router.push('/login'); return }
     if (!silent) setLoading(true)
-    fetch(`${API_URL}/api/rapports-extincteurs/`, { headers: { Authorization: `Bearer ${token}` } })
+    const params = new URLSearchParams({ page: String(page) })
+    if (filtre !== 'tous') params.set('statut', filtre)
+    if (rechercheDebouncee.trim()) params.set('q', rechercheDebouncee.trim())
+    fetch(`${API_URL}/api/rapports-extincteurs/?${params}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => {
         if (res.status === 401) { router.push('/login'); return null }
         return res.json()
@@ -60,38 +78,43 @@ function RapportsExtincteursListContent() {
       .then(data => {
         if (data) {
           setRapports(Array.isArray(data) ? data : (data.results || []))
+          setCount(Array.isArray(data) ? data.length : (data.count ?? 0))
           setLastUpdate(new Date())
         }
         if (!silent) setLoading(false)
       })
       .catch(() => { if (!silent) setLoading(false) })
+    chargerCompteurs()
   }
 
   useEffect(() => {
     charger()
     timerRef.current = setInterval(() => charger(true), 30000)
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
-  }, [])
+  }, [page, filtre, rechercheDebouncee])
 
   useEffect(() => {
     const f = searchParams.get('f') as 'tous' | 'ouvert' | 'ferme' | null
     if (f && f !== filtre) setFiltre(f)
   }, [searchParams])
 
-  const filtered = rapports.filter(r => {
-    if (filtre !== 'tous' && r.statut !== filtre) return false
-    if (recherche.trim()) {
-      const q = recherche.toLowerCase()
-      const adresse = (r.batiment?.adresse_complete || '').toLowerCase()
-      const client = (r.batiment?.client_nom || '').toLowerCase()
-      const techs = (r.techniciens || []).map((t: any) => t.username || '').join(' ').toLowerCase()
-      if (!adresse.includes(q) && !client.includes(q) && !techs.includes(q)) return false
-    }
-    return true
-  })
+  // Recherche débattue à 300ms — évite un appel réseau à chaque frappe.
+  useEffect(() => {
+    const id = setTimeout(() => setRechercheDebouncee(recherche), 300)
+    return () => clearTimeout(id)
+  }, [recherche])
 
-  const nbOuverts = rapports.filter(r => r.statut === 'ouvert').length
-  const nbFermes = rapports.filter(r => r.statut === 'ferme').length
+  // Revenir à la page 1 dès que le filtre ou la recherche change — pas au
+  // tout premier rendu, pour respecter un ?page= déjà présent dans l'URL.
+  const premierRendu = useRef(true)
+  useEffect(() => {
+    if (premierRendu.current) { premierRendu.current = false; return }
+    setPage(1)
+  }, [filtre, rechercheDebouncee])
+
+  const filtered = rapports
+  const nbOuverts = compteurs.ouvert
+  const nbFermes = compteurs.ferme
 
   if (loading) {
     return (
@@ -128,7 +151,7 @@ function RapportsExtincteursListContent() {
         <div>
           <h1 className="text-2xl font-bold" style={{ color: NAVY }}>{t('titre_rapport_extincteur')}</h1>
           <div className="flex items-center gap-2 mt-0.5">
-            <p className="text-gray-500 text-sm">{rapports.length} {rapports.length !== 1 ? t('rapports_pluriel') : t('rapport_singulier')}</p>
+            <p className="text-gray-500 text-sm">{compteurs.tous} {compteurs.tous !== 1 ? t('rapports_pluriel') : t('rapport_singulier')}</p>
             <span className="text-gray-200">·</span>
             <span className="text-xs text-gray-400">
               {t('mis_a_jour')} {lastUpdate.toLocaleTimeString('fr-CA', { timeStyle: 'short' })}
@@ -151,7 +174,7 @@ function RapportsExtincteursListContent() {
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <div className="flex gap-1 p-1 rounded-md border border-gray-100 bg-white w-full sm:w-auto">
           {([
-            { key: 'tous', label: `${t('tous')} (${rapports.length})` },
+            { key: 'tous', label: `${t('tous')} (${compteurs.tous})` },
             { key: 'ouvert', label: `${t('ouverts')} (${nbOuverts})` },
             { key: 'ferme', label: `${t('fermes_certificats')} (${nbFermes})` },
           ] as { key: 'tous' | 'ouvert' | 'ferme'; label: string }[]).map(f => (
@@ -326,6 +349,8 @@ function RapportsExtincteursListContent() {
           </div>
         </div>
       )}
+
+      <Pagination page={page} pageSize={PAGE_SIZE} count={count} onPageChange={setPage} />
 
       {supprimerId !== null && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">

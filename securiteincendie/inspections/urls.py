@@ -5,13 +5,16 @@ from .views import (
     AppelServiceViewSet,
     BatimentViewSet,
     BoyauItemViewSet,
+    CertificatsCompteursView,
     CertificatsExcelView,
     CertificatsUnifiesView,
     ClientViewSet,
     DispositifViewSet,
     EclairageUrgenceItemViewSet,
     ExtincteurItemViewSet,
+    HotteCuisineViewSet,
     PubmsCallbackAppelServiceView,
+    RapportCuisineViewSet,
     RapportEclairageUrgenceViewSet,
     RapportExtincteurViewSet,
     RapportViewSet,
@@ -29,6 +32,8 @@ router.register(r"extincteurs", ExtincteurItemViewSet, basename="extincteur")
 router.register(r"boyaux", BoyauItemViewSet, basename="boyau")
 router.register(r"rapports-eclairage-urgence", RapportEclairageUrgenceViewSet, basename="rapport-eclairage-urgence")
 router.register(r"eclairages-urgence", EclairageUrgenceItemViewSet, basename="eclairage-urgence")
+router.register(r"rapports-cuisine", RapportCuisineViewSet, basename="rapport-cuisine")
+router.register(r"hottes-cuisine", HotteCuisineViewSet, basename="hotte-cuisine")
 router.register(r"appels-service", AppelServiceViewSet, basename="appel-service")
 
 # Routes générées, à titre de référence :
@@ -50,6 +55,7 @@ urlpatterns = [
     # (appels-service/<pk>/) n'intercepte cette URL en premier.
     path("appels-service/pubms-callback/", PubmsCallbackAppelServiceView.as_view(), name="appel_service_pubms_callback"),
     path("certificats/", CertificatsUnifiesView.as_view(), name="certificats_unifies"),
+    path("certificats/compteurs/", CertificatsCompteursView.as_view(), name="certificats_compteurs"),
     path("certificats/excel/", CertificatsExcelView.as_view(), name="certificats_excel"),
     path("", include(router.urls)),
 ]

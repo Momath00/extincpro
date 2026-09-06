@@ -14,6 +14,7 @@ const NAV_GROUPS = [
       { href: '/technicien/rapports', label: 'nav_mes_rapports', icon: 'ti-clipboard-list', module: 'rapport_incendie' },
       { href: '/technicien/rapports-extincteurs', label: 'nav_rapport_extincteur', icon: 'ti-fire-extinguisher', module: 'rapport_extincteur' },
       { href: '/technicien/rapports-eclairage-urgence', label: 'nav_rapport_eclairage', icon: 'ti-bulb', module: 'rapport_eclairage_urgence' },
+      { href: '/technicien/rapports-cuisine', label: 'nav_rapport_cuisine', icon: 'ti-tools-kitchen-2', module: 'rapport_cuisine' },
     ],
   },
 ]

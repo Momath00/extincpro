@@ -1,13 +1,16 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Pagination from '@/components/dashboard/Pagination'
+import { downloadHtml, downloadFichier as downloadFile } from '@/lib/download'
 import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
+const PAGE_SIZE = 25
 
 type Certificat = {
   cle: string
@@ -16,6 +19,9 @@ type Certificat = {
   numero: string
   date_emission: string
   certificat_envoye: boolean
+  mode_envoi: 'direct' | 'citoyen' | ''
+  date_envoi: string | null
+  envoye_a: string
   conforme: boolean
   adresse: string
   client_nom: string
@@ -28,32 +34,6 @@ type Certificat = {
 
 type TriChamp = 'date_emission' | 'numero' | 'client_nom' | 'adresse'
 
-async function downloadHtml(url: string) {
-  const token = localStorage.getItem('access_token')
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-  if (!res.ok) return
-  const html = await res.text()
-  const blob = new Blob([html], { type: 'text/html' })
-  const blobUrl = URL.createObjectURL(blob)
-  window.open(blobUrl, '_blank')
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
-}
-
-async function downloadFile(url: string, nomFichier: string) {
-  const token = localStorage.getItem('access_token')
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-  if (!res.ok) return
-  const blob = await res.blob()
-  const blobUrl = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = blobUrl
-  a.download = nomFichier
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
-}
-
 export default function CertificatsPage() {
   const router = useRouter()
   const t = useT()
@@ -62,50 +42,97 @@ export default function CertificatsPage() {
     extincteur: { label: t('extincteur_eclairage'), bg: '#fff2e8', color: '#9a4a13', icon: 'ti-fire-extinguisher' },
   }
   const [certificats, setCertificats] = useState<Certificat[]>([])
+  const [count, setCount] = useState(0)
+  const [compteurs, setCompteurs] = useState({ total: 0, envoyes: 0, conformes: 0, non_conformes: 0 })
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
   const [recherche, setRecherche] = useState('')
+  const [rechercheDebouncee, setRechercheDebouncee] = useState('')
   const [typeFiltre, setTypeFiltre] = useState<'tous' | 'incendie' | 'extincteur'>('tous')
   const [statutFiltre, setStatutFiltre] = useState<'tous' | 'envoye' | 'non_envoye'>('tous')
   const [conformiteFiltre, setConformiteFiltre] = useState<'tous' | 'oui' | 'non'>('tous')
   const [tri, setTri] = useState<{ champ: TriChamp; direction: 'asc' | 'desc' }>({ champ: 'date_emission', direction: 'desc' })
   const [exporting, setExporting] = useState(false)
+  const [menuOuvert, setMenuOuvert] = useState<{ cle: string; top: number; right: number } | null>(null)
+  const [renvoiPhase, setRenvoiPhase] = useState<'idle' | 'envoi' | 'succes' | 'erreur'>('idle')
+  const [renvoiMessage, setRenvoiMessage] = useState('')
+
+  function chargerCompteurs() {
+    const token = localStorage.getItem('access_token')
+    fetch(`${API_URL}/api/certificats/compteurs/`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => { if (data) setCompteurs(data) })
+      .catch(() => {})
+  }
+
+  function parametresFiltres() {
+    const params = new URLSearchParams({ page: String(page), tri: tri.champ, direction: tri.direction })
+    if (typeFiltre !== 'tous') params.set('type', typeFiltre)
+    if (statutFiltre !== 'tous') params.set('statut', statutFiltre)
+    if (conformiteFiltre !== 'tous') params.set('conforme', conformiteFiltre)
+    if (rechercheDebouncee.trim()) params.set('recherche', rechercheDebouncee.trim())
+    return params
+  }
 
   function charger() {
     const token = localStorage.getItem('access_token')
     if (!token) { router.push('/login'); return }
     setLoading(true)
-    fetch(`${API_URL}/api/certificats/`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_URL}/api/certificats/?${parametresFiltres()}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => {
         if (res.status === 401) { router.push('/login'); return null }
         return res.json()
       })
-      .then(data => { if (data) setCertificats(data) })
+      .then(data => {
+        if (data) {
+          setCertificats(data.results || [])
+          setCount(data.count ?? 0)
+        }
+      })
       .finally(() => setLoading(false))
+    chargerCompteurs()
   }
 
-  useEffect(() => { charger() }, [])
+  useEffect(() => { charger() }, [page, typeFiltre, statutFiltre, conformiteFiltre, rechercheDebouncee, tri])
 
-  const filtres = useMemo(() => {
-    let liste = certificats
-    if (typeFiltre !== 'tous') liste = liste.filter(c => c.type === typeFiltre)
-    if (statutFiltre !== 'tous') liste = liste.filter(c => (statutFiltre === 'envoye' ? c.certificat_envoye : !c.certificat_envoye))
-    if (conformiteFiltre !== 'tous') liste = liste.filter(c => (conformiteFiltre === 'oui' ? c.conforme : !c.conforme))
-    if (recherche.trim()) {
-      const q = recherche.trim().toLowerCase()
-      liste = liste.filter(c =>
-        c.numero.toLowerCase().includes(q) ||
-        c.adresse.toLowerCase().includes(q) ||
-        c.client_nom.toLowerCase().includes(q)
-      )
-    }
-    const triee = [...liste].sort((a, b) => {
-      const av = a[tri.champ]
-      const bv = b[tri.champ]
-      const cmp = av < bv ? -1 : av > bv ? 1 : 0
-      return tri.direction === 'asc' ? cmp : -cmp
+  useEffect(() => {
+    const id = setTimeout(() => setRechercheDebouncee(recherche), 300)
+    return () => clearTimeout(id)
+  }, [recherche])
+
+  const premierRendu = useRef(true)
+  useEffect(() => {
+    if (premierRendu.current) { premierRendu.current = false; return }
+    setPage(1)
+  }, [typeFiltre, statutFiltre, conformiteFiltre, rechercheDebouncee, tri])
+
+  function toggleMenu(e: React.MouseEvent, cle: string) {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    setMenuOuvert(prev => (prev?.cle === cle ? null : { cle, top: rect.bottom + 4, right: window.innerWidth - rect.right }))
+  }
+
+  async function renvoyer(c: Certificat) {
+    setMenuOuvert(null)
+    setRenvoiPhase('envoi')
+    const token = localStorage.getItem('access_token')
+    const base = c.type === 'incendie' ? 'rapports' : 'rapports-extincteurs'
+    const res = await fetch(`${API_URL}/api/${base}/${c.rapport_id}/renvoyer-certificat/`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
     })
-    return triee
-  }, [certificats, typeFiltre, statutFiltre, conformiteFiltre, recherche, tri])
+    const d = await res.json().catch(() => ({}))
+    if (res.ok) {
+      setRenvoiMessage(d.message || t('certificat_envoye_toast'))
+      setRenvoiPhase('succes')
+      charger()
+      setTimeout(() => setRenvoiPhase('idle'), 2800)
+    } else {
+      setRenvoiMessage(d.error || t('erreur_envoi'))
+      setRenvoiPhase('erreur')
+    }
+  }
+
+  const filtres = certificats
 
   function trierPar(champ: TriChamp) {
     setTri(prev => prev.champ === champ ? { champ, direction: prev.direction === 'asc' ? 'desc' : 'asc' } : { champ, direction: 'asc' })
@@ -125,9 +152,9 @@ export default function CertificatsPage() {
     }
   }
 
-  const nbEnvoyes = certificats.filter(c => c.certificat_envoye).length
-  const nbConformes = certificats.filter(c => c.conforme).length
-  const nbNonConformes = certificats.length - nbConformes
+  const nbEnvoyes = compteurs.envoyes
+  const nbConformes = compteurs.conformes
+  const nbNonConformes = compteurs.non_conformes
 
   const TriIcone = ({ champ }: { champ: TriChamp }) => (
     <i className={`ti ${tri.champ !== champ ? 'ti-arrows-sort text-gray-300' : tri.direction === 'asc' ? 'ti-sort-ascending' : 'ti-sort-descending'} text-xs ml-1`}
@@ -148,11 +175,11 @@ export default function CertificatsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: NAVY }}>{t('titre_certificats')}</h1>
-          <p className="text-gray-400 text-sm mt-1">{certificats.length} {t('certificat').toLowerCase()}{certificats.length !== 1 ? 's' : ''} {t('certificats_sous_titre')}</p>
+          <p className="text-gray-400 text-sm mt-1">{compteurs.total} {t('certificat').toLowerCase()}{compteurs.total !== 1 ? 's' : ''} {t('certificats_sous_titre')}</p>
         </div>
         <button
           onClick={exporter}
-          disabled={exporting || certificats.length === 0}
+          disabled={exporting || compteurs.total === 0}
           className="text-sm font-bold px-4 py-2.5 rounded-md border-2 flex items-center gap-2 hover:bg-gray-50 transition-colors disabled:opacity-50 flex-shrink-0"
           style={{ borderColor: NAVY, color: NAVY }}
         >
@@ -163,7 +190,7 @@ export default function CertificatsPage() {
       {/* Sommaire */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {[
-          { label: t('stat_total'), value: certificats.length, bg: NAVY, color: '#fff', icon: 'ti-certificate' },
+          { label: t('stat_total'), value: compteurs.total, bg: NAVY, color: '#fff', icon: 'ti-certificate' },
           { label: t('stat_envoyes'), value: nbEnvoyes, bg: '#e9f6f2', color: '#0d6b4f', icon: 'ti-mail-check' },
           { label: t('stat_conformes'), value: nbConformes, bg: '#dcfce7', color: '#16a34a', icon: 'ti-check' },
           { label: t('stat_non_conformes'), value: nbNonConformes, bg: nbNonConformes > 0 ? '#fee2e2' : '#f8fafc', color: nbNonConformes > 0 ? '#e11324' : '#94a3b8', icon: 'ti-alert-triangle' },
@@ -282,7 +309,7 @@ export default function CertificatsPage() {
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-semibold whitespace-nowrap"
                           style={{ background: badge.bg, color: badge.color }}>
-                          <i className={`ti ${badge.icon} text-[11px]`} /> {badge.label}
+                          <i className={`ti ${badge.icon} text-[11px]`} /> {c.type_display || badge.label}
                         </span>
                       </td>
                       <td className="px-4 py-3 max-w-[220px]">
@@ -303,9 +330,23 @@ export default function CertificatsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
-                        {c.certificat_envoye
-                          ? <i className="ti ti-check text-green-600" title={t('envoye')} />
-                          : <span className="text-gray-300 text-xs">—</span>}
+                        {c.certificat_envoye ? (
+                          <span
+                            className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full whitespace-nowrap"
+                            style={c.mode_envoi === 'direct'
+                              ? { color: ORANGE, background: '#fef2f2' }
+                              : { color: '#16a34a', background: '#f0fdf4' }}
+                            title={[
+                              c.date_envoi ? `${t('envoye_le')} ${new Date(c.date_envoi).toLocaleDateString('fr-CA', { dateStyle: 'long' })}` : '',
+                              c.envoye_a ? `${t('destinataire')} : ${c.envoye_a}` : '',
+                            ].filter(Boolean).join(' — ')}
+                          >
+                            <i className={`ti ${c.mode_envoi === 'direct' ? 'ti-mail-forward' : 'ti-user-check'} text-[11px]`} />
+                            {c.mode_envoi === 'direct' ? t('badge_envoi_direct') : t('badge_envoye_citoyen')}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300 text-xs">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
@@ -316,13 +357,13 @@ export default function CertificatsPage() {
                           >
                             <i className="ti ti-certificate text-sm" />
                           </button>
-                          <Link
-                            href={c.url_rapport}
-                            title={t('voir_rapport_titre')}
+                          <button
+                            onClick={(e) => toggleMenu(e, c.cle)}
+                            title={t('plus_actions')}
                             className="w-8 h-8 rounded flex items-center justify-center text-gray-400 hover:text-[#0a0b0d] hover:bg-gray-100 transition-colors"
                           >
-                            <i className="ti ti-arrow-up-right text-sm" />
-                          </Link>
+                            <i className="ti ti-dots-vertical text-sm" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -330,6 +371,76 @@ export default function CertificatsPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      <Pagination page={page} pageSize={PAGE_SIZE} count={count} onPageChange={setPage} />
+
+      {menuOuvert && (() => {
+        const c = certificats.find(x => x.cle === menuOuvert.cle)
+        if (!c) return null
+        return (
+          <>
+            <div className="fixed inset-0 z-[90]" onClick={() => setMenuOuvert(null)} />
+            <div className="fixed z-[91] bg-white rounded-md border border-gray-100 shadow-lg py-1 w-56"
+              style={{ top: menuOuvert.top, right: menuOuvert.right }}>
+              <Link
+                href={c.url_rapport}
+                onClick={() => setMenuOuvert(null)}
+                className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm hover:bg-gray-50 transition-colors"
+                style={{ color: NAVY }}
+              >
+                <i className="ti ti-arrow-up-right text-gray-400" /> {t('voir_rapport_titre')}
+              </Link>
+              {c.certificat_envoye && (
+                <button
+                  onClick={() => renvoyer(c)}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm hover:bg-gray-50 transition-colors text-left"
+                  style={{ color: NAVY }}
+                >
+                  <i className="ti ti-refresh text-gray-400" /> {t('renvoyer_certificat_action')}
+                </button>
+              )}
+            </div>
+          </>
+        )
+      })()}
+
+      {renvoiPhase !== 'idle' && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4"
+          onClick={() => renvoiPhase === 'erreur' && setRenvoiPhase('idle')}>
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative bg-white rounded-2xl w-full max-w-sm p-8 shadow-2xl text-center" onClick={e => e.stopPropagation()}>
+            {renvoiPhase === 'envoi' && (
+              <>
+                <div className="w-14 h-14 rounded-full mx-auto mb-4 animate-spin"
+                  style={{ border: '4px solid #fde3cc', borderTopColor: ORANGE }} />
+                <p className="text-sm font-bold" style={{ color: NAVY }}>{t('envoi_en_cours')}</p>
+              </>
+            )}
+            {renvoiPhase === 'succes' && (
+              <>
+                <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: '#e9f6f2' }}>
+                  <i className="ti ti-check text-2xl" style={{ color: '#0d6b4f' }} />
+                </div>
+                <p className="text-sm font-bold mb-1" style={{ color: '#0d6b4f' }}>{t('envoi_reussi_titre')}</p>
+                <p className="text-xs text-gray-500">{renvoiMessage}</p>
+              </>
+            )}
+            {renvoiPhase === 'erreur' && (
+              <>
+                <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: '#fef2f2' }}>
+                  <i className="ti ti-x text-2xl" style={{ color: ORANGE }} />
+                </div>
+                <p className="text-sm font-bold mb-1" style={{ color: ORANGE }}>{t('envoi_echec_titre')}</p>
+                <p className="text-xs text-gray-500 mb-4">{renvoiMessage}</p>
+                <button onClick={() => setRenvoiPhase('idle')}
+                  className="text-sm font-semibold px-4 py-2 rounded-md border border-gray-200" style={{ color: NAVY }}>
+                  {t('fermer')}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

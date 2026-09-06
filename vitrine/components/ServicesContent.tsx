@@ -24,10 +24,10 @@ const systemesCouverts = [
     },
   },
   {
-    title: { fr: "Gicleurs", en: "Sprinklers" },
+    title: { fr: "Système de cuisine", en: "Kitchen suppression system" },
     desc: {
-      fr: "Suivi des inspections de systèmes de gicleurs et de leur conformité.",
-      en: "Tracking of sprinkler system inspections and their compliance.",
+      fr: "Vérification du système d'extinction de cuisine — schéma d'installation, hottes et appareils protégés.",
+      en: "Kitchen fire suppression system verification — installation diagram, hoods, and protected appliances.",
     },
   },
 ];

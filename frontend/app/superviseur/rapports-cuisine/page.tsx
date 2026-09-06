@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Suspense } from 'react'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 import Pagination from '@/components/dashboard/Pagination'
 import { useT } from '@/lib/i18n'
@@ -12,35 +11,9 @@ const PAGE_SIZE = 25
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
-const ORANGE = '#e11324'
+const ORANGE = '#dc2626'
 
-function ProgressDots({ r }: { r: any }) {
-  const e1Done = !!(r.fiche_e1 && (r.fiche_e1.fonctionnement_une_etape !== null || r.fiche_e1.reseau_fonctionnel !== null))
-  const e2Done = !!(r.fiche_e2 && Object.keys(r.fiche_e2.details || {}).length > 0)
-  const e3Done = (r.sections || []).reduce((s: number, sec: any) => s + (sec.dispositifs?.length || 0), 0) > 0
-  const ferme = r.statut === 'ferme'
-  const certDone = !!r.certificat
-
-  return (
-    <div className="flex items-center gap-1">
-      {[
-        { label: 'E1', done: e1Done, color: '#9a4a13' },
-        { label: 'E2', done: e2Done, color: '#0d6b4f' },
-        { label: 'E3', done: e3Done, color: '#4b2f8c' },
-        { label: 'Fermé', done: ferme, color: NAVY },
-        { label: 'Certificat', done: certDone, color: ORANGE },
-      ].map((d, i, arr) => (
-        <div key={d.label} className="flex items-center gap-1">
-          <div title={d.label} className="w-2.5 h-2.5 rounded-full flex-shrink-0 transition-colors duration-300"
-            style={{ background: d.done ? d.color : '#e2e8f0' }} />
-          {i < arr.length - 1 && <div className="w-2 h-px flex-shrink-0" style={{ background: '#e2e8f0' }} />}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function RapportsListContent() {
+function RapportsCuisineListContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const t = useT()
@@ -71,7 +44,7 @@ function RapportsListContent() {
     if (!supprimerId) return
     setSuppression(true)
     const token = localStorage.getItem('access_token')
-    await fetch(`${API_URL}/api/rapports/${supprimerId}/`, {
+    await fetch(`${API_URL}/api/rapports-cuisine/${supprimerId}/`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -84,7 +57,7 @@ function RapportsListContent() {
 
   function chargerCompteurs() {
     const token = localStorage.getItem('access_token')
-    fetch(`${API_URL}/api/rapports/compteurs/`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_URL}/api/rapports-cuisine/compteurs/`, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => (res.ok ? res.json() : null))
       .then(data => { if (data) setCompteurs(data) })
       .catch(() => {})
@@ -97,7 +70,7 @@ function RapportsListContent() {
     const params = new URLSearchParams({ page: String(page) })
     if (filtre !== 'tous') params.set('statut', filtre)
     if (rechercheDebouncee.trim()) params.set('q', rechercheDebouncee.trim())
-    fetch(`${API_URL}/api/rapports/?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_URL}/api/rapports-cuisine/?${params}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => {
         if (res.status === 401) { router.push('/login'); return null }
         return res.json()
@@ -149,15 +122,13 @@ function RapportsListContent() {
     )
   }
 
-  const isCertificats = filtre === 'ferme' && !recherche
-
   return (
     <div>
       {modif && (
         <ModalModifierRapport
           rapport={modif.rapport}
           mode={modif.mode}
-          apiBase="/api/rapports/"
+          apiBase="/api/rapports-cuisine/"
           onClose={() => setModif(null)}
           onSaved={onModifSaved}
         />
@@ -175,9 +146,7 @@ function RapportsListContent() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: NAVY }}>
-            {isCertificats ? t('titre_certificats') : t('titre_rapport_incendie')}
-          </h1>
+          <h1 className="text-2xl font-bold" style={{ color: NAVY }}>{t('titre_rapport_cuisine')}</h1>
           <div className="flex items-center gap-2 mt-0.5">
             <p className="text-gray-500 text-sm">{compteurs.tous} {compteurs.tous !== 1 ? t('rapports_pluriel') : t('rapport_singulier')}</p>
             <span className="text-gray-200">·</span>
@@ -189,13 +158,6 @@ function RapportsListContent() {
             </button>
           </div>
         </div>
-        <Link
-          href="/superviseur/rapports/nouveau"
-          className="text-center text-white px-4 py-2.5 rounded-md text-sm font-bold hover:opacity-90 transition-opacity flex items-center gap-1.5"
-          style={{ background: ORANGE }}
-        >
-          <i className="ti ti-plus" /> {t('nouveau_rapport')}
-        </Link>
       </div>
 
       {/* Filtres + Recherche */}
@@ -227,7 +189,7 @@ function RapportsListContent() {
             value={recherche}
             onChange={e => setRecherche(e.target.value)}
             placeholder={t('rechercher_placeholder')}
-            className="w-full pl-8 pr-8 py-2 text-sm border border-gray-100 rounded-md focus:outline-none focus:border-[#e11324] bg-white"
+            className="w-full pl-8 pr-8 py-2 text-sm border border-gray-100 rounded-md focus:outline-none focus:border-[#dc2626] bg-white"
           />
           {recherche && (
             <button onClick={() => setRecherche('')}
@@ -241,26 +203,28 @@ function RapportsListContent() {
       {/* Liste */}
       {filtered.length === 0 ? (
         <div className="bg-white rounded-md border border-gray-100 p-12 text-center">
-          <i className="ti ti-file-search text-4xl text-gray-200" />
+          <i className="ti ti-tools-kitchen-2 text-4xl text-gray-200" />
           <p className="mt-3 text-sm text-gray-400">
-            {recherche ? t('aucun_resultat_recherche') : t('aucun_rapport')}
+            {recherche ? t('aucun_resultat_recherche') : t('aucun_rapport_cuisine')}
           </p>
           {!recherche && (
-            <Link href="/superviseur/rapports/nouveau"
-              className="mt-4 inline-block text-sm font-bold hover:underline"
-              style={{ color: ORANGE }}>
-              {t('creer_premier_rapport')}
-            </Link>
+            <>
+              <p className="mt-2 text-xs text-gray-400 max-w-sm mx-auto">{t('cuisine_cree_automatiquement')}</p>
+              <Link href="/superviseur/rapports-extincteurs/nouveau"
+                className="mt-4 inline-block text-sm font-bold hover:underline"
+                style={{ color: ORANGE }}>
+                {t('creer_rapport_extincteur_lien')}
+              </Link>
+            </>
           )}
         </div>
       ) : (
         <div className="bg-white rounded-md border border-gray-100 overflow-hidden shadow-sm">
-          {/* En-tête tableau — desktop */}
           <div className="hidden md:grid grid-cols-[2fr_1.5fr_1.5fr_auto_auto] gap-4 px-5 py-3 border-b border-gray-100 bg-slate-50 text-xs font-black uppercase tracking-widest text-gray-500">
             <span>{t('adresse')}</span>
             <span>{t('client')}</span>
             <span>{t('techniciens_col')}</span>
-            <span>{t('progression')}</span>
+            <span>{t('hottes_label')}</span>
             <span>{t('statut')}</span>
           </div>
 
@@ -270,21 +234,23 @@ function RapportsListContent() {
               return (
                 <Link
                   key={r.id}
-                  href={`/superviseur/rapports/${r.id}${ferme ? '#certificat' : ''}`}
+                  href={`/superviseur/rapports-cuisine/${r.id}`}
                   className="flex flex-col md:grid md:grid-cols-[2fr_1.5fr_1.5fr_auto_auto] gap-2 md:gap-4 px-5 py-4 hover:bg-gray-50 transition-colors items-start md:items-center group"
                 >
-                  {/* Adresse */}
                   <div className="flex items-center gap-3 min-w-0 w-full md:w-auto">
                     <div className="w-8 h-8 rounded-md flex-shrink-0 items-center justify-center hidden md:flex"
                       style={{ background: ferme ? '#e9f6f2' : '#fff2e8' }}>
-                      <i className="ti ti-building text-sm"
-                        style={{ color: ferme ? '#0d6b4f' : '#9a4a13' }} />
+                      <i className="ti ti-tools-kitchen-2 text-sm"
+                        style={{ color: ferme ? '#0d6b4f' : ORANGE }} />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold truncate group-hover:text-[#e11324] transition-colors" style={{ color: NAVY }}>
+                      <p className="text-sm font-semibold truncate group-hover:text-[#dc2626] transition-colors" style={{ color: NAVY }}>
                         {r.batiment?.adresse_complete || '—'}
                       </p>
-                      {r.date_inspection && (
+                      {r.rapport_extincteur_id && (
+                        <p className="text-xs text-gray-400">{t('rapport_cuisine_lie_texte')}</p>
+                      )}
+                      {!r.rapport_extincteur_id && r.date_inspection && (
                         <p className="text-xs text-gray-400">
                           {new Date(r.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'medium' })}
                         </p>
@@ -293,13 +259,12 @@ function RapportsListContent() {
                     <button
                       onClick={e => { e.preventDefault(); e.stopPropagation(); setModif({ rapport: r, mode: 'adresse' }) }}
                       title={t('corriger_adresse')}
-                      className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-[#e11324] hover:bg-orange-50 transition-colors"
+                      className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-[#dc2626] hover:bg-red-50 transition-colors"
                     >
                       <i className="ti ti-pencil text-xs" />
                     </button>
                   </div>
 
-                  {/* Client + citoyen */}
                   <div className="hidden md:flex items-center gap-1.5 min-w-0">
                     <div className="min-w-0">
                       <p className="text-sm text-gray-500 truncate">{r.batiment?.client_nom || '—'}</p>
@@ -311,18 +276,17 @@ function RapportsListContent() {
                     <button
                       onClick={e => { e.preventDefault(); e.stopPropagation(); setModif({ rapport: r, mode: 'citoyen' }) }}
                       title={t('modifier_citoyen')}
-                      className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-[#e11324] hover:bg-orange-50 transition-colors"
+                      className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-[#dc2626] hover:bg-red-50 transition-colors"
                     >
                       <i className="ti ti-pencil text-xs" />
                     </button>
                   </div>
 
-                  {/* Techniciens */}
                   <div className="hidden md:flex items-center flex-wrap gap-1">
                     {r.techniciens?.length
-                      ? r.techniciens.slice(0, 2).map((t: any) => (
-                        <span key={t.id} className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100" style={{ color: NAVY }}>
-                          {t.username}
+                      ? r.techniciens.slice(0, 2).map((tc: any) => (
+                        <span key={tc.id} className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100" style={{ color: NAVY }}>
+                          {tc.username}
                         </span>
                       ))
                       : <span className="text-xs text-gray-400 italic">{t('non_assigne')}</span>}
@@ -332,36 +296,33 @@ function RapportsListContent() {
                     <button
                       onClick={e => { e.preventDefault(); e.stopPropagation(); setModif({ rapport: r, mode: 'technicien' }) }}
                       title={t('reassigner_techniciens')}
-                      className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-[#e11324] hover:bg-orange-50 transition-colors"
+                      className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-[#dc2626] hover:bg-red-50 transition-colors"
                     >
                       <i className="ti ti-pencil text-xs" />
                     </button>
                   </div>
 
-                  {/* Mobile: client + techniciens inline */}
                   <div className="flex items-center gap-2 flex-wrap md:hidden">
                     <span className="text-xs text-gray-500">{r.batiment?.client_nom || '—'}</span>
                     {r.techniciens?.length > 0 && (
                       <>
                         <span className="text-gray-200">·</span>
                         <span className="text-xs text-gray-400">
-                          {r.techniciens.map((t: any) => t.username).join(', ')}
+                          {r.techniciens.map((tc: any) => tc.username).join(', ')}
                         </span>
                       </>
                     )}
                   </div>
 
-                  {/* Progression */}
-                  <div className="flex-shrink-0">
-                    <ProgressDots r={r} />
-                  </div>
+                  <span className="hidden md:inline text-xs text-gray-400">
+                    {r.rapport_extincteur_id ? t('extincteur_cuisine') : '—'}
+                  </span>
 
-                  {/* Statut */}
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-xs px-2.5 py-1 rounded-full font-semibold whitespace-nowrap"
                       style={ferme
                         ? { background: '#e9f6f2', color: '#0d6b4f' }
-                        : { background: '#fff2e8', color: '#9a4a13' }}>
+                        : { background: '#fff2e8', color: ORANGE }}>
                       {ferme ? t('ferme') : t('ouvert')}
                     </span>
                     {ferme && r.certificat && (
@@ -396,7 +357,7 @@ function RapportsListContent() {
               <i className="ti ti-alert-triangle text-red-500 text-xl" />
             </div>
             <h3 className="text-sm font-bold mb-1" style={{ color: NAVY }}>{t('supprimer_rapport_titre')}</h3>
-            <p className="text-xs text-gray-400 mb-5">{t('supprimer_rapport_extra_note')}</p>
+            <p className="text-xs text-gray-400 mb-5">{t('action_irreversible')}</p>
             <div className="flex gap-2">
               <button onClick={() => setSupprimerId(null)} className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-200" style={{ color: NAVY }}>{t('annuler')}</button>
               <button onClick={supprimerRapport} disabled={suppression} className="flex-1 py-2.5 rounded-md text-sm font-bold text-white bg-red-500 disabled:opacity-50">
@@ -406,28 +367,11 @@ function RapportsListContent() {
           </div>
         </div>
       )}
-
-      {/* Légende progression */}
-      <div className="mt-4 flex items-center gap-4 flex-wrap px-1">
-        <span className="text-xs text-gray-400 uppercase tracking-widest">{t('progression')} :</span>
-        {[
-          { label: 'E1', color: '#9a4a13' },
-          { label: 'E2', color: '#0d6b4f' },
-          { label: 'E3', color: '#4b2f8c' },
-          { label: t('ferme'), color: NAVY },
-          { label: t('certificat'), color: ORANGE },
-        ].map(d => (
-          <div key={d.label} className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: d.color }} />
-            <span className="text-xs text-gray-500">{d.label}</span>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }
 
-export default function SuperviseurRapportsPage() {
+export default function SuperviseurRapportsCuisinePage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center h-64">
@@ -435,7 +379,7 @@ export default function SuperviseurRapportsPage() {
           style={{ borderColor: NAVY, borderTopColor: 'transparent' }} />
       </div>
     }>
-      <RapportsListContent />
+      <RapportsCuisineListContent />
     </Suspense>
   )
 }

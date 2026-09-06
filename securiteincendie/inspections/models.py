@@ -207,6 +207,14 @@ class Certificat(models.Model):
         default=False,
         help_text="True quand le superviseur envoie explicitement le certificat au citoyen.",
     )
+
+    class ModeEnvoi(models.TextChoices):
+        DIRECT = "direct", "Courriel direct"
+        CITOYEN = "citoyen", "Espace citoyen"
+
+    mode_envoi = models.CharField(max_length=10, choices=ModeEnvoi.choices, blank=True)
+    date_envoi = models.DateTimeField(null=True, blank=True)
+    envoye_a = models.CharField(max_length=255, blank=True, help_text="Courriel ou nom d'utilisateur destinataire, au moment de l'envoi.")
     emis_par = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -227,8 +235,12 @@ class Certificat(models.Model):
             from django.utils import timezone
 
             annee = timezone.now().year
-            compte = Certificat.objects.filter(date_emission__year=annee).count() + 1
-            self.numero = f"CERT-{annee}-{compte:04d}"
+            prefixe = f"CERT-{annee}-"
+            # Basé sur le plus grand numéro déjà attribué (pas un count()) pour
+            # rester correct même si des certificats plus anciens ont été supprimés.
+            dernier = Certificat.objects.filter(numero__startswith=prefixe).order_by("-numero").first()
+            compte = int(dernier.numero.rsplit("-", 1)[1]) + 1 if dernier else 1
+            self.numero = f"{prefixe}{compte:04d}"
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -539,6 +551,11 @@ class RapportExtincteur(models.Model):
         if eclairage is not None and eclairage.statut != eclairage.Statut.FERME:
             eclairage.fermer(utilisateur)
 
+        # Même logique pour le système de cuisine lié, s'il y en a un.
+        cuisine = getattr(self, "rapport_cuisine_lie", None)
+        if cuisine is not None and cuisine.statut != cuisine.Statut.FERME:
+            cuisine.fermer(utilisateur)
+
     def rouvrir(self, utilisateur):
         self.statut = self.Statut.OUVERT
         self.date_fermeture = None
@@ -557,6 +574,10 @@ class RapportExtincteur(models.Model):
         if eclairage is not None and eclairage.statut == eclairage.Statut.FERME:
             eclairage.rouvrir(utilisateur)
 
+        cuisine = getattr(self, "rapport_cuisine_lie", None)
+        if cuisine is not None and cuisine.statut == cuisine.Statut.FERME:
+            cuisine.rouvrir(utilisateur)
+
     def __str__(self):
         return f"Rapport extincteurs {self.batiment.adresse_complete} — {self.get_statut_display()}"
 
@@ -573,6 +594,14 @@ class CertificatExtincteur(models.Model):
         default=False,
         help_text="True quand le superviseur envoie explicitement le certificat au citoyen.",
     )
+
+    class ModeEnvoi(models.TextChoices):
+        DIRECT = "direct", "Courriel direct"
+        CITOYEN = "citoyen", "Espace citoyen"
+
+    mode_envoi = models.CharField(max_length=10, choices=ModeEnvoi.choices, blank=True)
+    date_envoi = models.DateTimeField(null=True, blank=True)
+    envoye_a = models.CharField(max_length=255, blank=True, help_text="Courriel ou nom d'utilisateur destinataire, au moment de l'envoi.")
     emis_par = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -588,8 +617,12 @@ class CertificatExtincteur(models.Model):
             from django.utils import timezone
 
             annee = timezone.now().year
-            compte = CertificatExtincteur.objects.filter(date_emission__year=annee).count() + 1
-            self.numero = f"CERT-EXT-{annee}-{compte:04d}"
+            prefixe = f"CERT-EXT-{annee}-"
+            # Basé sur le plus grand numéro déjà attribué (pas un count()) pour
+            # rester correct même si des certificats plus anciens ont été supprimés.
+            dernier = CertificatExtincteur.objects.filter(numero__startswith=prefixe).order_by("-numero").first()
+            compte = int(dernier.numero.rsplit("-", 1)[1]) + 1 if dernier else 1
+            self.numero = f"{prefixe}{compte:04d}"
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -768,8 +801,12 @@ class AppelService(models.Model):
             from django.utils import timezone
 
             annee = timezone.now().year
-            compte = AppelService.objects.filter(date_creation__year=annee).count() + 1
-            self.numero = f"APP-{annee}-{compte:04d}"
+            prefixe = f"APP-{annee}-"
+            # Basé sur le plus grand numéro déjà attribué (pas un count()) pour
+            # rester correct même si des appels plus anciens ont été supprimés.
+            dernier = AppelService.objects.filter(numero__startswith=prefixe).order_by("-numero").first()
+            compte = int(dernier.numero.rsplit("-", 1)[1]) + 1 if dernier else 1
+            self.numero = f"{prefixe}{compte:04d}"
         super().save(*args, **kwargs)
 
     def historiser(self, utilisateur, description):
@@ -915,6 +952,211 @@ class EclairageUrgenceItem(models.Model):
 
     def __str__(self):
         return f"Éclairage urgence #{self.ordre} — {self.rapport}"
+
+
+class RapportCuisine(models.Model):
+    """Rapport de vérification du système fixe d'extinction de cuisine (hotte),
+    norme ULC ORD 1254.6 / ULC 300 — une inspection couvre généralement les
+    extincteurs ET le système de cuisine en même temps (comme l'éclairage
+    d'urgence), ce rapport est donc créé automatiquement à la création du
+    rapport extincteur correspondant (voir _creer_rapport_cuisine_lie), pour
+    qu'un seul certificat unifié soit délivré à la fermeture. Reste nullable
+    pour les rapports créés seuls, sans extincteur associé."""
+
+    class Statut(models.TextChoices):
+        OUVERT = "ouvert", "Ouvert"
+        FERME = "ferme", "Fermé"
+
+    class TypeAgent(models.TextChoices):
+        LIQUIDE = "liquide", "Liquide (wet chemical)"
+        POUDRE = "poudre", "Poudre chimique"
+        CO2 = "co2", "CO2"
+        AUTRE = "autre", "Autre"
+
+    class DispositifCoupure(models.TextChoices):
+        VALVE_GAZ = "valve_gaz", "Valve(s) à gaz"
+        CONTACTEUR = "contacteur", "Contacteur"
+
+    batiment = models.ForeignKey(Batiment, on_delete=models.CASCADE, related_name="rapports_cuisine")
+    rapport_extincteur = models.OneToOneField(
+        RapportExtincteur,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="rapport_cuisine_lie",
+    )
+    cree_par = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="rapports_cuisine_crees",
+        limit_choices_to={"role": "superviseur"},
+    )
+    techniciens = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name="rapports_cuisine_assignes",
+        limit_choices_to={"role": "technicien"},
+        blank=True,
+    )
+    numero_job = models.CharField(max_length=50, blank=True, help_text="Champ « JOB » du formulaire papier.")
+
+    statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.OUVERT)
+
+    # ── Informations du système ──
+    courtier = models.CharField(max_length=150, blank=True)
+    fabricant = models.CharField(max_length=100, blank=True)
+    modele = models.CharField(max_length=100, blank=True)
+    numero_serie = models.CharField(max_length=100, blank=True)
+    type_agent = models.CharField(max_length=10, choices=TypeAgent.choices, blank=True)
+    date_installation = models.DateField(null=True, blank=True)
+    alimentation = models.CharField(max_length=150, blank=True, help_text="Ex. « Gaz », « Électrique »")
+    dispositif_coupure = models.CharField(max_length=15, choices=DispositifCoupure.choices, blank=True)
+    nombre_buses = models.PositiveIntegerField(null=True, blank=True, help_text="Nombre total de buses du système")
+    liens_fusibles_360f = models.PositiveIntegerField(null=True, blank=True, verbose_name="Liens fusibles 360°F")
+    liens_fusibles_450f = models.PositiveIntegerField(null=True, blank=True, verbose_name="Liens fusibles 450°F")
+    liens_fusibles_500f = models.PositiveIntegerField(null=True, blank=True, verbose_name="Liens fusibles 500°F")
+    buses_liens_fusibles = models.CharField(max_length=200, blank=True, help_text="Ex. « 6 buses · 360° (remplacés) »")
+    date_dernier_essai_hydrostatique = models.DateField(null=True, blank=True)
+    date_derniere_recharge = models.DateField(null=True, blank=True)
+    prochaine_inspection = models.DateField(null=True, blank=True)
+    raccordement = models.CharField(max_length=150, blank=True, help_text="Ex. « Relié au panneau d'alarme »")
+
+    # ── Liste des vérifications (13 items fixes, norme ULC) ──
+    appareils_proteges = models.BooleanField(null=True, blank=True, default=None)
+    liens_fusibles_remplaces = models.BooleanField(null=True, blank=True, default=None)
+    installation_conforme_fabricant = models.BooleanField(null=True, blank=True, default=None)
+    cable_tension_verifie = models.BooleanField(null=True, blank=True, default=None)
+    pression_manometre_verifiee = models.BooleanField(null=True, blank=True, default=None)
+    conduits_decharge_verifies = models.BooleanField(null=True, blank=True, default=None)
+    cylindres_supports_inspectes = models.BooleanField(null=True, blank=True, default=None)
+    extincteur_portatif_type_k = models.BooleanField(null=True, blank=True, default=None)
+    station_manuelle_degagee = models.BooleanField(null=True, blank=True, default=None)
+    etiquettes_verification_apposees = models.BooleanField(null=True, blank=True, default=None)
+    buses_protecteurs_nettoyes = models.BooleanField(null=True, blank=True, default=None)
+    systeme_condition_normale = models.BooleanField(null=True, blank=True, default=None)
+    liens_fusibles_nettoyes = models.BooleanField(null=True, blank=True, default=None)
+
+    commentaires = models.TextField(blank=True)
+
+    date_inspection = models.DateField(null=True, blank=True)
+    date_derniere_sauvegarde = models.DateTimeField(auto_now=True)
+    date_fermeture = models.DateTimeField(null=True, blank=True)
+    date_creation = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date_creation"]
+
+    CHAMPS_VERIFICATION = [
+        "appareils_proteges",
+        "liens_fusibles_remplaces",
+        "installation_conforme_fabricant",
+        "cable_tension_verifie",
+        "pression_manometre_verifiee",
+        "conduits_decharge_verifies",
+        "cylindres_supports_inspectes",
+        "extincteur_portatif_type_k",
+        "station_manuelle_degagee",
+        "etiquettes_verification_apposees",
+        "buses_protecteurs_nettoyes",
+        "systeme_condition_normale",
+        "liens_fusibles_nettoyes",
+    ]
+
+    @property
+    def nb_verifications_conformes(self):
+        return sum(1 for champ in self.CHAMPS_VERIFICATION if getattr(self, champ) is True)
+
+    @property
+    def est_conforme(self):
+        return all(getattr(self, champ) is True for champ in self.CHAMPS_VERIFICATION)
+
+    def historiser(self, utilisateur, description):
+        HistoriqueRapportCuisine.objects.create(
+            rapport=self, utilisateur=utilisateur, description=description
+        )
+
+    def fermer(self, utilisateur):
+        from django.utils import timezone
+
+        self.statut = self.Statut.FERME
+        self.date_fermeture = timezone.now()
+        self.save()
+        self.historiser(utilisateur, "Rapport fermé")
+
+    def rouvrir(self, utilisateur):
+        self.statut = self.Statut.OUVERT
+        self.date_fermeture = None
+        self.save()
+        self.historiser(utilisateur, "Rapport rouvert")
+
+    def __str__(self):
+        return f"Rapport cuisine {self.batiment.adresse_complete} — {self.get_statut_display()}"
+
+
+class HistoriqueRapportCuisine(models.Model):
+    """Une ligne d'audit pour un rapport cuisine."""
+
+    rapport = models.ForeignKey(RapportCuisine, on_delete=models.CASCADE, related_name="historique")
+    utilisateur = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True
+    )
+    description = models.CharField(max_length=300)
+    date_heure = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date_heure"]
+
+    def __str__(self):
+        return f"{self.date_heure:%Y-%m-%d %H:%M} — {self.description}"
+
+
+class HotteCuisine(models.Model):
+    """
+    Une hotte (conduit d'extraction) protégée par le système, avec les
+    appareils de cuisine qu'elle couvre. Les repères d'appareils et les
+    divisions du conduit (schéma d'installation interactif) sont stockés en
+    JSON — données structurées mais propres à l'éditeur visuel.
+
+    Format de `appareils`: [{"code": "F", "x": 120, "side": "above"}, ...]
+    (code = type d'appareil, x = position horizontale sur le conduit,
+    side = "above"/"below"). Format de `dividers`: [245, ...] (positions où
+    le conduit est visuellement divisé en segments).
+    """
+
+    class CodeAppareil(models.TextChoices):
+        FRITEUSE = "F", "Friteuse"
+        FRITEUSE_PRESSION = "B", "Friteuse sous pression"
+        PLAQUE_CHAUFFANTE = "G", "Plaque chauffante"
+        CUISINIERE = "R", "Cuisinière"
+        GRILLE_CHARBON = "C", "Grille charbon"
+        SALAMANDRE = "S", "Salamandre"
+        BASSIN_FRIRE = "BP", "Bassin à frire"
+        WOK = "W", "Wok"
+        AUTRE = "O", "Autre"
+
+    rapport = models.ForeignKey(RapportCuisine, on_delete=models.CASCADE, related_name="hottes")
+    ordre = models.PositiveIntegerField(default=0)
+    label = models.CharField(max_length=100, blank=True)
+    nombre_buses = models.PositiveIntegerField(
+        null=True, blank=True,
+        help_text="Ancien champ (comptage seulement) — remplacé par `buses` (positions), gardé pour l'historique des hottes créées avant.",
+    )
+    buses = models.JSONField(
+        default=list, blank=True,
+        help_text="Positions horizontales des buses, placées manuellement — [{'x': 120}, ...], comme `appareils`.",
+    )
+    appareils = models.JSONField(default=list, blank=True)
+    dividers = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        ordering = ["ordre", "id"]
+
+    def save(self, *args, **kwargs):
+        if not self.label:
+            self.label = f"Hotte #{self.ordre or 1}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.label} — {self.rapport}"
 
 
 class HistoriqueAppelService(models.Model):

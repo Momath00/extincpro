@@ -30,10 +30,10 @@ const systems = [
     },
   },
   {
-    title: { fr: "Gicleurs", en: "Sprinklers" },
+    title: { fr: "Système de cuisine", en: "Kitchen suppression system" },
     desc: {
-      fr: "Suivi des inspections de systèmes de gicleurs et de leur conformité réglementaire.",
-      en: "Tracking of sprinkler system inspections and their regulatory compliance.",
+      fr: "Vérification du système d'extinction de cuisine — schéma d'installation, hottes et appareils protégés.",
+      en: "Kitchen fire suppression system verification — installation diagram, hoods, and protected appliances.",
     },
   },
 ];
@@ -180,6 +180,27 @@ export function HomeContent() {
                 <p className="mt-2 text-sm leading-relaxed text-text-muted">{sys.desc[langue]}</p>
               </div>
             ))}
+          </div>
+        </Container>
+      </section>
+
+      {/* SYSTÈME DE CUISINE */}
+      <section className="border-t border-line bg-paper py-24 sm:py-28">
+        <Container>
+          <SectionHeading
+            kicker={t("cuisine_kicker")}
+            title={t("cuisine_titre")}
+            description={t("cuisine_desc")}
+            align="center"
+          />
+          <div className="mt-14">
+            <Image
+              src="/captures/systeme-cuisine.png"
+              alt={t("cuisine_alt")}
+              width={1528}
+              height={1029}
+              className="mx-auto h-auto w-full max-w-4xl rounded-lg border border-line shadow-xl shadow-ink/5"
+            />
           </div>
         </Container>
       </section>

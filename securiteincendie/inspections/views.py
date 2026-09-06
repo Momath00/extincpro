@@ -1,6 +1,7 @@
 from collections import Counter
 from datetime import date
 
+from django.db.models import Q
 from django.http import HttpResponse
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -22,6 +23,7 @@ from .excel_utils import (
     excel_reponse,
     excel_workbook,
 )
+from .pagination import PaginationSiDemandee, RapportPagination
 from .models import (
     AppelService,
     Batiment,
@@ -35,7 +37,9 @@ from .models import (
     FicheE1,
     FicheE2,
     FicheLegende,
+    HotteCuisine,
     Rapport,
+    RapportCuisine,
     RapportEclairageUrgence,
     RapportExtincteur,
     SectionDispositif,
@@ -53,10 +57,15 @@ from .serializers import (
     FicheE1Serializer,
     FicheE2Serializer,
     FicheLegendeSerializer,
+    HistoriqueRapportCuisineSerializer,
     HistoriqueRapportEclairageUrgenceSerializer,
     HistoriqueRapportExtincteurSerializer,
     HistoriqueRapportSerializer,
+    HotteCuisineSerializer,
     RapportCreateSerializer,
+    RapportCuisineCreateSerializer,
+    RapportCuisineDetailSerializer,
+    RapportCuisineListSerializer,
     RapportDetailSerializer,
     RapportEclairageUrgenceCreateSerializer,
     RapportEclairageUrgenceDetailSerializer,
@@ -118,6 +127,24 @@ LEGENDE_EXTINCTEURS = [
 ]
 
 
+# ── Liste des vérifications du système d'extinction de cuisine (ULC ORD 1254.6) ──
+CHECKLIST_CUISINE = [
+    ("appareils_proteges", "Vérifier si les appareils sont protégés de façon adéquate"),
+    ("liens_fusibles_remplaces", "Remplacer le(s) lien(s)-fusible(s)"),
+    ("installation_conforme_fabricant", "Vérifier si le système est installé selon les normes du fabricant"),
+    ("cable_tension_verifie", "Vérifier le câble de tension pour corrosion ou effilochure"),
+    ("pression_manometre_verifiee", "Vérifier la pression du manomètre"),
+    ("conduits_decharge_verifies", "Vérifier tous les conduits de déchargement et fixations"),
+    ("cylindres_supports_inspectes", "Inspecter et nettoyer le(s) cylindre(s) et le(s) support(s)"),
+    ("extincteur_portatif_type_k", "Vérifier la présence d'un extincteur portatif conforme (type K)"),
+    ("station_manuelle_degagee", "Vérifier l'absence d'obstruction devant la station manuelle"),
+    ("etiquettes_verification_apposees", "Apposer les étiquettes de vérification"),
+    ("buses_protecteurs_nettoyes", "Nettoyer et vérifier les buses et leurs protecteurs"),
+    ("systeme_condition_normale", "Laisser le système en condition d'opération normale"),
+    ("liens_fusibles_nettoyes", "Nettoyer et vérifier le(s) lien(s)-fusible(s)"),
+]
+
+
 def _val_oui_non(v):
     if v is True:  return '<span style="color:#0d6b4f;font-weight:700;">Oui</span>'
     if v is False: return '<span style="color:#e11324;font-weight:700;">Non</span>'
@@ -163,13 +190,47 @@ def _creer_rapport_eclairage_lie(rapport_extincteur, utilisateur):
     )
 
 
+def _creer_rapport_cuisine_lie(rapport_extincteur, utilisateur, request_data):
+    """Crée le rapport du système d'extinction de cuisine lié à ce rapport
+    extincteur, uniquement si demandé explicitement — le module (SaaS,
+    activable par organisation) permet à une organisation d'utiliser ce
+    module, mais toutes les adresses d'une même organisation n'ont pas une
+    cuisine commerciale (ex. un seul immeuble sur dix est un restaurant) :
+    le superviseur/technicien coche donc l'option au moment de créer le
+    rapport extincteur (`avec_systeme_cuisine`) pour indiquer que CE
+    bâtiment en a une."""
+    organisation = getattr(utilisateur, "organisation", None)
+    if not (organisation and organisation.a_le_module("rapport_cuisine")):
+        return
+    if not request_data.get("avec_systeme_cuisine"):
+        return
+
+    rapport_cuisine = RapportCuisine.objects.create(
+        batiment=rapport_extincteur.batiment,
+        cree_par=utilisateur,
+        numero_job=rapport_extincteur.numero_job,
+        date_inspection=rapport_extincteur.date_inspection,
+        rapport_extincteur=rapport_extincteur,
+    )
+    rapport_cuisine.techniciens.set(rapport_extincteur.techniciens.all())
+    rapport_cuisine.historiser(
+        utilisateur, "Rapport créé automatiquement avec le rapport extincteur"
+    )
+
+
 def _est_conforme_extincteur(rapport_extincteur):
-    """Non conforme dès qu'un extincteur OU une unité d'éclairage d'urgence
-    liée est défectueux — même logique que le certificat unifié."""
+    """Non conforme dès qu'un extincteur, une unité d'éclairage d'urgence
+    liée OU le système de cuisine lié est défectueux/non conforme — même
+    logique que le certificat unifié."""
     rapport_eclairage = getattr(rapport_extincteur, "rapport_eclairage_lie", None)
     eclairages = list(rapport_eclairage.eclairages_urgence.all()) if rapport_eclairage else []
+    rapport_cuisine = getattr(rapport_extincteur, "rapport_cuisine_lie", None)
     items = list(rapport_extincteur.extincteurs.all())
-    return not any(it.etat == "D" for it in items) and not any(it.etat == "D" for it in eclairages)
+    return (
+        not any(it.etat == "D" for it in items)
+        and not any(it.etat == "D" for it in eclairages)
+        and (rapport_cuisine is None or rapport_cuisine.est_conforme)
+    )
 
 
 # ── Traduction des rapports/certificats (langue de l'organisation) ─────────
@@ -253,6 +314,7 @@ I18N = {
     "aucun_boyau": {"fr": "Aucun boyau enregistré", "en": "No fire hose recorded"},
     "aucune_unite": {"fr": "Aucune unité enregistrée", "en": "No unit recorded"},
     "aucun_appareil": {"fr": "Aucun appareil enregistré", "en": "No device recorded"},
+    "aucune_hotte": {"fr": "Aucune hotte enregistrée", "en": "No hood recorded"},
     "footer_rapport_eclairage": {
         "fr": "Rapport de vérification — Éclairage d'urgence",
         "en": "Verification Report — Emergency Lighting",
@@ -265,6 +327,16 @@ I18N = {
     "total": {"fr": "Total", "en": "Total"},
     "defectueuse_s": {"fr": "défectueuse(s)", "en": "defective"},
     "boyaux_incendie_sheet": {"fr": "Boyaux", "en": "Hoses"},
+    "numero_job": {"fr": "N° job", "en": "Job No."},
+    "schema_installation": {"fr": "Schéma d'installation", "en": "Installation diagram"},
+    "liste_verifications": {"fr": "Liste des vérifications", "en": "Verification checklist"},
+    "conformes_sur": {"fr": "conformes", "en": "compliant"},
+    "informations_systeme": {"fr": "Informations du système", "en": "System information"},
+    "commentaires_label": {"fr": "Commentaires", "en": "Comments"},
+    "footer_rapport_cuisine": {
+        "fr": "Ce rapport présente le détail de la vérification du système d'extinction de cuisine à la date indiquée.",
+        "en": "This report presents the details of the kitchen fire suppression system verification on the date indicated.",
+    },
 }
 
 
@@ -477,18 +549,30 @@ class ClientViewSet(viewsets.ModelViewSet):
 
     serializer_class = ClientSerializer
     permission_classes = [permissions.IsAuthenticated, EstSuperviseur]
+    pagination_class = PaginationSiDemandee
 
     def get_queryset(self):
-        return Client.objects.filter(organisation=self.request.user.organisation)
+        qs = Client.objects.filter(organisation=self.request.user.organisation)
+        q = self.request.query_params.get("q")
+        if q:
+            qs = qs.filter(
+                Q(nom__icontains=q) | Q(contact_nom__icontains=q) | Q(contact_email__icontains=q)
+            )
+        return qs.order_by("nom")
 
     def perform_create(self, serializer):
         serializer.save(organisation=self.request.user.organisation)
+
+    @action(detail=False, methods=["get"])
+    def compteurs(self, request):
+        return Response({"total": Client.objects.filter(organisation=request.user.organisation).count()})
 
 
 # ── Bâtiment ─────────────────────────────────────────────────────────────
 class BatimentViewSet(viewsets.ModelViewSet):
     serializer_class = BatimentSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = PaginationSiDemandee
 
     def get_queryset(self):
         user = self.request.user
@@ -501,12 +585,63 @@ class BatimentViewSet(viewsets.ModelViewSet):
         client_id = self.request.query_params.get("client")
         if client_id:
             qs = qs.filter(client_id=client_id)
-        return qs
+
+        q = self.request.query_params.get("q")
+        if q:
+            qs = qs.filter(
+                Q(numero_civique__icontains=q) | Q(rue__icontains=q) | Q(ville__icontains=q) | Q(client__nom__icontains=q)
+            )
+
+        return qs.distinct().order_by("client__nom", "rue")
+
+    @action(detail=False, methods=["get"])
+    def compteurs(self, request):
+        """Total indépendant de la recherche `q` (mais respecte le filtre
+        `client`, comme le reste de la liste) — pour l'en-tête de la page."""
+        user = request.user
+        qs = Batiment.objects.filter(client__organisation=user.organisation)
+        if user.est_citoyen():
+            qs = qs.filter(proprietaire=user)
+        elif user.est_technicien():
+            qs = qs.filter(rapports__techniciens=user).distinct()
+        client_id = request.query_params.get("client")
+        if client_id:
+            qs = qs.filter(client_id=client_id)
+        return Response({"total": qs.distinct().count()})
 
     def get_permissions(self):
         if self.action in ["create", "update", "partial_update", "destroy"]:
             return [permissions.IsAuthenticated(), EstSuperviseur()]
+        if self.action in ["documents_a_envoyer", "envoyer_documents"]:
+            return [permissions.IsAuthenticated(), EstSuperviseur()]
         return super().get_permissions()
+
+    @action(detail=True, methods=["get"], url_path="documents-a-envoyer")
+    def documents_a_envoyer(self, request, pk=None):
+        from .emailing import _documents_prets_directs
+        from .models import Client
+
+        batiment = self.get_object()
+        client = batiment.client
+        mode_direct = client.mode_livraison == Client.ModeLivraison.DIRECT
+        elements = _documents_prets_directs(batiment) if mode_direct else []
+        return Response({
+            "mode_direct": mode_direct,
+            "contact_email": client.contact_email if mode_direct else None,
+            "count": len(elements),
+            "nb_rapports": sum(el["nb_rapports"] for el in elements),
+            "labels": [el["label"] for el in elements],
+        })
+
+    @action(detail=True, methods=["post"], url_path="envoyer-documents")
+    def envoyer_documents(self, request, pk=None):
+        from .emailing import envoyer_certificats_directs_batiment
+
+        batiment = self.get_object()
+        ok, message = envoyer_certificats_directs_batiment(batiment, request.user)
+        if not ok:
+            return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"message": message})
 
 
 def _html_certificat_incendie(rapport) -> str:
@@ -838,6 +973,34 @@ def _html_rapport_incendie_complet(rapport) -> str:
 </html>"""
 
 
+def _filtrer_recherche_rapport(qs, q: str):
+    """Recherche texte partagée par les 4 listes de rapports (incendie,
+    extincteur, éclairage d'urgence, cuisine) — adresse, client, technicien —
+    faite côté serveur pour rester correcte même paginée (le frontend ne voit
+    jamais la liste complète pour filtrer en mémoire)."""
+    q = q.strip()
+    if not q:
+        return qs
+    return qs.filter(
+        Q(batiment__numero_civique__icontains=q)
+        | Q(batiment__rue__icontains=q)
+        | Q(batiment__ville__icontains=q)
+        | Q(batiment__client__nom__icontains=q)
+        | Q(techniciens__username__icontains=q)
+    ).distinct()
+
+
+def _compteurs_statuts(qs) -> dict:
+    """Compte ouverts/fermés sur le queryset de base (avant filtre de statut
+    ou de recherche) — pour que les puces de filtre affichent toujours le
+    total réel, indépendamment de la page ou de la recherche en cours."""
+    return {
+        "tous": qs.count(),
+        "ouvert": qs.filter(statut="ouvert").count(),
+        "ferme": qs.filter(statut="ferme").count(),
+    }
+
+
 # ── Rapport ──────────────────────────────────────────────────────────────
 class EstModuleRapportIncendieActif(permissions.BasePermission):
     message = "Le module « Rapport d'inspection incendie » n'est pas activé pour votre organisation."
@@ -849,6 +1012,7 @@ class EstModuleRapportIncendieActif(permissions.BasePermission):
 
 class RapportViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, EstModuleRapportIncendieActif]
+    pagination_class = RapportPagination
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -857,7 +1021,7 @@ class RapportViewSet(viewsets.ModelViewSet):
             return RapportCreateSerializer
         return RapportDetailSerializer
 
-    def get_queryset(self):
+    def _queryset_de_base(self):
         user = self.request.user
         qs = Rapport.objects.select_related("batiment", "batiment__client", "cree_par", "citoyen").prefetch_related("techniciens").filter(batiment__client__organisation=user.organisation)
 
@@ -867,21 +1031,33 @@ class RapportViewSet(viewsets.ModelViewSet):
             qs = qs.filter(techniciens=user)
         # le superviseur voit tout
 
-        # Filtres — client, direction, type d'application, statut
         client_id = self.request.query_params.get("client")
         direction = self.request.query_params.get("direction")
         application = self.request.query_params.get("application")
-        statut = self.request.query_params.get("statut")
         if client_id:
             qs = qs.filter(batiment__client_id=client_id)
         if direction:
             qs = qs.filter(batiment__direction__icontains=direction)
         if application:
             qs = qs.filter(batiment__type_application=application)
+
+        return qs
+
+    def get_queryset(self):
+        qs = self._queryset_de_base()
+
+        statut = self.request.query_params.get("statut")
+        q = self.request.query_params.get("q")
         if statut:
             qs = qs.filter(statut=statut)
+        if q:
+            qs = _filtrer_recherche_rapport(qs, q)
 
-        return qs.distinct()
+        return qs.distinct().order_by("-date_inspection", "-id")
+
+    @action(detail=False, methods=["get"])
+    def compteurs(self, request):
+        return Response(_compteurs_statuts(self._queryset_de_base()))
 
     def get_permissions(self):
         if self.action in ["create", "destroy", "reassigner", "rouvrir"]:
@@ -966,6 +1142,7 @@ class RapportViewSet(viewsets.ModelViewSet):
         rapport_extincteur.historiser(self.request.user, "Rapport créé automatiquement avec le rapport principal")
 
         _creer_rapport_eclairage_lie(rapport_extincteur, self.request.user)
+        _creer_rapport_cuisine_lie(rapport_extincteur, self.request.user, self.request.data)
 
     def perform_update(self, serializer):
         instance = self.get_object()
@@ -1014,7 +1191,12 @@ class RapportViewSet(viewsets.ModelViewSet):
                 return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
             return Response({"message": message})
 
+        from django.utils import timezone
+
         rapport.certificat.certificat_envoye = True
+        rapport.certificat.mode_envoi = rapport.certificat.ModeEnvoi.CITOYEN
+        rapport.certificat.date_envoi = timezone.now()
+        rapport.certificat.envoye_a = rapport.citoyen.username if rapport.citoyen else ""
         rapport.certificat.save()
         rapport.historiser(request.user, f"Certificat envoyé au citoyen {rapport.citoyen.username if rapport.citoyen else '—'}")
 
@@ -1024,6 +1206,49 @@ class RapportViewSet(viewsets.ModelViewSet):
             envoyer_email_certificat_disponible(rapport)
 
         return Response({"message": "Certificat envoyé au citoyen."})
+
+    @action(detail=True, methods=["post"], url_path="renvoyer-certificat")
+    def renvoyer_certificat(self, request, pk=None):
+        """Renvoie un certificat déjà envoyé (client qui l'a perdu, etc.) —
+        sans condition sur `certificat_envoye`, contrairement à
+        `envoyer_certificat`. Si le rapport a été modifié depuis le dernier
+        envoi, il faut d'abord le rouvrir puis le refermer (ce qui remet
+        `certificat_envoye` à False automatiquement) plutôt que d'utiliser
+        cette action."""
+        rapport = self.get_object()
+        if not request.user.est_superviseur():
+            return Response(
+                {"error": "Seul le superviseur peut renvoyer le certificat."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not hasattr(rapport, "certificat"):
+            return Response({"error": "Aucun certificat trouvé pour ce rapport."}, status=status.HTTP_404_NOT_FOUND)
+
+        client = rapport.batiment.client
+        if client.mode_livraison == Client.ModeLivraison.DIRECT:
+            from .emailing import renvoyer_document_direct
+
+            ok, message = renvoyer_document_direct(rapport, "incendie", request.user)
+            if not ok:
+                return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": message})
+
+        if not (rapport.citoyen and rapport.citoyen.email):
+            return Response({"error": "Aucun citoyen avec courriel assigné à ce rapport."}, status=status.HTTP_400_BAD_REQUEST)
+
+        from django.utils import timezone
+
+        rapport.certificat.mode_envoi = rapport.certificat.ModeEnvoi.CITOYEN
+        rapport.certificat.date_envoi = timezone.now()
+        rapport.certificat.envoye_a = rapport.citoyen.username
+        rapport.certificat.save()
+        rapport.historiser(request.user, f"Certificat renvoyé au citoyen {rapport.citoyen.username}")
+
+        from .emailing import envoyer_email_certificat_disponible
+
+        envoyer_email_certificat_disponible(rapport)
+
+        return Response({"message": "Certificat renvoyé au citoyen."})
 
     @action(detail=True, methods=["get", "patch"], url_path="fiche-e1")
     def fiche_e1(self, request, pk=None):
@@ -1350,12 +1575,14 @@ def _html_certificat_extincteur(rapport) -> str:
     tech_noms = ", ".join(t2.get_full_name() or t2.username for t2 in techniciens) or "—"
 
     # ── Certificat unifié : une visite couvre extincteurs + éclairage
-    # d'urgence en même temps (voir rapport_eclairage_lie) — un seul
-    # certificat reflète donc l'état des deux équipements. Non conforme
-    # dès qu'un extincteur OU une unité d'éclairage est défectueux.
+    # d'urgence + système de cuisine (s'il est lié) en même temps — un seul
+    # certificat reflète donc l'état des trois équipements. Non conforme
+    # dès qu'un extincteur, une unité d'éclairage OU le système cuisine est
+    # défectueux/non conforme.
     rapport_eclairage = getattr(rapport, "rapport_eclairage_lie", None)
     eclairages = list(rapport_eclairage.eclairages_urgence.all()) if rapport_eclairage else []
-    est_conforme = not any(it.etat == "D" for it in items) and not any(it.etat == "D" for it in eclairages)
+    rapport_cuisine = getattr(rapport, "rapport_cuisine_lie", None)
+    est_conforme = _est_conforme_extincteur(rapport)
     conformite_bg = "#dcfce7" if est_conforme else "#fee2e2"
     conformite_color = "#16a34a" if est_conforme else "#e11324"
 
@@ -1368,10 +1595,17 @@ def _html_certificat_extincteur(rapport) -> str:
             return f"<span style='display:inline-block;font-size:7.5pt;font-weight:800;letter-spacing:0.5px;color:#16a34a;background:#dcfce7;border:1px solid #bbf7d0;border-radius:100px;padding:3px 10px;'>{t('conforme_badge')}</span>"
         return "<span class='muted' style='font-size:8pt;'>—</span>"
 
-    def _ligne_equipement(nom, icone_svg, applicable, items_liste):
-        so = not applicable or not items_liste
-        defectueux = applicable and any(it.etat == "D" for it in items_liste)
-        conforme = applicable and bool(items_liste) and not defectueux
+    def _ligne_equipement(nom, icone_svg, applicable, items_liste, conforme_override=None):
+        if conforme_override is not None:
+            # Équipement dont la conformité est un simple booléen (rapport
+            # cuisine) plutôt qu'une liste d'items avec un état individuel.
+            so = not applicable
+            defectueux = applicable and not conforme_override
+            conforme = applicable and conforme_override
+        else:
+            so = not applicable or not items_liste
+            defectueux = applicable and any(it.etat == "D" for it in items_liste)
+            conforme = applicable and bool(items_liste) and not defectueux
         return (
             f"<tr><td class='bold'><span style='display:inline-flex;align-items:center;gap:8px;'>"
             f"{icone_badge(icone_svg)}<span>{nom}</span></span></td>"
@@ -1381,8 +1615,19 @@ def _html_certificat_extincteur(rapport) -> str:
             f"<td class='center'>{_badge_equipement(conforme, defectueux, so)}</td></tr>"
         )
 
+    # Le système cuisine n'existe que sur les bâtiments qui en sont dotés
+    # (voir avec_systeme_cuisine) : quand il n'est pas lié, la ligne ne doit
+    # pas apparaître du tout au certificat (pas même en S.O.), contrairement
+    # à l'éclairage d'urgence qui reste affiché en S.O. quand non lié.
+    ligne_cuisine = (
+        _ligne_equipement(
+            t("systeme_cuisine"), ICONE_CUISINE, True, [],
+            conforme_override=rapport_cuisine.est_conforme,
+        )
+        if rapport_cuisine is not None else ""
+    )
     equipement_rows = (
-        _ligne_equipement(t("systeme_cuisine"), ICONE_CUISINE, False, [])
+        ligne_cuisine
         + _ligne_equipement(t("extincteur_label"), ICONE_EXTINCTEUR, True, items)
         + _ligne_equipement(t("eclairage_urgence_label"), ICONE_SORTIE, rapport_eclairage is not None, eclairages)
     )
@@ -1464,8 +1709,11 @@ def _html_certificat_extincteur(rapport) -> str:
 
 def _html_rapport_extincteur_complet(rapport) -> str:
     """HTML du rapport technique complet de vérification des extincteurs
-    portatifs — même chrome que le certificat, inclut l'éclairage d'urgence
-    lié le cas échéant."""
+    portatifs — même chrome que le certificat. Seul le certificat est
+    partagé avec l'éclairage d'urgence et le système de cuisine liés (voir
+    `_html_certificat_extincteur`) : chaque rapport technique reste
+    spécifique à son propre système, dans son propre document
+    (`_html_rapport_eclairage_complet`, `_html_rapport_cuisine_complet`)."""
     from .pdf_design import CSS_DOCUMENT, entete, pied_de_page
 
     bat = rapport.batiment
@@ -1530,37 +1778,6 @@ def _html_rapport_extincteur_complet(rapport) -> str:
     if not boyau_rows:
         boyau_rows = f"<tr><td colspan='8' class='muted center'>{t('aucun_boyau')}</td></tr>"
 
-    # ── Éclairage d'urgence lié (même visite, voir rapport_eclairage_lie) ──
-    rapport_eclairage = getattr(rapport, "rapport_eclairage_lie", None)
-    eclairages = list(rapport_eclairage.eclairages_urgence.all()) if rapport_eclairage else []
-    eclairage_section = ""
-    if eclairages:
-        eclairage_rows = ""
-        for it in eclairages:
-            is_defect = it.etat == "D"
-            is_ni = not is_defect and it.etat == "NI"
-            bg = ' style="background:#fef2f2;"' if is_defect else ' style="background:#fef3c7;"' if is_ni else ""
-            etat_style = ' style="color:#cc0000;"' if is_defect else ' style="color:#b45309;"' if is_ni else ""
-            eclairage_rows += (
-                f"<tr{bg}>"
-                f"<td class='center'>{it.ordre}</td>"
-                f"<td>{it.etage or '—'}</td>"
-                f"<td>{it.emplacement or '—'}</td>"
-                f"<td>{it.modele or '—'}</td>"
-                f"<td class='center'>{it.voltage or '—'}</td>"
-                f"<td class='center bold'{etat_style}>{it.etat or '—'}</td>"
-                f"<td>{it.remarque or ''}</td>"
-                f"</tr>"
-            )
-        eclairage_section = f"""<div class="sec-title">{t("detail_unites_eclairage")}</div>
-<table class="data-grid">
-  <thead><tr>
-    <th>{t("col_no")}</th><th>{t("col_etage")}</th><th>{t("col_emplacement")}</th><th>{t("col_modele")}</th>
-    <th>{t("col_voltage")}</th><th title="{t('etat_titre_abbr')}">{t("col_etat")}</th><th>{t("col_remarque")}</th>
-  </tr></thead>
-  <tbody>{eclairage_rows}</tbody>
-</table>"""
-
     logo_content = organisation_logo_content(bat.client.organisation, 46)
     organisation_nom = bat.client.organisation.nom
 
@@ -1615,7 +1832,6 @@ def _html_rapport_extincteur_complet(rapport) -> str:
   </tr></thead>
   <tbody>{boyau_rows}</tbody>
 </table>
-{eclairage_section}
 {pied_de_page(organisation_nom, t("footer_rapport_extincteur"))}
 </div>
 </body>
@@ -1633,6 +1849,7 @@ class EstModuleRapportExtincteurActif(permissions.BasePermission):
 
 class RapportExtincteurViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, EstModuleRapportExtincteurActif]
+    pagination_class = RapportPagination
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -1644,7 +1861,7 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
             return RapportExtincteurCreateSerializer
         return RapportExtincteurDetailSerializer
 
-    def get_queryset(self):
+    def _queryset_de_base(self):
         user = self.request.user
         qs = RapportExtincteur.objects.select_related(
             "batiment", "batiment__client", "cree_par", "citoyen"
@@ -1657,13 +1874,26 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
         # le superviseur voit tout
 
         client_id = self.request.query_params.get("client")
-        statut = self.request.query_params.get("statut")
         if client_id:
             qs = qs.filter(batiment__client_id=client_id)
+
+        return qs
+
+    def get_queryset(self):
+        qs = self._queryset_de_base()
+
+        statut = self.request.query_params.get("statut")
+        q = self.request.query_params.get("q")
         if statut:
             qs = qs.filter(statut=statut)
+        if q:
+            qs = _filtrer_recherche_rapport(qs, q)
 
-        return qs.distinct()
+        return qs.distinct().order_by("-date_inspection", "-id")
+
+    @action(detail=False, methods=["get"])
+    def compteurs(self, request):
+        return Response(_compteurs_statuts(self._queryset_de_base()))
 
     def get_permissions(self):
         if self.action in ["create", "destroy", "update", "partial_update", "reassigner", "rouvrir"]:
@@ -1735,6 +1965,7 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
         # temps — le rapport éclairage correspondant est donc créé et lié
         # automatiquement, pour n'avoir qu'un seul certificat à la fermeture.
         _creer_rapport_eclairage_lie(rapport, self.request.user)
+        _creer_rapport_cuisine_lie(rapport, self.request.user, self.request.data)
 
     def perform_update(self, serializer):
         instance = self.get_object()
@@ -1783,7 +2014,12 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
                 return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
             return Response({"message": message})
 
+        from django.utils import timezone
+
         rapport.certificat.certificat_envoye = True
+        rapport.certificat.mode_envoi = rapport.certificat.ModeEnvoi.CITOYEN
+        rapport.certificat.date_envoi = timezone.now()
+        rapport.certificat.envoye_a = rapport.citoyen.username if rapport.citoyen else ""
         rapport.certificat.save()
         rapport.historiser(request.user, f"Certificat envoyé au citoyen {rapport.citoyen.username if rapport.citoyen else '—'}")
 
@@ -1793,6 +2029,45 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
             envoyer_email_certificat_extincteur_disponible(rapport)
 
         return Response({"message": "Certificat envoyé au citoyen."})
+
+    @action(detail=True, methods=["post"], url_path="renvoyer-certificat")
+    def renvoyer_certificat(self, request, pk=None):
+        """Renvoie un certificat déjà envoyé — voir la note équivalente sur
+        `RapportViewSet.renvoyer_certificat`."""
+        rapport = self.get_object()
+        if not request.user.est_superviseur():
+            return Response(
+                {"error": "Seul le superviseur peut renvoyer le certificat."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if not hasattr(rapport, "certificat"):
+            return Response({"error": "Aucun certificat trouvé pour ce rapport."}, status=status.HTTP_404_NOT_FOUND)
+
+        client = rapport.batiment.client
+        if client.mode_livraison == Client.ModeLivraison.DIRECT:
+            from .emailing import renvoyer_document_direct
+
+            ok, message = renvoyer_document_direct(rapport, "extincteur", request.user)
+            if not ok:
+                return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"message": message})
+
+        if not (rapport.citoyen and rapport.citoyen.email):
+            return Response({"error": "Aucun citoyen avec courriel assigné à ce rapport."}, status=status.HTTP_400_BAD_REQUEST)
+
+        from django.utils import timezone
+
+        rapport.certificat.mode_envoi = rapport.certificat.ModeEnvoi.CITOYEN
+        rapport.certificat.date_envoi = timezone.now()
+        rapport.certificat.envoye_a = rapport.citoyen.username
+        rapport.certificat.save()
+        rapport.historiser(request.user, f"Certificat renvoyé au citoyen {rapport.citoyen.username}")
+
+        from .emailing import envoyer_email_certificat_extincteur_disponible
+
+        envoyer_email_certificat_extincteur_disponible(rapport)
+
+        return Response({"message": "Certificat renvoyé au citoyen."})
 
     @action(detail=True, methods=["get", "post"])
     def extincteurs(self, request, pk=None):
@@ -2061,6 +2336,7 @@ class EstModuleRapportEclairageUrgenceActif(permissions.BasePermission):
 
 class RapportEclairageUrgenceViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, EstModuleRapportEclairageUrgenceActif]
+    pagination_class = RapportPagination
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -2069,7 +2345,7 @@ class RapportEclairageUrgenceViewSet(viewsets.ModelViewSet):
             return RapportEclairageUrgenceCreateSerializer
         return RapportEclairageUrgenceDetailSerializer
 
-    def get_queryset(self):
+    def _queryset_de_base(self):
         user = self.request.user
         qs = RapportEclairageUrgence.objects.select_related(
             "batiment", "batiment__client", "cree_par"
@@ -2080,13 +2356,26 @@ class RapportEclairageUrgenceViewSet(viewsets.ModelViewSet):
         # le superviseur voit tout
 
         client_id = self.request.query_params.get("client")
-        statut = self.request.query_params.get("statut")
         if client_id:
             qs = qs.filter(batiment__client_id=client_id)
+
+        return qs
+
+    def get_queryset(self):
+        qs = self._queryset_de_base()
+
+        statut = self.request.query_params.get("statut")
+        q = self.request.query_params.get("q")
         if statut:
             qs = qs.filter(statut=statut)
+        if q:
+            qs = _filtrer_recherche_rapport(qs, q)
 
-        return qs.distinct()
+        return qs.distinct().order_by("-date_inspection", "-id")
+
+    @action(detail=False, methods=["get"])
+    def compteurs(self, request):
+        return Response(_compteurs_statuts(self._queryset_de_base()))
 
     def get_permissions(self):
         if self.action in ["create", "destroy", "update", "partial_update", "reassigner", "rouvrir"]:
@@ -2244,6 +2533,434 @@ class EclairageUrgenceItemViewSet(viewsets.ModelViewSet):
         serializer.save()
 
 
+# ── Système d'extinction de cuisine (hotte, norme ULC ORD 1254.6 / ULC 300) ──
+
+_HOTTE_BOX = {"x0": 34, "x1": 456, "topY": 92, "botY": 132}
+
+
+def _icone_appareil_svg(code, color="#334155", size=15):
+    """Icône monoligne d'un appareil — mêmes tracés que AppareilIcon côté
+    frontend (frontend/components/rapports-cuisine/SchemaHottes.tsx), pour
+    que le rapport imprimé corresponde exactement à l'éditeur."""
+    attrs = f'width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"'
+    formes = {
+        "F": '<path d="M5 9h14l-1.5 9a2 2 0 0 1-2 1.7H8.5a2 2 0 0 1-2-1.7L5 9Z"/><path d="M8 9V7a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M9 12.5h6M8.5 15.5h7"/>',
+        "B": '<path d="M5 10h11l-1.2 8a2 2 0 0 1-2 1.7H8.2a2 2 0 0 1-2-1.7L5 10Z"/><path d="M9 13h5"/><circle cx="18.5" cy="7.5" r="2.5"/><path d="M18.5 6v1.5l1 1"/>',
+        "G": '<rect x="4" y="8" width="16" height="9" rx="1.5"/><path d="M7 11.5h10M7 14.5h10"/>',
+        "R": '<circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2.3"/><path d="M12 3.5v2M20.5 12h-2M3.5 12h2M12 20.5v-2"/>',
+        "C": '<rect x="4" y="8" width="16" height="9" rx="1.5"/><path d="M7 8v9M11 8v9M15 8v9"/>',
+        "S": '<path d="M5 7h14v3a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7Z"/><path d="M8 12v6M12 12v6M16 12v6"/>',
+        "BP": '<path d="M4 10c1.5 1 3 1.5 8 1.5s6.5-.5 8-1.5"/><path d="M4 10v3a4 4 0 0 0 4 4h8a4 4 0 0 0 4-4v-3"/>',
+        "W": '<path d="M3 12a9 9 0 0 0 18 0"/><path d="M3 12h18M5 9l-2-1.5M19 9l2-1.5"/>',
+    }
+    contenu = formes.get(code, '<rect x="5" y="5" width="14" height="14" rx="2.5"/><path d="M9 9l6 6M15 9l-6 6"/>')
+    return f"<svg {attrs}>{contenu}</svg>"
+
+
+def _unite_appareil_svg(code, qty, x, y):
+    """Rendu réaliste d'un appareil avec sa quantité (batterie de friteuses,
+    cuisinière à N feux, plaque/grille sur N sections) — même logique que
+    AppareilUnit côté frontend."""
+    n = max(1, qty or 1)
+    step = 15
+    w = 22 + (n - 1) * step
+    h = 26
+    stroke = "#334155"
+
+    if code == "R":
+        burners = "".join(
+            f'<circle cx="{x - w / 2 + 11 + i * step}" cy="{y}" r="5.2" fill="none" stroke="{stroke}" stroke-width="1.3"/>'
+            f'<circle cx="{x - w / 2 + 11 + i * step}" cy="{y}" r="1.6" fill="{stroke}"/>'
+            for i in range(n)
+        )
+        return f'<rect x="{x - w / 2}" y="{y - h / 2}" width="{w}" height="{h}" rx="5" fill="#fff" stroke="{stroke}" stroke-width="1.4"/>{burners}'
+
+    if code in ("F", "B"):
+        paniers = "".join(
+            (lambda cx: (
+                f'<path d="M {cx - 5} {y - 6} h 10 l -1.4 9 a 1.6 1.6 0 0 1 -1.6 1.4 h -3.6 a 1.6 1.6 0 0 1 -1.6 -1.4 Z" fill="none" stroke="{stroke}" stroke-width="1.1"/>'
+                f'<path d="M {cx - 3.2} {y - 6} v -1.6 h 6.4 v 1.6" fill="none" stroke="{stroke}" stroke-width="1.1"/>'
+            ))(x - w / 2 + 11 + i * step)
+            for i in range(n)
+        )
+        return f'<rect x="{x - w / 2}" y="{y - h / 2}" width="{w}" height="{h}" rx="5" fill="#fff" stroke="{stroke}" stroke-width="1.4"/>{paniers}'
+
+    if code in ("G", "C"):
+        dividers = "".join(
+            f'<line x1="{x - w / 2 + (i + 1) * step}" y1="{y - h / 2 + 4}" x2="{x - w / 2 + (i + 1) * step}" y2="{y + h / 2 - 4}" stroke="{stroke}" stroke-width="1"/>'
+            for i in range(n - 1)
+        )
+        if code == "G":
+            interieur = f'<path d="M {x - w / 2 + 6} {y} H {x + w / 2 - 6}" stroke="{stroke}" stroke-width="1" stroke-dasharray="3 3"/>'
+        else:
+            interieur = "".join(
+                f'<path d="M {x - w / 2 + 7 + i * step} {y - 6} v 12" stroke="{stroke}" stroke-width="1"/>'
+                for i in range(n)
+            )
+        return f'<rect x="{x - w / 2}" y="{y - h / 2}" width="{w}" height="{h}" rx="5" fill="#fff" stroke="{stroke}" stroke-width="1.4"/>{dividers}{interieur}'
+
+    # Comme les autres types (friteuse, cuisinière, grille) : une seule boîte
+    # arrondie, même hauteur — la quantité est indiquée par une pastille ×N
+    # plutôt que de répéter l'icône, pour rester lisible.
+    w_badge = 34
+    badge = (
+        f'<circle cx="{x + w_badge / 2 - 3}" cy="{y + h / 2 - 3}" r="7" fill="#dc2626"/>'
+        f'<text x="{x + w_badge / 2 - 3}" y="{y + h / 2 - 2.5}" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="9" font-weight="800">×{n}</text>'
+        if n > 1 else ""
+    )
+    icone_svg = _icone_appareil_svg(code, stroke, 17)
+    return (
+        f'<rect x="{x - w_badge / 2}" y="{y - h / 2}" width="{w_badge}" height="{h}" rx="6" fill="#fff" stroke="{stroke}" stroke-width="1.4"/>'
+        f'<g transform="translate({x - 8.5},{y - 8.5})">{icone_svg}</g>{badge}'
+    )
+
+
+def _rendu_hotte_html(hotte):
+    """Rendu SVG d'une hotte pour l'impression (rapport et certificat) —
+    même schéma que l'éditeur interactif (frontend/components/rapports-cuisine/
+    SchemaHottes.tsx) : les buses sont les flèches rouges placées manuellement
+    (indépendantes des appareils — leur nombre ne correspond pas forcément au
+    nombre d'appareils), appareils en rangée séparée avec leur quantité réelle."""
+    b = _HOTTE_BOX
+    appareils = hotte.appareils or []
+
+    if hotte.buses:
+        buses_x = [pos.get("x", 0) for pos in hotte.buses]
+    else:
+        # Repli pour les hottes créées avant l'ajout du placement manuel des
+        # buses : réparties uniformément à partir de l'ancien compteur.
+        nb_buses = hotte.nombre_buses or 0
+        buses_x = []
+        if nb_buses > 0:
+            marge = 26
+            largeur = (b["x1"] - b["x0"]) - marge * 2
+            for i in range(nb_buses):
+                buses_x.append(b["x0"] + (b["x1"] - b["x0"]) / 2 if nb_buses == 1 else b["x0"] + marge + (largeur * i) / (nb_buses - 1))
+
+    buses_svg = "".join(
+        f'<line x1="{x}" y1="{b["botY"] + 6}" x2="{x}" y2="169" stroke="#dc2626" stroke-width="1.8"/>'
+        f'<polygon points="{x - 4.5},169 {x + 4.5},169 {x},176" fill="#dc2626"/>'
+        for x in buses_x
+    )
+
+    icon_y = 195
+    appareils_svg = "".join(
+        _unite_appareil_svg(a.get("code", ""), a.get("qty", 1), a.get("x", 0), icon_y)
+        for a in appareils
+    )
+    dividers_svg = "".join(
+        f'<line x1="{d}" y1="{b["topY"]}" x2="{d}" y2="{b["botY"]}" stroke="#dc2626" stroke-width="1.4" stroke-dasharray="3 2"/>'
+        for d in (hotte.dividers or [])
+    )
+
+    svg = f"""<svg viewBox="0 0 512 220" style="width:100%;height:150px;overflow:visible;display:block;">
+  <rect x="{(b['x0'] + b['x1']) / 2 - 16}" y="44" width="32" height="34" fill="#e2e8f0" stroke="#94a3b8" stroke-width="0.75"/>
+  <polygon points="{b['x0']},{b['topY']} {b['x1']},{b['topY']} {b['x1'] + 20},{b['topY'] - 14} {b['x0'] + 20},{b['topY'] - 14}" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="0.5"/>
+  <polygon points="{b['x1']},{b['topY']} {b['x1'] + 20},{b['topY'] - 14} {b['x1'] + 20},{b['botY'] - 14} {b['x1']},{b['botY']}" fill="#cbd5e1" stroke="#94a3b8" stroke-width="0.5"/>
+  <rect x="{b['x0']}" y="{b['topY']}" width="{b['x1'] - b['x0']}" height="{b['botY'] - b['topY']}" fill="#e2e8f0" stroke="#94a3b8" stroke-width="0.75"/>
+  <text x="{(b['x0'] + b['x1']) / 2}" y="{(b['topY'] + b['botY']) / 2 + 4}" text-anchor="middle" fill="#334155" font-size="10.5" font-weight="800" letter-spacing="1" style="text-transform:uppercase;font-family:Arial,Helvetica,sans-serif;">{hotte.label}</text>
+  {dividers_svg}
+  {buses_svg}
+  {appareils_svg}
+</svg>"""
+    return f"<div style='background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:8px 8px 24px;'>{svg}</div>"
+
+
+def _lignes_caracteristiques_cuisine(rapport):
+    """Tableau « Caractéristiques du système » — mêmes champs que le
+    formulaire papier, réutilisé par le certificat/rapport cuisine autonomes
+    et par la section fusionnée du rapport extincteur (rapport lié)."""
+    liens = " / ".join(
+        f"{n}×{lbl}" for n, lbl in (
+            (rapport.liens_fusibles_360f, "360°F"),
+            (rapport.liens_fusibles_450f, "450°F"),
+            (rapport.liens_fusibles_500f, "500°F"),
+        ) if n
+    ) or "—"
+    return (
+        f"<tr><td style='color:#64748b;width:26%;'>Fabricant</td><td style='font-weight:700;'>{rapport.fabricant or '—'}</td>"
+        f"<td style='color:#64748b;width:26%;'>Modèle</td><td style='font-weight:700;'>{rapport.modele or '—'}</td></tr>"
+        f"<tr><td style='color:#64748b;'>N° de série</td><td style='font-weight:700;'>{rapport.numero_serie or '—'}</td>"
+        f"<td style='color:#64748b;'>Date d'installation</td><td style='font-weight:700;'>{rapport.date_installation or '—'}</td></tr>"
+        f"<tr><td style='color:#64748b;'>Type d'agent</td><td style='font-weight:700;'>{rapport.get_type_agent_display() if rapport.type_agent else '—'}</td>"
+        f"<td style='color:#64748b;'>Alimentation des appareils</td><td style='font-weight:700;'>{rapport.alimentation or '—'}</td></tr>"
+        f"<tr><td style='color:#64748b;'>Dispositif de coupure</td><td style='font-weight:700;'>{rapport.get_dispositif_coupure_display() if rapport.dispositif_coupure else '—'}</td>"
+        f"<td style='color:#64748b;'>Raccordements auxiliaires</td><td style='font-weight:700;'>{rapport.raccordement or '—'}</td></tr>"
+        f"<tr><td style='color:#64748b;'>Nombre de buses</td><td style='font-weight:700;'>{rapport.nombre_buses if rapport.nombre_buses is not None else '—'}</td>"
+        f"<td style='color:#64748b;'>Liens fusibles (qté × °F)</td><td style='font-weight:700;'>{liens}</td></tr>"
+        f"<tr><td style='color:#64748b;'>Buses / liens fusibles</td><td style='font-weight:700;' colspan='3'>{rapport.buses_liens_fusibles or '—'}</td></tr>"
+        f"<tr><td style='color:#64748b;'>Dernier essai hydrostatique</td><td style='font-weight:700;'>{rapport.date_dernier_essai_hydrostatique or '—'}</td>"
+        f"<td style='color:#64748b;'>Dernière recharge</td><td style='font-weight:700;'>{rapport.date_derniere_recharge or '—'}</td></tr>"
+        f"<tr><td style='color:#64748b;'>Prochaine inspection</td><td style='font-weight:700;' colspan='3'>{rapport.prochaine_inspection or '—'}</td></tr>"
+    )
+
+
+def _legende_appareils_html():
+    """Légende complète — tous les types possibles, pas seulement ceux
+    utilisés sur cette hotte (même logique que l'éditeur interactif)."""
+    return "".join(
+        f"<span style='margin-right:9px;'><strong style='color:#64748b;'>{code}</strong> {label}</span>"
+        for code, label in HotteCuisine.CodeAppareil.choices
+    )
+
+
+def _html_rapport_cuisine_complet(rapport) -> str:
+    """HTML du rapport technique complet de vérification du système de
+    cuisine — mêmes composants graphiques que les autres rapports."""
+    from .pdf_design import CSS_DOCUMENT, case, entete, pied_de_page
+
+    bat = rapport.batiment
+    adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
+    langue = bat.client.organisation.langue
+    t = lambda cle: _t(langue, cle)
+
+    date_insp = _date_fr(rapport.date_inspection)
+    techniciens = list(rapport.techniciens.all())
+    tech_noms = ", ".join(t2.get_full_name() or t2.username for t2 in techniciens) or "—"
+    hottes = list(rapport.hottes.all())
+
+    hottes_html = "".join(_rendu_hotte_html(h) for h in hottes) or f"<p class='muted'>{t('aucune_hotte')}</p>"
+    legende_appareils = _legende_appareils_html()
+    verif_rows = "".join(
+        f"<div style='display:flex;align-items:center;gap:6px;padding:3px 8px;'>"
+        f"{case(getattr(rapport, champ) is True, '#16a34a')}<span>{label}</span></div>"
+        for champ, label in CHECKLIST_CUISINE
+    )
+
+    logo_content = organisation_logo_content(bat.client.organisation, 46)
+    organisation_nom = bat.client.organisation.nom
+    rapport_extincteur = getattr(rapport, "rapport_extincteur", None)
+    cert = getattr(rapport_extincteur, "certificat", None) if rapport_extincteur else None
+
+    entete_html = entete(
+        logo_content, organisation_nom, t("systeme_cuisine"),
+        t("certificat_no"), (cert.numero if cert else "—"),
+        t("date_inspection"), date_insp, t("technicien_s"), tech_noms,
+    )
+
+    return f"""<!DOCTYPE html>
+<html lang="{langue}">
+<head>
+<meta charset="UTF-8">
+<title>{t("rapport_verification")} — {t("systeme_cuisine")} — {adresse}</title>
+<style>{CSS_DOCUMENT}</style>
+</head>
+<body>
+<div class="no-print" style="text-align:right;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
+  <button onclick="window.print()" style="background:#0a0b0d;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">{t("imprimer_pdf")}</button>
+</div>
+<div style="padding:16px 20px;">
+{entete_html}
+<div class="title-banner">
+  <h2>{t("rapport_verification")} — {t("systeme_cuisine")}</h2>
+  <div style="width:140px;height:1.5px;background:linear-gradient(90deg, transparent, #e11324, transparent);margin:6px auto;"></div>
+</div>
+<div style="text-align:left;margin-bottom:6px;">
+  <div class="card-title">{t("client")}</div>
+  <div class="card-main" style="font-size:10.5pt;">{bat.client.nom}</div>
+</div>
+<div class="info-card" style="text-align:center;margin-bottom:18px;">
+  <div class="card-title">{t("adresse")}</div>
+  <div class="card-main" style="font-size:14pt;">{adresse}</div>
+</div>
+<div class="sec-title">{t("informations_systeme")}</div>
+<table><tbody>{_lignes_caracteristiques_cuisine(rapport)}</tbody></table>
+<div class="sec-title">{t("schema_installation")}</div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:6px;">{hottes_html}</div>
+<div style="font-size:7.5pt;color:#94a3b8;margin:-2px 0 9px;">{legende_appareils}</div>
+<div class="sec-title" style="display:flex;align-items:center;justify-content:space-between;">
+  <span>{t("liste_verifications")}</span>
+  <span style="color:#16a34a;">{rapport.nb_verifications_conformes} / {len(CHECKLIST_CUISINE)} {t("conformes_sur")}</span>
+</div>
+<div style="background:#f8fafc;border-radius:8px;padding:6px 4px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 12px;font-size:8pt;">{verif_rows}</div>
+<div class="sec-title">{t("commentaires_label")}</div>
+<p style="font-size:9pt;color:#334155;line-height:1.5;margin-bottom:9px;">{rapport.commentaires or '—'}</p>
+{pied_de_page(organisation_nom, t("footer_rapport_cuisine"))}
+</div>
+</body>
+</html>"""
+
+
+class EstModuleRapportCuisineActif(permissions.BasePermission):
+    message = "Le module « Rapport cuisine » n'est pas activé pour votre organisation."
+
+    def has_permission(self, request, view):
+        organisation = getattr(request.user, "organisation", None)
+        return bool(organisation and organisation.a_le_module("rapport_cuisine"))
+
+
+class RapportCuisineViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated, EstModuleRapportCuisineActif]
+    pagination_class = RapportPagination
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return RapportCuisineListSerializer
+        if self.action in ["create", "update", "partial_update"]:
+            return RapportCuisineCreateSerializer
+        return RapportCuisineDetailSerializer
+
+    def _queryset_de_base(self):
+        user = self.request.user
+        qs = RapportCuisine.objects.select_related(
+            "batiment", "batiment__client", "cree_par"
+        ).prefetch_related("techniciens", "hottes").filter(batiment__client__organisation=user.organisation)
+
+        if user.est_technicien():
+            qs = qs.filter(techniciens=user)
+        # le superviseur voit tout
+
+        client_id = self.request.query_params.get("client")
+        if client_id:
+            qs = qs.filter(batiment__client_id=client_id)
+
+        return qs
+
+    def get_queryset(self):
+        qs = self._queryset_de_base()
+
+        statut = self.request.query_params.get("statut")
+        q = self.request.query_params.get("q")
+        if statut:
+            qs = qs.filter(statut=statut)
+        if q:
+            qs = _filtrer_recherche_rapport(qs, q)
+
+        return qs.distinct().order_by("-date_inspection", "-id")
+
+    @action(detail=False, methods=["get"])
+    def compteurs(self, request):
+        return Response(_compteurs_statuts(self._queryset_de_base()))
+
+    def get_permissions(self):
+        if self.action == "create":
+            return [permissions.IsAuthenticated(), EstModuleRapportCuisineActif(), EstSuperviseurOuTechnicien()]
+        if self.action in ["destroy", "update", "partial_update", "reassigner", "rouvrir"]:
+            return [permissions.IsAuthenticated(), EstModuleRapportCuisineActif(), EstSuperviseur()]
+        return super().get_permissions()
+
+    @action(detail=True, methods=["patch"])
+    def reassigner(self, request, pk=None):
+        """Superviseur seulement — change le bâtiment et/ou les techniciens assignés après création."""
+        rapport = self.get_object()
+        changements = []
+
+        if "batiment" in request.data:
+            try:
+                nouveau_batiment = Batiment.objects.get(pk=request.data["batiment"])
+            except (Batiment.DoesNotExist, TypeError, ValueError):
+                return Response({"error": "Bâtiment introuvable."}, status=status.HTTP_400_BAD_REQUEST)
+            if nouveau_batiment.id != rapport.batiment_id:
+                rapport.batiment = nouveau_batiment
+                changements.append(f"Bâtiment changé pour {nouveau_batiment.adresse_complete}")
+
+        if "techniciens" in request.data:
+            rapport.techniciens.set(request.data.get("techniciens") or [])
+            changements.append("Techniciens réassignés")
+
+        if changements:
+            rapport.save()
+            for c in changements:
+                rapport.historiser(request.user, c)
+
+        return Response(RapportCuisineDetailSerializer(rapport).data)
+
+    @action(detail=True, methods=["post"])
+    def rouvrir(self, request, pk=None):
+        rapport = self.get_object()
+        if not request.user.est_superviseur():
+            return Response(
+                {"error": "Seul le superviseur peut rouvrir un rapport."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if rapport.statut != RapportCuisine.Statut.FERME:
+            return Response({"error": "Ce rapport est déjà ouvert."}, status=status.HTTP_400_BAD_REQUEST)
+
+        rapport.rouvrir(request.user)
+        return Response(RapportCuisineDetailSerializer(rapport).data)
+
+    def perform_create(self, serializer):
+        rapport = serializer.save(cree_par=self.request.user)
+        if self.request.user.est_technicien() and not rapport.techniciens.filter(pk=self.request.user.pk).exists():
+            rapport.techniciens.add(self.request.user)
+        rapport.historiser(self.request.user, "Rapport créé")
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        if instance.statut == RapportCuisine.Statut.FERME and not self.request.user.est_superviseur():
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("Ce rapport est fermé et ne peut plus être modifié.")
+        rapport = serializer.save()
+        rapport.historiser(self.request.user, "Rapport modifié")
+
+    @action(detail=True, methods=["post"])
+    def fermer(self, request, pk=None):
+        rapport = self.get_object()
+        if not (request.user.est_superviseur() or request.user.est_technicien()):
+            return Response(
+                {"error": "Seuls le superviseur et le technicien peuvent fermer un rapport."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if rapport.statut == RapportCuisine.Statut.FERME:
+            return Response({"error": "Ce rapport est déjà fermé."}, status=status.HTTP_400_BAD_REQUEST)
+
+        rapport.fermer(request.user)
+        return Response(RapportCuisineDetailSerializer(rapport).data)
+
+    @action(detail=True, methods=["get", "post"])
+    def hottes(self, request, pk=None):
+        rapport = self.get_object()
+
+        if request.method == "GET":
+            return Response(HotteCuisineSerializer(rapport.hottes.all(), many=True).data)
+
+        if rapport.statut == RapportCuisine.Statut.FERME and not request.user.est_superviseur():
+            return Response(
+                {"error": "Ce rapport est fermé, impossible d'ajouter une hotte."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = HotteCuisineSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        ordre = serializer.validated_data.get("ordre") or (rapport.hottes.count() + 1)
+        serializer.save(rapport=rapport, ordre=ordre)
+        rapport.historiser(request.user, "Hotte ajoutée")
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get"])
+    def historique(self, request, pk=None):
+        rapport = self.get_object()
+        return Response(HistoriqueRapportCuisineSerializer(rapport.historique.all(), many=True).data)
+
+    @action(detail=True, methods=["get"], url_path="telecharger")
+    def telecharger(self, request, pk=None):
+        rapport = self.get_object()
+        html = _html_rapport_cuisine_complet(rapport)
+        return HttpResponse(html, content_type="text/html; charset=utf-8")
+
+
+class HotteCuisineViewSet(viewsets.ModelViewSet):
+    """Accès direct à une hotte — pour la renommer, ajuster le nombre de
+    buses, mettre à jour le schéma (appareils/dividers) ou la supprimer."""
+
+    serializer_class = HotteCuisineSerializer
+    permission_classes = [permissions.IsAuthenticated, EstSuperviseurOuTechnicien]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = HotteCuisine.objects.select_related("rapport").filter(rapport__batiment__client__organisation=user.organisation)
+        if user.est_technicien():
+            qs = qs.filter(rapport__techniciens=user)
+        return qs.distinct()
+
+    def perform_update(self, serializer):
+        item = self.get_object()
+        if item.rapport.statut == RapportCuisine.Statut.FERME and not self.request.user.est_superviseur():
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("Le rapport associé est fermé.")
+        serializer.save()
+
+
 # ── Certificats (vue unifiée, tous modules) ─────────────────────────────────
 
 def _certificats_incendie(organisation):
@@ -2257,10 +2974,13 @@ def _certificats_incendie(organisation):
         resultats.append({
             "cle": f"incendie-{c.id}",
             "type": "incendie",
-            "type_display": "Rapport incendie",
+            "type_display": "Système d'alarme",
             "numero": c.numero,
             "date_emission": c.date_emission,
             "certificat_envoye": c.certificat_envoye,
+            "mode_envoi": c.mode_envoi,
+            "date_envoi": c.date_envoi,
+            "envoye_a": c.envoye_a,
             "conforme": c.conforme,
             "adresse": bat.adresse_complete,
             "client_nom": bat.client.nom,
@@ -2281,13 +3001,21 @@ def _certificats_extincteur(organisation):
     for c in certs:
         r = c.rapport
         bat = r.batiment
+        type_display = "Extincteur"
+        if getattr(r, "rapport_eclairage_lie", None):
+            type_display += " & éclairage"
+        if getattr(r, "rapport_cuisine_lie", None):
+            type_display += " & cuisine"
         resultats.append({
             "cle": f"extincteur-{c.id}",
             "type": "extincteur",
-            "type_display": "Extincteur & éclairage",
+            "type_display": type_display,
             "numero": c.numero,
             "date_emission": c.date_emission,
             "certificat_envoye": c.certificat_envoye,
+            "mode_envoi": c.mode_envoi,
+            "date_envoi": c.date_envoi,
+            "envoye_a": c.envoye_a,
             "conforme": _est_conforme_extincteur(r),
             "adresse": bat.adresse_complete,
             "client_nom": bat.client.nom,
@@ -2339,7 +3067,11 @@ def _lister_certificats(request):
     if client_id:
         resultats = [r for r in resultats if str(r["client_id"]) == str(client_id)]
 
-    resultats.sort(key=lambda r: r["date_emission"], reverse=True)
+    CHAMPS_TRI = {"numero", "adresse", "client_nom", "date_emission"}
+    tri = request.query_params.get("tri")
+    tri = tri if tri in CHAMPS_TRI else "date_emission"
+    descendant = request.query_params.get("direction") != "asc"
+    resultats.sort(key=lambda r: r[tri], reverse=descendant)
     return resultats
 
 
@@ -2349,13 +3081,35 @@ class CertificatsUnifiesView(APIView):
     naviguer dans chaque rapport individuellement."""
 
     permission_classes = [permissions.IsAuthenticated, EstSuperviseur]
+    pagination_class = RapportPagination
 
     def get(self, request):
         resultats = _lister_certificats(request)
-        return Response([
+        resultats = [
             {**r, "date_emission": r["date_emission"].isoformat()}
             for r in resultats
-        ])
+        ]
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(resultats, request, view=self)
+        return paginator.get_paginated_response(page)
+
+
+class CertificatsCompteursView(APIView):
+    """Totaux globaux (indépendants de la recherche/du filtre/de la page en
+    cours) pour les 4 cartes de statistiques en haut de la page Certificats —
+    même principe que `compteurs` sur les ViewSets de rapports."""
+
+    permission_classes = [permissions.IsAuthenticated, EstSuperviseur]
+
+    def get(self, request):
+        organisation = request.user.organisation
+        resultats = _certificats_incendie(organisation) + _certificats_extincteur(organisation)
+        return Response({
+            "total": len(resultats),
+            "envoyes": sum(1 for r in resultats if r["certificat_envoye"]),
+            "conformes": sum(1 for r in resultats if r["conforme"]),
+            "non_conformes": sum(1 for r in resultats if not r["conforme"]),
+        })
 
 
 class CertificatsExcelView(APIView):

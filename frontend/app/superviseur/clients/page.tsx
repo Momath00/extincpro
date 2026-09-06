@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { clientColor } from '@/lib/clientColor'
+import Pagination from '@/components/dashboard/Pagination'
 import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
+const PAGE_SIZE = 25
 
 function ClientModal({ client, onClose, onSaved }: { client: any; onClose: () => void; onSaved: () => void }) {
   const t = useT()
@@ -152,28 +154,52 @@ export default function ClientsPage() {
   const router = useRouter()
   const t = useT()
   const [clients, setClients] = useState<any[]>([])
+  const [count, setCount] = useState(0)
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [recherche, setRecherche] = useState('')
+  const [rechercheDebouncee, setRechercheDebouncee] = useState('')
   const [modalClient, setModalClient] = useState<any>(undefined)
   const [supprimerId, setSupprimerId] = useState<number | null>(null)
   const [successMsg, setSuccessMsg] = useState('')
 
+  function chargerCompteurs() {
+    const token = localStorage.getItem('access_token')
+    fetch(`${API_URL}/api/clients/compteurs/`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => { if (data) setTotal(data.total) })
+      .catch(() => {})
+  }
+
   function charger() {
     const token = localStorage.getItem('access_token')
     if (!token) { router.push('/login'); return }
-    fetch(`${API_URL}/api/clients/`, { headers: { Authorization: `Bearer ${token}` } })
+    const params = new URLSearchParams({ page: String(page) })
+    if (rechercheDebouncee.trim()) params.set('q', rechercheDebouncee.trim())
+    fetch(`${API_URL}/api/clients/?${params}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => {
         if (res.status === 401) { router.push('/login'); return null }
         return res.json()
       })
       .then(data => {
         if (!data) return
-        setClients(Array.isArray(data) ? data : (data.results || []))
+        setClients(data.results || [])
+        setCount(data.count ?? 0)
         setLoading(false)
       })
       .catch(() => setLoading(false))
+    chargerCompteurs()
   }
 
-  useEffect(() => { charger() }, [])
+  useEffect(() => { charger() }, [page, rechercheDebouncee])
+
+  useEffect(() => {
+    const id = setTimeout(() => setRechercheDebouncee(recherche), 300)
+    return () => clearTimeout(id)
+  }, [recherche])
+
+  useEffect(() => { setPage(1) }, [rechercheDebouncee])
 
   async function supprimer(id: number) {
     const token = localStorage.getItem('access_token')
@@ -205,7 +231,7 @@ export default function ClientsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: NAVY }}>{t('clients_titre')}</h1>
-          <p className="text-gray-400 text-sm mt-1">{clients.length} {t('entreprise_cliente')}</p>
+          <p className="text-gray-400 text-sm mt-1">{total} {t('entreprise_cliente')}</p>
         </div>
         <button
           onClick={() => setModalClient(null)}
@@ -216,19 +242,42 @@ export default function ClientsPage() {
         </button>
       </div>
 
+      {total > 0 && (
+        <div className="relative mb-5 max-w-xs">
+          <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 text-sm" />
+          <input
+            type="text"
+            value={recherche}
+            onChange={e => setRecherche(e.target.value)}
+            placeholder={t('rechercher_placeholder')}
+            className="w-full pl-8 pr-8 py-2 text-sm border border-gray-100 rounded-md focus:outline-none focus:border-[#e11324] bg-white"
+          />
+          {recherche && (
+            <button onClick={() => setRecherche('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
+              <i className="ti ti-x text-xs" />
+            </button>
+          )}
+        </div>
+      )}
+
       {clients.length === 0 ? (
         <div className="bg-white rounded-md border border-gray-100 text-center py-16">
-          <p className="text-gray-300 text-sm mb-3">{t('aucun_client_moment')}</p>
-          <button onClick={() => setModalClient(null)} className="text-sm font-bold hover:underline" style={{ color: ORANGE }}>
-            {t('creer_premier_client')}
-          </button>
+          <p className="text-gray-300 text-sm mb-3">{recherche ? t('aucun_resultat_recherche') : t('aucun_client_moment')}</p>
+          {!recherche && (
+            <button onClick={() => setModalClient(null)} className="text-sm font-bold hover:underline" style={{ color: ORANGE }}>
+              {t('creer_premier_client')}
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {clients.map((c: any) => {
             const col = clientColor(c.id)
             return (
-              <div key={c.id} className="bg-white rounded-md border border-gray-100 p-4 flex items-start gap-3 hover:shadow-md hover:border-[#e11324] transition-all duration-200">
+              <div key={c.id}
+                onClick={() => router.push(`/superviseur/batiments?client=${c.id}`)}
+                className="bg-white rounded-md border border-gray-100 p-4 flex items-start gap-3 hover:shadow-md hover:border-[#e11324] transition-all duration-200 cursor-pointer">
                 <i className="ti ti-building-skyscraper text-xl flex-shrink-0 mt-0.5" style={{ color: col.bg }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold truncate" style={{ color: NAVY }}>{c.nom}</p>
@@ -249,10 +298,10 @@ export default function ClientsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  <button onClick={() => setModalClient(c)} className="p-2 rounded-md hover:bg-gray-100 text-gray-500" title={t('modifier')}>
+                  <button onClick={(e) => { e.stopPropagation(); setModalClient(c) }} className="p-2 rounded-md hover:bg-gray-100 text-gray-500" title={t('modifier')}>
                     <i className="ti ti-edit text-base" />
                   </button>
-                  <button onClick={() => setSupprimerId(c.id)} className="p-2 rounded-md hover:bg-red-50 text-gray-500 hover:text-red-500" title={t('supprimer')}>
+                  <button onClick={(e) => { e.stopPropagation(); setSupprimerId(c.id) }} className="p-2 rounded-md hover:bg-red-50 text-gray-500 hover:text-red-500" title={t('supprimer')}>
                     <i className="ti ti-trash text-base" />
                   </button>
                 </div>
@@ -261,6 +310,8 @@ export default function ClientsPage() {
           })}
         </div>
       )}
+
+      <Pagination page={page} pageSize={PAGE_SIZE} count={count} onPageChange={setPage} />
 
       {modalClient !== undefined && (
         <ClientModal client={modalClient} onClose={() => setModalClient(undefined)} onSaved={charger} />

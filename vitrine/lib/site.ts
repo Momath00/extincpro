@@ -3,7 +3,7 @@ export const site = {
   legalName: "ExtincPro",
   tagline: "La plateforme qui pilote vos inspections de sécurité incendie",
   description:
-    "ExtincPro est la plateforme SaaS qui gère l'inspection, les rapports et la conformité de vos systèmes de sécurité incendie — extincteurs, éclairage d'urgence et gicleurs — du technicien sur le terrain jusqu'au super-admin.",
+    "ExtincPro est la plateforme SaaS qui gère l'inspection, les rapports et la conformité de vos systèmes de sécurité incendie — extincteurs, éclairage d'urgence et système de cuisine — du technicien sur le terrain jusqu'au super-admin.",
   url: "https://extincpro.com",
   appUrl: "https://portail.extincpro.com",
   ogImage: "/og-image.png",

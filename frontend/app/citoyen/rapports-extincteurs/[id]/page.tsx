@@ -3,22 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
+import { downloadHtml } from '@/lib/download'
 import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
-
-async function downloadHtml(url: string) {
-  const token = localStorage.getItem('access_token')
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-  if (!res.ok) return
-  const html = await res.text()
-  const blob = new Blob([html], { type: 'text/html' })
-  const blobUrl = URL.createObjectURL(blob)
-  window.open(blobUrl, '_blank')
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
-}
 
 export default function CitoyenRapportExtincteurDetailPage() {
   const router = useRouter()

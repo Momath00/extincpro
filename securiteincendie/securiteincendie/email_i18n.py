@@ -57,7 +57,6 @@ EMAIL_DICT: dict[str, dict[str, str]] = {
         "fr": "le rapport de vérification des extincteurs portatifs au",
         "en": "the portable fire extinguisher inspection report at",
     },
-
     # ── Invitation membre d'équipe ───────────────────────────────────────
     "invitation_sujet": {"fr": "Invitation — ExtincPro", "en": "Invitation — ExtincPro"},
     "bienvenue_titre": {"fr": "Bienvenue !", "en": "Welcome!"},
@@ -123,7 +122,6 @@ EMAIL_DICT: dict[str, dict[str, str]] = {
         "fr": "Votre certificat d'extincteurs est disponible",
         "en": "Your fire extinguisher certificate is available",
     },
-
     # ── Mode direct (envoi PDF sans espace client) ──────────────────────
     "direct_titre": {"fr": "Vos documents sont prêts", "en": "Your documents are ready"},
     "direct_a_realise_inspection": {"fr": "a réalisé l'inspection au", "en": "performed the inspection at"},

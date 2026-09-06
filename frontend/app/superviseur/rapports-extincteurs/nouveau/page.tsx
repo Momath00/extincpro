@@ -24,6 +24,8 @@ export default function NouveauRapportExtincteurPage() {
   const [technicienIds, setTechnicienIds] = useState<number[]>([])
   const [dateInspection, setDateInspection] = useState('')
   const [numeroJob, setNumeroJob] = useState('')
+  const [avecSystemeCuisine, setAvecSystemeCuisine] = useState(false)
+  const [moduleCuisineActif, setModuleCuisineActif] = useState(false)
 
   const [loadingBatiments, setLoadingBatiments] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -44,11 +46,17 @@ export default function NouveauRapportExtincteurPage() {
       fetch(`${API_URL}/api/clients/`, { headers }),
       fetch(`${API_URL}/api/utilisateurs/?role=citoyen`, { headers }),
       fetch(`${API_URL}/api/utilisateurs/?role=technicien`, { headers }),
-    ]).then(async ([clientsRes, citRes, techRes]) => {
+      fetch(`${API_URL}/api/me/`, { headers }),
+    ]).then(async ([clientsRes, citRes, techRes, meRes]) => {
       const [clientsData, citData, techData] = await Promise.all([clientsRes.json(), citRes.json(), techRes.json()])
       setClients(Array.isArray(clientsData) ? clientsData : (clientsData.results || []))
       setCitoyens(Array.isArray(citData) ? citData : (citData.results || []))
       setTechniciens(Array.isArray(techData) ? techData : (techData.results || []))
+      if (meRes.ok) {
+        const me = await meRes.json()
+        const modulesActifs: string[] = me?.organisation?.modules_actifs || []
+        setModuleCuisineActif(modulesActifs.includes('rapport_cuisine'))
+      }
     })
   }, [])
 
@@ -87,6 +95,7 @@ export default function NouveauRapportExtincteurPage() {
           techniciens: technicienIds,
           date_inspection: dateInspection || null,
           numero_job: numeroJob,
+          avec_systeme_cuisine: avecSystemeCuisine,
         }),
       })
       const data = await res.json() as any
@@ -242,6 +251,26 @@ export default function NouveauRapportExtincteurPage() {
             className="w-full sm:w-64 border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
           />
         </div>
+
+        {moduleCuisineActif && (
+          <button
+            type="button"
+            onClick={() => setAvecSystemeCuisine(v => !v)}
+            className="flex items-start gap-3 p-3 rounded-md border-2 text-left transition-colors"
+            style={{ borderColor: avecSystemeCuisine ? ORANGE : '#e5e7eb', background: avecSystemeCuisine ? '#fff2e8' : '#fff' }}
+          >
+            <span
+              className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border-2 mt-0.5"
+              style={{ borderColor: avecSystemeCuisine ? ORANGE : '#d1d5db', background: avecSystemeCuisine ? ORANGE : 'transparent' }}
+            >
+              {avecSystemeCuisine && <i className="ti ti-check text-white text-xs" />}
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold" style={{ color: NAVY }}>{t('avec_systeme_cuisine_label')}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{t('avec_systeme_cuisine_desc')}</p>
+            </div>
+          </button>
+        )}
 
         <button
           type="submit"

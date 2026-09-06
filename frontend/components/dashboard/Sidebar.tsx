@@ -34,6 +34,12 @@ const NAV_GROUPS = [
         icon: 'ti-bulb',
         module: 'rapport_eclairage_urgence',
       },
+      {
+        href: '/superviseur/rapports-cuisine',
+        label: 'nav_rapport_cuisine',
+        icon: 'ti-tools-kitchen-2',
+        module: 'rapport_cuisine',
+      },
       { href: '/superviseur/certificats', label: 'nav_certificats', icon: 'ti-certificate' },
       { href: '/superviseur/clients', label: 'nav_clients', icon: 'ti-building' },
       { href: '/superviseur/batiments', label: 'nav_batiments', icon: 'ti-home' },

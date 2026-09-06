@@ -19,15 +19,19 @@ const modules = [
     ],
   },
   {
-    name: { fr: "Module Extincteurs & Éclairage d'urgence", en: "Extinguishers & Emergency Lighting Module" },
-    desc: {
-      fr: "Inspection, entretien et conformité de vos extincteurs et de l'éclairage d'urgence — une même visite, un même rapport.",
-      en: "Inspection, maintenance, and compliance for your extinguishers and emergency lighting — one visit, one report.",
+    name: {
+      fr: "Module Extincteurs, Éclairage d'urgence & Système de cuisine",
+      en: "Extinguishers, Emergency Lighting & Kitchen Suppression Module",
     },
-    prix: 140,
+    desc: {
+      fr: "Inspection, entretien et conformité de vos extincteurs, de l'éclairage d'urgence et du système d'extinction de cuisine — une même visite, un même rapport.",
+      en: "Inspection, maintenance, and compliance for your extinguishers, emergency lighting, and kitchen suppression system — one visit, one report.",
+    },
+    prix: 145,
     highlight: false,
     features: [
       { fr: "Extincteurs et éclairage d'urgence couverts", en: "Extinguishers and emergency lighting covered" },
+      { fr: "Système de cuisine pour vos bâtiments avec restaurant", en: "Kitchen suppression system for your restaurant buildings" },
       { fr: "Tests d'autonomie planifiés (éclairage)", en: "Scheduled battery-life tests (lighting)" },
       { fr: "Rapports d'inspection illimités", en: "Unlimited inspection reports" },
       { fr: "Photos et notes par appareil", en: "Photos and notes per device" },

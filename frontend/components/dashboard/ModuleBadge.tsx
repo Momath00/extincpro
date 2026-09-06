@@ -2,25 +2,35 @@
 
 import { useT } from '@/lib/i18n'
 
-type ModuleType = 'incendie' | 'extincteur' | 'eclairage'
+type ModuleType = 'incendie' | 'extincteur' | 'eclairage' | 'cuisine'
 
 const STYLES: Record<ModuleType, { bg: string; color: string; dot: string; icon: string }> = {
   incendie: { bg: '#eef2ff', color: '#4338ca', dot: '#6366f1', icon: 'ti-clipboard-check' },
   extincteur: { bg: '#fff2e8', color: '#9a4a13', dot: '#f97316', icon: 'ti-fire-extinguisher' },
   eclairage: { bg: '#ecfeff', color: '#0e7490', dot: '#06b6d4', icon: 'ti-bulb' },
+  cuisine: { bg: '#fff7ed', color: '#9a3412', dot: '#f59e0b', icon: 'ti-tools-kitchen-2' },
 }
 
 /** Puce indiquant le module courant (système d'alarme / extincteur / éclairage
- * d'urgence) — repère visuel constant en haut à droite des pages de rapport,
- * avec un petit point animé pour signaler "en cours de consultation". */
-export default function ModuleBadge({ type, eclairageLie }: { type: ModuleType; eclairageLie?: boolean }) {
+ * d'urgence / cuisine) — repère visuel constant en haut à droite des pages de
+ * rapport, avec un petit point animé pour signaler "en cours de
+ * consultation". */
+export default function ModuleBadge({ type, eclairageLie, cuisineLie }: { type: ModuleType; eclairageLie?: boolean; cuisineLie?: boolean }) {
   const t = useT()
   const s = STYLES[type]
   const label = type === 'incendie'
     ? t('incendie')
     : type === 'extincteur'
-      ? (eclairageLie ? t('extincteur_eclairage') : t('extincteur'))
-      : t('eclairage_urgence_badge')
+      ? (eclairageLie && cuisineLie
+          ? t('extincteur_eclairage_cuisine')
+          : cuisineLie
+            ? t('extincteur_cuisine')
+            : eclairageLie
+              ? t('extincteur_eclairage')
+              : t('extincteur'))
+      : type === 'cuisine'
+        ? t('cuisine_badge')
+        : t('eclairage_urgence_badge')
 
   return (
     <span

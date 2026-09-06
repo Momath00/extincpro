@@ -18,9 +18,12 @@ from .models import (
     FicheLegende,
     HistoriqueAppelService,
     HistoriqueRapport,
+    HistoriqueRapportCuisine,
     HistoriqueRapportEclairageUrgence,
     HistoriqueRapportExtincteur,
+    HotteCuisine,
     Rapport,
+    RapportCuisine,
     RapportEclairageUrgence,
     RapportExtincteur,
     ResumeSommaire,
@@ -342,6 +345,7 @@ class RapportExtincteurListSerializer(serializers.ModelSerializer):
     nb_extincteurs = serializers.SerializerMethodField()
     certificat = serializers.SerializerMethodField()
     rapport_eclairage_lie = serializers.SerializerMethodField()
+    rapport_cuisine_lie = serializers.SerializerMethodField()
 
     def get_nb_extincteurs(self, obj):
         return obj.extincteurs.count()
@@ -359,12 +363,19 @@ class RapportExtincteurListSerializer(serializers.ModelSerializer):
             return None
         return {"id": eclairage.id, "statut": eclairage.statut}
 
+    def get_rapport_cuisine_lie(self, obj):
+        cuisine = getattr(obj, "rapport_cuisine_lie", None)
+        if cuisine is None:
+            return None
+        return {"id": cuisine.id, "statut": cuisine.statut}
+
     class Meta:
         model = RapportExtincteur
         fields = [
             "id", "batiment", "rapport_alarme", "techniciens", "citoyen", "numero_job",
             "statut", "statut_display", "date_inspection", "date_derniere_sauvegarde",
             "date_fermeture", "nb_extincteurs", "certificat", "rapport_eclairage_lie",
+            "rapport_cuisine_lie",
         ]
 
 
@@ -464,6 +475,90 @@ class RapportEclairageUrgenceCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = RapportEclairageUrgence
         fields = ["id", "batiment", "techniciens", "numero_job", "date_inspection"]
+        read_only_fields = ["id"]
+
+
+# ── Rapport cuisine (système fixe d'extinction, ULC ORD 1254.6) ─────────────
+
+class HotteCuisineSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HotteCuisine
+        fields = ["id", "rapport", "ordre", "label", "nombre_buses", "buses", "appareils", "dividers"]
+        read_only_fields = ["rapport"]
+
+
+class HistoriqueRapportCuisineSerializer(serializers.ModelSerializer):
+    utilisateur = UtilisateurSerializer(read_only=True)
+
+    class Meta:
+        model = HistoriqueRapportCuisine
+        fields = ["id", "utilisateur", "description", "date_heure"]
+
+
+class RapportCuisineListSerializer(serializers.ModelSerializer):
+    """Version allégée — pour les listes."""
+
+    batiment = BatimentSerializer(read_only=True)
+    techniciens = UtilisateurSerializer(many=True, read_only=True)
+    statut_display = serializers.CharField(source="get_statut_display", read_only=True)
+    rapport_extincteur_id = serializers.IntegerField(source="rapport_extincteur.id", read_only=True, default=None)
+    est_conforme = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = RapportCuisine
+        fields = [
+            "id", "batiment", "techniciens", "numero_job",
+            "statut", "statut_display", "date_inspection", "date_derniere_sauvegarde",
+            "date_fermeture", "rapport_extincteur_id", "est_conforme",
+        ]
+
+
+class RapportCuisineDetailSerializer(RapportCuisineListSerializer):
+    cree_par = UtilisateurSerializer(read_only=True)
+    hottes = HotteCuisineSerializer(many=True, read_only=True)
+    historique = HistoriqueRapportCuisineSerializer(many=True, read_only=True)
+
+    class Meta(RapportCuisineListSerializer.Meta):
+        fields = RapportCuisineListSerializer.Meta.fields + [
+            "cree_par", "hottes", "historique",
+            "courtier", "fabricant", "modele", "numero_serie", "type_agent",
+            "date_installation", "alimentation", "dispositif_coupure", "nombre_buses",
+            "liens_fusibles_360f", "liens_fusibles_450f", "liens_fusibles_500f",
+            "buses_liens_fusibles", "date_dernier_essai_hydrostatique",
+            "date_derniere_recharge", "prochaine_inspection", "raccordement",
+            "appareils_proteges", "liens_fusibles_remplaces", "installation_conforme_fabricant",
+            "cable_tension_verifie", "pression_manometre_verifiee", "conduits_decharge_verifies",
+            "cylindres_supports_inspectes", "extincteur_portatif_type_k", "station_manuelle_degagee",
+            "etiquettes_verification_apposees", "buses_protecteurs_nettoyes",
+            "systeme_condition_normale", "liens_fusibles_nettoyes", "commentaires",
+        ]
+
+
+class RapportCuisineCreateSerializer(serializers.ModelSerializer):
+    """Utilisé pour créer un rapport cuisine indépendant, et pour le modifier
+    (superviseur ou technicien assigné) — le lien à un rapport extincteur, lui,
+    n'est jamais posé par ce serializer (voir _creer_rapport_cuisine_lie)."""
+
+    techniciens = serializers.PrimaryKeyRelatedField(
+        many=True, required=False,
+        queryset=Utilisateur.objects.filter(role=Utilisateur.Role.TECHNICIEN),
+    )
+
+    class Meta:
+        model = RapportCuisine
+        fields = [
+            "id", "batiment", "techniciens", "numero_job", "date_inspection",
+            "courtier", "fabricant", "modele", "numero_serie", "type_agent",
+            "date_installation", "alimentation", "dispositif_coupure", "nombre_buses",
+            "liens_fusibles_360f", "liens_fusibles_450f", "liens_fusibles_500f",
+            "buses_liens_fusibles", "date_dernier_essai_hydrostatique",
+            "date_derniere_recharge", "prochaine_inspection", "raccordement",
+            "appareils_proteges", "liens_fusibles_remplaces", "installation_conforme_fabricant",
+            "cable_tension_verifie", "pression_manometre_verifiee", "conduits_decharge_verifies",
+            "cylindres_supports_inspectes", "extincteur_portatif_type_k", "station_manuelle_degagee",
+            "etiquettes_verification_apposees", "buses_protecteurs_nettoyes",
+            "systeme_condition_normale", "liens_fusibles_nettoyes", "commentaires",
+        ]
         read_only_fields = ["id"]
 
 

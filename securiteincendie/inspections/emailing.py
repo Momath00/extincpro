@@ -209,20 +209,95 @@ def envoyer_email_documents_directs(batiment, elements: list[dict]) -> None:
     envoyer_email(client.contact_email, sujet, html_template(html_body), attachments=attachments)
 
 
-def envoyer_certificats_directs_batiment(batiment, utilisateur) -> tuple[bool, str]:
-    """Regroupe TOUS les rapports fermés et pas encore envoyés de ce bâtiment
-    (incendie + extincteurs, éclairage d'urgence inclus dans le certificat
-    extincteurs) et les envoie en un seul courriel — déclenché depuis
-    n'importe lequel des types de rapport. Chaque type prêt est inclus, pour
-    que le client reçoive tout en une fois plutôt que plusieurs courriels."""
-    from .models import Client
+def _documents_prets_directs(batiment) -> list[dict]:
+    """Construit la liste des rapports fermés et pas encore envoyés de ce
+    bâtiment (incendie + extincteurs, éclairage d'urgence et système de
+    cuisine inclus dans le certificat extincteurs) — un seul point d'entrée
+    réutilisé pour l'aperçu (« combien de documents prêts ? ») et l'envoi
+    réel, pour qu'un futur module suivant ce même patron de certificat
+    (rapport fermé -> `certificat`) apparaisse ici automatiquement sans
+    toucher au frontend."""
+    elements = []
+
+    for rapport in batiment.rapports.filter(statut="ferme"):
+        if hasattr(rapport, "certificat") and not rapport.certificat.certificat_envoye:
+            elements.append(_element_incendie(rapport))
+
+    for rapport_ext in batiment.rapports_extincteurs.filter(statut="ferme"):
+        if hasattr(rapport_ext, "certificat") and not rapport_ext.certificat.certificat_envoye:
+            elements.append(_element_extincteur(rapport_ext))
+
+    return elements
+
+
+def _element_incendie(rapport) -> dict:
+    """Construit l'élément (pièces jointes + méta) d'un rapport incendie
+    fermé — sans condition sur `certificat_envoye`, pour être réutilisable
+    autant par l'envoi groupé (documents pas encore envoyés) que par un
+    renvoi ciblé d'un document déjà envoyé."""
+    from .pdf import generer_pdf_certificat, generer_pdf_rapport_complet
+
+    cert = rapport.certificat
+    return {
+        "label": "Réseau d'alarme incendie",
+        "numero": cert.numero,
+        "conforme": cert.conforme,
+        "nb_rapports": 1,
+        "attachments": [
+            (f"rapport-{cert.numero}.pdf", generer_pdf_rapport_complet(rapport), "application/pdf"),
+            (f"certificat-{cert.numero}.pdf", generer_pdf_certificat(rapport), "application/pdf"),
+        ],
+        "_obj": rapport,
+    }
+
+
+def _element_extincteur(rapport_ext) -> dict:
+    """Équivalent de `_element_incendie` pour un rapport extincteur — chaque
+    rapport lié (éclairage, cuisine) garde son propre fichier PDF
+    indépendant, seul le certificat est partagé."""
     from .pdf import (
         conformite_extincteur,
-        generer_pdf_certificat,
         generer_pdf_certificat_extincteur,
-        generer_pdf_rapport_complet,
+        generer_pdf_rapport_cuisine_complet,
+        generer_pdf_rapport_eclairage_complet,
         generer_pdf_rapport_extincteur_complet,
     )
+
+    cert = rapport_ext.certificat
+    eclairage_lie = getattr(rapport_ext, "rapport_eclairage_lie", None)
+    cuisine_liee = getattr(rapport_ext, "rapport_cuisine_lie", None)
+    attachments = [
+        (f"rapport-extincteurs-{cert.numero}.pdf", generer_pdf_rapport_extincteur_complet(rapport_ext), "application/pdf"),
+    ]
+    if eclairage_lie:
+        attachments.append(
+            (f"rapport-eclairage-{eclairage_lie.id}.pdf", generer_pdf_rapport_eclairage_complet(eclairage_lie), "application/pdf")
+        )
+    if cuisine_liee:
+        attachments.append(
+            (f"rapport-cuisine-{cuisine_liee.id}.pdf", generer_pdf_rapport_cuisine_complet(cuisine_liee), "application/pdf")
+        )
+    attachments.append(
+        (f"certificat-extincteurs-{cert.numero}.pdf", generer_pdf_certificat_extincteur(rapport_ext), "application/pdf")
+    )
+    return {
+        "label": "Extincteurs portatifs"
+        + (" et éclairage d'urgence" if eclairage_lie else "")
+        + (" et système de cuisine" if cuisine_liee else ""),
+        "numero": cert.numero,
+        "conforme": conformite_extincteur(rapport_ext),
+        "nb_rapports": 1 + (1 if eclairage_lie else 0) + (1 if cuisine_liee else 0),
+        "attachments": attachments,
+        "_obj": rapport_ext,
+    }
+
+
+def envoyer_certificats_directs_batiment(batiment, utilisateur) -> tuple[bool, str]:
+    """Regroupe TOUS les documents prêts de ce bâtiment (voir
+    `_documents_prets_directs`) et les envoie en un seul courriel —
+    déclenché depuis la fiche du bâtiment, peu importe quel rapport a été
+    fermé en dernier."""
+    from .models import Client
 
     client = batiment.client
     if client.mode_livraison != Client.ModeLivraison.DIRECT:
@@ -230,48 +305,59 @@ def envoyer_certificats_directs_batiment(batiment, utilisateur) -> tuple[bool, s
     if not client.contact_email:
         return False, "Ce client n'a pas d'adresse courriel de contact — impossible d'envoyer en mode direct."
 
-    elements = []
-
-    for rapport in batiment.rapports.filter(statut="ferme"):
-        if hasattr(rapport, "certificat") and not rapport.certificat.certificat_envoye:
-            cert = rapport.certificat
-            elements.append({
-                "label": "Réseau d'alarme incendie",
-                "numero": cert.numero,
-                "conforme": cert.conforme,
-                "attachments": [
-                    (f"rapport-{cert.numero}.pdf", generer_pdf_rapport_complet(rapport), "application/pdf"),
-                    (f"certificat-{cert.numero}.pdf", generer_pdf_certificat(rapport), "application/pdf"),
-                ],
-                "_obj": rapport,
-            })
-
-    for rapport_ext in batiment.rapports_extincteurs.filter(statut="ferme"):
-        if hasattr(rapport_ext, "certificat") and not rapport_ext.certificat.certificat_envoye:
-            cert = rapport_ext.certificat
-            elements.append({
-                "label": "Extincteurs portatifs" + (" et éclairage d'urgence" if getattr(rapport_ext, "rapport_eclairage_lie", None) else ""),
-                "numero": cert.numero,
-                "conforme": conformite_extincteur(rapport_ext),
-                "attachments": [
-                    (f"rapport-extincteurs-{cert.numero}.pdf", generer_pdf_rapport_extincteur_complet(rapport_ext), "application/pdf"),
-                    (f"certificat-extincteurs-{cert.numero}.pdf", generer_pdf_certificat_extincteur(rapport_ext), "application/pdf"),
-                ],
-                "_obj": rapport_ext,
-            })
-
+    elements = _documents_prets_directs(batiment)
     if not elements:
         return False, "Aucun rapport fermé à envoyer pour ce bâtiment."
 
     envoyer_email_documents_directs(batiment, elements)
 
+    from django.utils import timezone
+
     for el in elements:
-        el["_obj"].certificat.certificat_envoye = True
-        el["_obj"].certificat.save()
+        cert = el["_obj"].certificat
+        cert.certificat_envoye = True
+        cert.mode_envoi = cert.ModeEnvoi.DIRECT
+        cert.date_envoi = timezone.now()
+        cert.envoye_a = client.contact_email
+        cert.save()
         el["_obj"].historiser(
             utilisateur,
             f"Rapport et certificat envoyés par courriel (mode direct) à {client.contact_email}",
         )
 
     noms = " + ".join(el["label"] for el in elements)
-    return True, f"Envoyé par courriel à {client.contact_email} ({noms})."
+    return True, (
+        f"Envoyé avec succès ! {client.nom} recevra son rapport et son certificat "
+        f"par courriel à {client.contact_email} ({noms})."
+    )
+
+
+def renvoyer_document_direct(rapport, type_rapport: str, utilisateur) -> tuple[bool, str]:
+    """Renvoie UN SEUL document déjà envoyé (mode direct), sans toucher aux
+    autres documents du bâtiment — contrairement à
+    `envoyer_certificats_directs_batiment`, qui n'envoie que ce qui n'a
+    jamais été envoyé, ceci ignore volontairement `certificat_envoye` pour
+    permettre un renvoi (client qui a perdu le courriel, etc.)."""
+    from django.utils import timezone
+
+    from .models import Client
+
+    batiment = rapport.batiment
+    client = batiment.client
+    if client.mode_livraison != Client.ModeLivraison.DIRECT:
+        return False, "Ce client n'est pas en mode d'envoi direct."
+    if not client.contact_email:
+        return False, "Ce client n'a pas d'adresse courriel de contact — impossible d'envoyer en mode direct."
+
+    element = _element_incendie(rapport) if type_rapport == "incendie" else _element_extincteur(rapport)
+    envoyer_email_documents_directs(batiment, [element])
+
+    cert = rapport.certificat
+    cert.certificat_envoye = True
+    cert.mode_envoi = cert.ModeEnvoi.DIRECT
+    cert.date_envoi = timezone.now()
+    cert.envoye_a = client.contact_email
+    cert.save()
+    rapport.historiser(utilisateur, f"Certificat renvoyé par courriel (mode direct) à {client.contact_email}")
+
+    return True, f"Renvoyé avec succès à {client.contact_email}."

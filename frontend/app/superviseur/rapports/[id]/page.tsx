@@ -9,45 +9,13 @@ import OngletLegende from '@/components/rapports/OngletLegende'
 import OngletE3 from '@/components/rapports/OngletE3'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 import ModuleBadge from '@/components/dashboard/ModuleBadge'
+import EnvoiDirectBanner from '@/components/dashboard/EnvoiDirectBanner'
+import { downloadHtml, downloadFichier } from '@/lib/download'
 import { useT, useLangue } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
-
-async function downloadHtml(url: string): Promise<boolean> {
-  try {
-    const token = localStorage.getItem('access_token')
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-    if (!res.ok) return false
-    const html = await res.text()
-    const blob = new Blob([html], { type: 'text/html' })
-    const blobUrl = URL.createObjectURL(blob)
-    window.open(blobUrl, '_blank')
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
-    return true
-  } catch {
-    return false
-  }
-}
-
-async function downloadFichier(url: string, nomFichier: string): Promise<boolean> {
-  try {
-    const token = localStorage.getItem('access_token')
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-    if (!res.ok) return false
-    const blob = await res.blob()
-    const blobUrl = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = blobUrl
-    a.download = nomFichier
-    a.click()
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
-    return true
-  } catch {
-    return false
-  }
-}
 
 function SpinnerBouton({ color = '#fff' }: { color?: string }) {
   return (
@@ -168,15 +136,15 @@ function CertificatTab({
 
           {/* Actions */}
           <div className="flex flex-col sm:flex-row gap-3">
-            {peutEnvoyer && !cert.certificat_envoye && (
+            {peutEnvoyer && !modeDirect && !cert.certificat_envoye && (
               <button
                 onClick={onEnvoyer}
                 disabled={actionLoading}
                 className="flex-1 text-sm font-bold px-4 py-3 rounded-lg text-white flex items-center justify-center gap-2 disabled:opacity-50 hover:opacity-90 transition-opacity"
                 style={{ background: ORANGE }}
               >
-                <i className={`ti ${modeDirect ? 'ti-mail-forward' : 'ti-send'}`} />
-                {actionLoading ? t('envoi_en_cours') : modeDirect ? t('envoyer_par_courriel_pdf') : t('envoyer_au_citoyen')}
+                <i className="ti ti-send" />
+                {actionLoading ? t('envoi_en_cours') : t('envoyer_au_citoyen')}
               </button>
             )}
             <button
@@ -431,15 +399,14 @@ export default function SuperviseurRapportDetailPage() {
           )}
 
           {estFerme && rapport.certificat && !rapport.certificat.certificat_envoye &&
-            (rapport.batiment?.client_mode_livraison === 'direct' ? !!rapport.batiment?.client_contact_email : !!rapport.citoyen) && (
+            rapport.batiment?.client_mode_livraison !== 'direct' && !!rapport.citoyen && (
             <button
               onClick={envoyerCertificat}
               disabled={actionLoading}
               className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
               style={{ background: ORANGE }}
             >
-              <i className={`ti ${rapport.batiment?.client_mode_livraison === 'direct' ? 'ti-mail-forward' : 'ti-send'}`} />
-              {rapport.batiment?.client_mode_livraison === 'direct' ? t('envoyer_par_courriel_pdf') : t('envoyer_certificat_btn')}
+              <i className="ti ti-send" /> {t('envoyer_certificat_btn')}
             </button>
           )}
 
@@ -501,6 +468,10 @@ export default function SuperviseurRapportDetailPage() {
           )}
         </div>
       </div>
+
+      {rapport.batiment?.id && (
+        <EnvoiDirectBanner batimentId={rapport.batiment.id} onEnvoye={charger} />
+      )}
 
       {/* Notice superviseur sur rapport fermé */}
       {estFerme && (

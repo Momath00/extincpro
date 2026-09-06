@@ -1,13 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { clientColor } from '@/lib/clientColor'
+import Pagination from '@/components/dashboard/Pagination'
 import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
+const PAGE_SIZE = 25
 
 function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
   const t = useT()
@@ -143,6 +145,7 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
 
 export default function BatimentsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const t = useT()
   const TYPE_LABELS: Record<string, string> = {
     residentiel: t('type_residentiel'),
@@ -150,33 +153,64 @@ export default function BatimentsPage() {
     industriel: t('type_industriel'),
   }
   const [batiments, setBatiments] = useState<any[]>([])
+  const [count, setCount] = useState(0)
+  const [total, setTotal] = useState(0)
   const [clients, setClients] = useState<any[]>([])
   const [citoyens, setCitoyens] = useState<any[]>([])
-  const [filtreClient, setFiltreClient] = useState('')
+  const [filtreClient, setFiltreClient] = useState(searchParams.get('client') || '')
+  const [page, setPage] = useState(1)
+  const [recherche, setRecherche] = useState('')
+  const [rechercheDebouncee, setRechercheDebouncee] = useState('')
   const [loading, setLoading] = useState(true)
   const [modalBatiment, setModalBatiment] = useState<any>(undefined)
   const [supprimerId, setSupprimerId] = useState<number | null>(null)
   const [successMsg, setSuccessMsg] = useState('')
 
+  function chargerCompteurs() {
+    const token = localStorage.getItem('access_token')
+    const params = new URLSearchParams()
+    if (filtreClient) params.set('client', filtreClient)
+    fetch(`${API_URL}/api/batiments/compteurs/?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => { if (data) setTotal(data.total) })
+      .catch(() => {})
+  }
+
   function charger() {
     const token = localStorage.getItem('access_token')
     if (!token) { router.push('/login'); return }
     const headers = { Authorization: `Bearer ${token}` }
+    const params = new URLSearchParams({ page: String(page) })
+    if (filtreClient) params.set('client', filtreClient)
+    if (rechercheDebouncee.trim()) params.set('q', rechercheDebouncee.trim())
     Promise.all([
-      fetch(`${API_URL}/api/batiments/`, { headers }),
+      fetch(`${API_URL}/api/batiments/?${params}`, { headers }),
       fetch(`${API_URL}/api/clients/`, { headers }),
       fetch(`${API_URL}/api/utilisateurs/?role=citoyen`, { headers }),
     ]).then(async ([bRes, cRes, citRes]) => {
       if (bRes.status === 401) { router.push('/login'); return }
       const [bData, cData, citData] = await Promise.all([bRes.json(), cRes.json(), citRes.json()])
-      setBatiments(Array.isArray(bData) ? bData : (bData.results || []))
+      setBatiments(bData.results || [])
+      setCount(bData.count ?? 0)
       setClients(Array.isArray(cData) ? cData : (cData.results || []))
       setCitoyens(Array.isArray(citData) ? citData : (citData.results || []))
       setLoading(false)
     }).catch(() => setLoading(false))
+    chargerCompteurs()
   }
 
-  useEffect(() => { charger() }, [])
+  useEffect(() => { charger() }, [page, filtreClient, rechercheDebouncee])
+
+  useEffect(() => {
+    const id = setTimeout(() => setRechercheDebouncee(recherche), 300)
+    return () => clearTimeout(id)
+  }, [recherche])
+
+  const premierRendu = useRef(true)
+  useEffect(() => {
+    if (premierRendu.current) { premierRendu.current = false; return }
+    setPage(1)
+  }, [filtreClient, rechercheDebouncee])
 
   async function supprimer(id: number) {
     const token = localStorage.getItem('access_token')
@@ -187,7 +221,7 @@ export default function BatimentsPage() {
     charger()
   }
 
-  const visibles = filtreClient ? batiments.filter(b => String(b.client) === filtreClient) : batiments
+  const visibles = batiments
 
   if (loading) {
     return (
@@ -210,7 +244,7 @@ export default function BatimentsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: NAVY }}>{t('batiments_titre')}</h1>
-          <p className="text-gray-400 text-sm mt-1">{batiments.length} {t('adresse_inspectee_s')}</p>
+          <p className="text-gray-400 text-sm mt-1">{total} {t('adresse_inspectee_s')}</p>
         </div>
         <button
           onClick={() => setModalBatiment(null)}
@@ -256,9 +290,30 @@ export default function BatimentsPage() {
         </div>
       )}
 
+      {total > 0 && (
+        <div className="relative mb-5 max-w-xs">
+          <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 text-sm" />
+          <input
+            type="text"
+            value={recherche}
+            onChange={e => setRecherche(e.target.value)}
+            placeholder={t('rechercher_placeholder')}
+            className="w-full pl-8 pr-8 py-2 text-sm border border-gray-100 rounded-md focus:outline-none focus:border-[#e11324] bg-white"
+          />
+          {recherche && (
+            <button onClick={() => setRecherche('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
+              <i className="ti ti-x text-xs" />
+            </button>
+          )}
+        </div>
+      )}
+
       {visibles.length === 0 ? (
         <div className="bg-white rounded-md border border-gray-100 text-center py-16">
-          <p className="text-gray-300 text-sm">{filtreClient ? t('aucun_batiment_pour_ce_client') : t('aucun_batiment_moment')}</p>
+          <p className="text-gray-300 text-sm">
+            {recherche ? t('aucun_resultat_recherche') : filtreClient ? t('aucun_batiment_pour_ce_client') : t('aucun_batiment_moment')}
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -285,6 +340,8 @@ export default function BatimentsPage() {
           })}
         </div>
       )}
+
+      <Pagination page={page} pageSize={PAGE_SIZE} count={count} onPageChange={setPage} />
 
       {modalBatiment !== undefined && (
         <BatimentModal batiment={modalBatiment} clients={clients} citoyens={citoyens} onClose={() => setModalBatiment(undefined)} onSaved={charger} />

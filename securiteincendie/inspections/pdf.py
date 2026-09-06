@@ -46,11 +46,26 @@ def generer_pdf_rapport_extincteur_complet(rapport) -> bytes:
     return _html_vers_pdf(_html_rapport_extincteur_complet(rapport))
 
 
+def generer_pdf_rapport_cuisine_complet(rapport) -> bytes:
+    from .views import _html_rapport_cuisine_complet
+    return _html_vers_pdf(_html_rapport_cuisine_complet(rapport))
+
+
+def generer_pdf_rapport_eclairage_complet(rapport) -> bytes:
+    from .views import _html_rapport_eclairage_complet
+    return _html_vers_pdf(_html_rapport_eclairage_complet(rapport))
+
+
 def conformite_extincteur(rapport) -> bool:
     """Conformité unifiée du certificat extincteurs : non conforme dès qu'un
-    extincteur OU une unité d'éclairage d'urgence liée est défectueux —
-    même règle que `_html_certificat_extincteur`."""
+    extincteur, une unité d'éclairage d'urgence OU le système cuisine liés
+    sont défectueux/non conforme — même règle que `_html_certificat_extincteur`."""
     items = list(rapport.extincteurs.all())
     rapport_eclairage = getattr(rapport, "rapport_eclairage_lie", None)
     eclairages = list(rapport_eclairage.eclairages_urgence.all()) if rapport_eclairage else []
-    return not any(it.etat == "D" for it in items) and not any(it.etat == "D" for it in eclairages)
+    rapport_cuisine = getattr(rapport, "rapport_cuisine_lie", None)
+    return (
+        not any(it.etat == "D" for it in items)
+        and not any(it.etat == "D" for it in eclairages)
+        and (rapport_cuisine is None or rapport_cuisine.est_conforme)
+    )
