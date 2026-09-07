@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useT } from '@/lib/i18n'
+import { resilientMutate } from '@/lib/offline/resilientFetch'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0f172a'
@@ -127,23 +128,17 @@ export default function InfoSystemeForm({
 
   async function sauvegarder(champ: string, valeur: any) {
     setError('')
-    const token = localStorage.getItem('access_token')
     let val: any = valeur
     if (CHAMPS_DATE_KEYS.includes(champ)) val = valeur || null
     else if (CHAMPS_NOMBRE_KEYS.includes(champ)) val = valeur === '' ? null : Number(valeur)
     else if (CHAMPS_BOOL.includes(champ)) val = valeur === 'true' ? true : valeur === 'false' ? false : null
-    const res = await fetch(`${API_URL}/api/rapports-cuisine/${rapport.id}/`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ [champ]: val }),
-    })
+    const res = await resilientMutate('PATCH', `${API_URL}/api/rapports-cuisine/${rapport.id}/`, { [champ]: val })
     if (res.ok) {
       setSaved(true)
-      onRefresh()
+      if (!res.queued) onRefresh()
       setTimeout(() => setSaved(false), 2000)
     } else {
-      const d = await res.json().catch(() => ({}))
-      setError(d.error || t('erreur_sauvegarde'))
+      setError(t('erreur_sauvegarde'))
     }
   }
 

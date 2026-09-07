@@ -2,6 +2,8 @@
 
 import { useState, useEffect, type ReactNode } from 'react'
 import { useT, useChoix, LONGUEUR_CHOICES_I18N } from '@/lib/i18n'
+import { resilientMutate, resilientCreate, isTempId } from '@/lib/offline/resilientFetch'
+import { onReconciled } from '@/lib/offline/queue'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -66,36 +68,22 @@ function LigneBoyau({
 
   async function patchField(field: string, value: any) {
     const ancienneValeur = it[field]
-    const token = localStorage.getItem('access_token')
     const updated = { ...it, [field]: value }
     setIt(updated)
     onUpdate(field, value)
     setErreurChamp(null)
-    try {
-      const res = await fetch(`${API_URL}/api/boyaux/${it.id}/`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [field]: value }),
-      })
-      if (!res.ok) {
-        setIt((prev: any) => ({ ...prev, [field]: ancienneValeur }))
-        onUpdate(field, ancienneValeur)
-        setErreurChamp(t('non_enregistre_reessayez'))
-      }
-    } catch {
+    const res = await resilientMutate('PATCH', `${API_URL}/api/boyaux/${it.id}/`, { [field]: value })
+    if (res.queued) return
+    if (!res.ok) {
       setIt((prev: any) => ({ ...prev, [field]: ancienneValeur }))
       onUpdate(field, ancienneValeur)
-      setErreurChamp(t('erreur_reseau_non_enregistre'))
+      setErreurChamp(t('non_enregistre_reessayez'))
     }
   }
 
   async function supprimer() {
-    const token = localStorage.getItem('access_token')
-    const res = await fetch(`${API_URL}/api/boyaux/${it.id}/`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (res.ok || res.status === 204) onDeleted()
+    const res = await resilientMutate('DELETE', `${API_URL}/api/boyaux/${it.id}/`)
+    if (res.ok) onDeleted()
     setConfirmDelete(false)
   }
 
@@ -250,10 +238,23 @@ export default function TableBoyaux({
   const [items, setItems] = useState<any[]>(rapport.boyaux || [])
   const [adding, setAdding] = useState(false)
 
-  useEffect(() => { setItems(rapport.boyaux || []) }, [rapport])
+  useEffect(() => {
+    setItems(prev => {
+      const pendingTemp = prev.filter(it => isTempId(it.id))
+      return [...(rapport.boyaux || []), ...pendingTemp]
+    })
+  }, [rapport])
 
-  function updateLocal(id: number, field: string, value: any) {
+  useEffect(() => onReconciled((tempId, realId) => {
+    setItems(prev => prev.map(it => it.id === tempId ? { ...it, id: realId } : it))
+  }), [])
+
+  function updateLocal(id: any, field: string, value: any) {
     setItems(prev => prev.map(it => it.id === id ? { ...it, [field]: value } : it))
+  }
+
+  function removerLocal(id: any) {
+    setItems(prev => prev.filter(it => it.id !== id))
   }
 
   const total = items.length
@@ -265,14 +266,13 @@ export default function TableBoyaux({
 
   async function ajouterLigne() {
     setAdding(true)
-    const token = localStorage.getItem('access_token')
     try {
-      await fetch(`${API_URL}/api/rapports-extincteurs/${rapport.id}/boyaux/`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      })
-      onRefresh()
+      const res = await resilientCreate(`${API_URL}/api/rapports-extincteurs/${rapport.id}/boyaux/`, {})
+      if (res.queued && res.tempId) {
+        setItems(prev => [...prev, { id: res.tempId, ordre: prev.length + 1 }])
+      } else {
+        onRefresh()
+      }
     } finally { setAdding(false) }
   }
 
@@ -323,7 +323,7 @@ export default function TableBoyaux({
                     key={it.id}
                     item={it}
                     readOnly={readOnly}
-                    onDeleted={onRefresh}
+                    onDeleted={() => { removerLocal(it.id); onRefresh() }}
                     onUpdate={(field, value) => updateLocal(it.id, field, value)}
                   />
                 ))}

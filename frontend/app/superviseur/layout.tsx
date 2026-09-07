@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar from '@/components/dashboard/Sidebar'
+import OfflineSyncInit from '@/components/OfflineSyncInit'
 import { LangueProvider } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -31,10 +32,22 @@ export default function SuperviseurLayout({ children }: { children: React.ReactN
           router.push('/login')
           return
         }
+        localStorage.setItem('cached_user_superviseur', JSON.stringify(data))
         setUser(data)
         setChecking(false)
       })
-      .catch(() => router.push('/login'))
+      .catch(() => {
+        // Panne réseau, pas une session invalide — on retombe sur le
+        // dernier profil connu pour ne pas bloquer la lecture hors ligne
+        // (sinon un rechargement de page hors ligne renvoie à /login).
+        const cached = localStorage.getItem('cached_user_superviseur')
+        if (cached) {
+          setUser(JSON.parse(cached))
+          setChecking(false)
+        } else {
+          router.push('/login')
+        }
+      })
   }, [])
 
   if (checking) {
@@ -47,6 +60,7 @@ export default function SuperviseurLayout({ children }: { children: React.ReactN
 
   return (
     <LangueProvider langue={user?.organisation?.langue || 'fr'}>
+    <OfflineSyncInit />
     <div className="min-h-screen bg-gray-50 flex">
 
       {/* Sidebar desktop — fixe */}

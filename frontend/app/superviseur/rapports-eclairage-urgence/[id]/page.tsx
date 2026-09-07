@@ -8,6 +8,7 @@ import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 import ModuleBadge from '@/components/dashboard/ModuleBadge'
 import { downloadHtml } from '@/lib/download'
 import { useT } from '@/lib/i18n'
+import { fetchWithCache } from '@/lib/offline/reportCache'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -27,20 +28,25 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
   const [confirmFermer, setConfirmFermer] = useState(false)
   const [confirmRouvrir, setConfirmRouvrir] = useState(false)
   const [modalMode, setModalMode] = useState<'technicien' | 'date' | null>(null)
+  const [horsLigne, setHorsLigne] = useState(false)
+  const [horsLigneDepuis, setHorsLigneDepuis] = useState<number | null>(null)
 
-  function charger() {
+  async function charger() {
     const token = localStorage.getItem('access_token')
     if (!token) { router.push('/login'); return }
-    fetch(`${API_URL}/api/rapports-eclairage-urgence/${params.id}/`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(res => {
-        if (res.status === 401) { router.push('/login'); return null }
-        if (res.status === 404) { router.push('/superviseur/rapports-eclairage-urgence'); return null }
-        return res.json()
-      })
-      .then(data => { if (data) { setRapport(data); setLoading(false) } })
-      .catch(() => setLoading(false))
+    try {
+      const { data, fromCache, cachedAt, status } = await fetchWithCache(`${API_URL}/api/rapports-eclairage-urgence/${params.id}/`, token)
+      if (status === 401) { router.push('/login'); return }
+      if (status === 404) { router.push('/superviseur/rapports-eclairage-urgence'); return }
+      if (data) {
+        setRapport(data)
+        setHorsLigne(fromCache)
+        setHorsLigneDepuis(cachedAt ?? null)
+        setLoading(false)
+      }
+    } catch {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { charger() }, [params.id])
@@ -150,6 +156,11 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
               </button>
             )}
           </p>
+          {horsLigne && (
+            <p className="text-xs text-gray-400 mt-0.5">
+              {t('donnees_hors_ligne')}{horsLigneDepuis ? ` (${new Date(horsLigneDepuis).toLocaleTimeString('fr-CA', { timeStyle: 'short' })})` : ''}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-2 flex-wrap flex-shrink-0">

@@ -12,6 +12,7 @@ import ModuleBadge from '@/components/dashboard/ModuleBadge'
 import EnvoiDirectBanner from '@/components/dashboard/EnvoiDirectBanner'
 import { downloadHtml, downloadFichier } from '@/lib/download'
 import { useT, useLangue } from '@/lib/i18n'
+import { fetchWithCache } from '@/lib/offline/reportCache'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -233,20 +234,25 @@ export default function SuperviseurRapportDetailPage() {
   const [confirmFermer, setConfirmFermer] = useState(false)
   const [confirmRouvrir, setConfirmRouvrir] = useState(false)
   const [modalMode, setModalMode] = useState<'technicien' | 'citoyen' | 'date' | null>(null)
+  const [horsLigne, setHorsLigne] = useState(false)
+  const [horsLigneDepuis, setHorsLigneDepuis] = useState<number | null>(null)
 
-  function charger() {
+  async function charger() {
     const token = localStorage.getItem('access_token')
     if (!token) { router.push('/login'); return }
-    fetch(`${API_URL}/api/rapports/${params.id}/`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(res => {
-        if (res.status === 401) { router.push('/login'); return null }
-        if (res.status === 404) { router.push('/superviseur/rapports'); return null }
-        return res.json()
-      })
-      .then(data => { if (data) { setRapport(data); setLoading(false) } })
-      .catch(() => setLoading(false))
+    try {
+      const { data, fromCache, cachedAt, status } = await fetchWithCache(`${API_URL}/api/rapports/${params.id}/`, token)
+      if (status === 401) { router.push('/login'); return }
+      if (status === 404) { router.push('/superviseur/rapports'); return }
+      if (data) {
+        setRapport(data)
+        setHorsLigne(fromCache)
+        setHorsLigneDepuis(cachedAt ?? null)
+        setLoading(false)
+      }
+    } catch {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { charger() }, [params.id])
@@ -381,6 +387,11 @@ export default function SuperviseurRapportDetailPage() {
                 ? ` ${rapport.batiment?.fabricant_reseau ? '· ' : ''}${new Date(rapport.date_inspection).toLocaleDateString(langue === 'en' ? 'en-CA' : 'fr-CA', { dateStyle: 'long' })}`
                 : ''}
             </p>
+            {horsLigne && (
+              <span className="text-xs text-gray-400">
+                {t('donnees_hors_ligne')}{horsLigneDepuis ? ` (${new Date(horsLigneDepuis).toLocaleTimeString('fr-CA', { timeStyle: 'short' })})` : ''}
+              </span>
+            )}
             {!estFerme && (
               <button onClick={() => setModalMode('date')} className="text-gray-300 hover:text-[#e11324] transition-colors" title={t('modifier_date_inspection')}>
                 <i className="ti ti-pencil text-xs" />

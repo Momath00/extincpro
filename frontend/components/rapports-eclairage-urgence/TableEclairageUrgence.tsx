@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { useT } from '@/lib/i18n'
+import { resilientMutate, resilientCreate, isTempId } from '@/lib/offline/resilientFetch'
+import { onReconciled } from '@/lib/offline/queue'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -72,24 +74,15 @@ function LigneEclairage({
   useEffect(() => { setIt(item) }, [item])
 
   async function patchField(field: string, value: any) {
-    const token = localStorage.getItem('access_token')
     const updated = { ...it, [field]: value }
     setIt(updated)
     onUpdate(field, value)
-    await fetch(`${API_URL}/api/eclairages-urgence/${it.id}/`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [field]: value }),
-    })
+    await resilientMutate('PATCH', `${API_URL}/api/eclairages-urgence/${it.id}/`, { [field]: value })
   }
 
   async function supprimer() {
-    const token = localStorage.getItem('access_token')
-    const res = await fetch(`${API_URL}/api/eclairages-urgence/${it.id}/`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (res.ok || res.status === 204) onDeleted()
+    const res = await resilientMutate('DELETE', `${API_URL}/api/eclairages-urgence/${it.id}/`)
+    if (res.ok) onDeleted()
     setConfirmDelete(false)
   }
 
@@ -206,10 +199,23 @@ export default function TableEclairageUrgence({
   const [items, setItems] = useState<any[]>(rapport.eclairages_urgence || [])
   const [adding, setAdding] = useState(false)
 
-  useEffect(() => { setItems(rapport.eclairages_urgence || []) }, [rapport])
+  useEffect(() => {
+    setItems(prev => {
+      const pendingTemp = prev.filter(it => isTempId(it.id))
+      return [...(rapport.eclairages_urgence || []), ...pendingTemp]
+    })
+  }, [rapport])
 
-  function updateLocal(id: number, field: string, value: any) {
+  useEffect(() => onReconciled((tempId, realId) => {
+    setItems(prev => prev.map(it => it.id === tempId ? { ...it, id: realId } : it))
+  }), [])
+
+  function updateLocal(id: any, field: string, value: any) {
     setItems(prev => prev.map(it => it.id === id ? { ...it, [field]: value } : it))
+  }
+
+  function removerLocal(id: any) {
+    setItems(prev => prev.filter(it => it.id !== id))
   }
 
   const total = items.length
@@ -223,14 +229,13 @@ export default function TableEclairageUrgence({
 
   async function ajouterLigne() {
     setAdding(true)
-    const token = localStorage.getItem('access_token')
     try {
-      await fetch(`${API_URL}/api/rapports-eclairage-urgence/${rapport.id}/eclairages-urgence/`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      })
-      onRefresh()
+      const res = await resilientCreate(`${API_URL}/api/rapports-eclairage-urgence/${rapport.id}/eclairages-urgence/`, {})
+      if (res.queued && res.tempId) {
+        setItems(prev => [...prev, { id: res.tempId, ordre: prev.length + 1 }])
+      } else {
+        onRefresh()
+      }
     } finally { setAdding(false) }
   }
 
@@ -413,7 +418,7 @@ export default function TableEclairageUrgence({
                     key={it.id}
                     item={it}
                     readOnly={readOnly}
-                    onDeleted={onRefresh}
+                    onDeleted={() => { removerLocal(it.id); onRefresh() }}
                     onUpdate={(field, value) => updateLocal(it.id, field, value)}
                   />
                 ))}
