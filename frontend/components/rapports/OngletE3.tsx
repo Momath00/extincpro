@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useT, useLangue, useChoix, TYPE_DISPOSITIF_I18N } from '@/lib/i18n'
+import { resilientMutate } from '@/lib/offline/resilientFetch'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -58,24 +59,15 @@ function LigneDispositif({
   if (filtreType !== 'Tous' && d.type_dispositif !== filtreType) return null
 
   async function patchField(field: string, value: any) {
-    const token = localStorage.getItem('access_token')
     const updated = { ...d, [field]: value }
     setD(updated)
     onUpdate(field, value)
-    await fetch(`${API_URL}/api/dispositifs/${d.id}/`, {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [field]: value }),
-    })
+    await resilientMutate('PATCH', `${API_URL}/api/dispositifs/${d.id}/`, { [field]: value })
   }
 
   async function supprimer() {
-    const token = localStorage.getItem('access_token')
-    const res = await fetch(`${API_URL}/api/dispositifs/${d.id}/`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (res.ok || res.status === 204) onDeleted()
+    const res = await resilientMutate('DELETE', `${API_URL}/api/dispositifs/${d.id}/`)
+    if (res.ok) onDeleted()
     setConfirmDelete(false)
   }
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { resoudreE2Structure } from '@/lib/e2Structure'
 import { useT, useLangue } from '@/lib/i18n'
+import { resilientMutate } from '@/lib/offline/resilientFetch'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -57,22 +58,19 @@ export default function OngletE2({
 
   async function sauvegarderSection(sectionId: string) {
     setSaving(true)
-    const token = localStorage.getItem('access_token')
     try {
-      const res = await fetch(`${API_URL}/api/rapports/${rapport.id}/fiche-e2/`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ details }),
-      })
+      const res = await resilientMutate('PATCH', `${API_URL}/api/rapports/${rapport.id}/fiche-e2/`, { details })
       if (res.ok) {
-        showToast(`${t('section_prefix')} ${sectionId.replace('_', '.').toUpperCase()} ${t('sauvegardee_suffix')}`, 'success')
-        onSaved()
+        showToast(
+          res.queued
+            ? t('sera_synchronise_reconnexion')
+            : `${t('section_prefix')} ${sectionId.replace('_', '.').toUpperCase()} ${t('sauvegardee_suffix')}`,
+          'success'
+        )
+        if (!res.queued) onSaved()
       } else {
-        const d = await res.json().catch(() => ({}))
-        showToast(d.error || t('erreur_sauvegarde'), 'error')
+        showToast(t('erreur_sauvegarde'), 'error')
       }
-    } catch {
-      showToast(t('erreur_reseau'), 'error')
     } finally {
       setSaving(false)
     }

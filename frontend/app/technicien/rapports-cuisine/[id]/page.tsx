@@ -8,6 +8,7 @@ import SchemaHottes from '@/components/rapports-cuisine/SchemaHottes'
 import ChecklistCuisine from '@/components/rapports-cuisine/ChecklistCuisine'
 import { downloadHtml } from '@/lib/download'
 import { useT } from '@/lib/i18n'
+import { fetchWithCache } from '@/lib/offline/reportCache'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -25,25 +26,30 @@ export default function TechnicienRapportCuisineDetailPage() {
   const [actionLoading, setActionLoading] = useState(false)
   const [confirmFermer, setConfirmFermer] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
+  const [horsLigne, setHorsLigne] = useState(false)
+  const [horsLigneDepuis, setHorsLigneDepuis] = useState<number | null>(null)
 
   const STATUT_BADGE: Record<string, { label: string; bg: string; color: string }> = {
     ouvert: { label: t('ouvert'), bg: '#fff2e8', color: ORANGE },
     ferme: { label: t('ferme'), bg: '#e9f6f2', color: '#0d6b4f' },
   }
 
-  function charger() {
+  async function charger() {
     const token = localStorage.getItem('access_token')
     if (!token) { router.push('/login'); return }
-    fetch(`${API_URL}/api/rapports-cuisine/${params.id}/`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(res => {
-        if (res.status === 401) { router.push('/login'); return null }
-        if (res.status === 404) { router.push('/technicien/rapports-cuisine'); return null }
-        return res.json()
-      })
-      .then(data => { if (data) { setRapport(data); setLoading(false) } })
-      .catch(() => setLoading(false))
+    try {
+      const { data, fromCache, cachedAt, status } = await fetchWithCache(`${API_URL}/api/rapports-cuisine/${params.id}/`, token)
+      if (status === 401) { router.push('/login'); return }
+      if (status === 404) { router.push('/technicien/rapports-cuisine'); return }
+      if (data) {
+        setRapport(data)
+        setHorsLigne(fromCache)
+        setHorsLigneDepuis(cachedAt ?? null)
+        setLoading(false)
+      }
+    } catch {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { charger() }, [params.id])
@@ -119,6 +125,11 @@ export default function TechnicienRapportCuisineDetailPage() {
               ? new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })
               : ''}
           </p>
+          {horsLigne && (
+            <p className="text-xs text-gray-400 mt-0.5">
+              {t('donnees_hors_ligne')}{horsLigneDepuis ? ` (${new Date(horsLigneDepuis).toLocaleTimeString('fr-CA', { timeStyle: 'short' })})` : ''}
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-2 flex-wrap flex-shrink-0">

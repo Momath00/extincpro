@@ -1,7 +1,9 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useT } from '@/lib/i18n'
+import { resilientMutate, resilientCreate, isTempId } from '@/lib/offline/resilientFetch'
+import { onReconciled } from '@/lib/offline/queue'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0f172a'
@@ -150,8 +152,8 @@ function HotteEditor({
 }: {
   hotte: any
   readOnly: boolean
-  onPatch: (id: number, patch: any) => void
-  onDelete: (id: number) => void
+  onPatch: (id: any, patch: any) => void
+  onDelete: (id: any) => void
   panneau?: React.ReactNode
 }) {
   const t = useT()
@@ -526,38 +528,44 @@ export default function SchemaHottes({
 }) {
   const t = useT()
   const { CODES } = useCodes()
-  const hottes: any[] = rapport.hottes || []
+  const [hottes, setHottes] = useState<any[]>(rapport.hottes || [])
   const [ajout, setAjout] = useState(false)
 
-  async function patchHotte(id: number, patch: any) {
-    const token = localStorage.getItem('access_token')
-    await fetch(`${API_URL}/api/hottes-cuisine/${id}/`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(patch),
+  useEffect(() => {
+    setHottes(prev => {
+      const pendingTemp = prev.filter(h => isTempId(h.id))
+      return [...(rapport.hottes || []), ...pendingTemp]
     })
-    onRefresh()
+  }, [rapport])
+
+  useEffect(() => onReconciled((tempId, realId) => {
+    setHottes(prev => prev.map(h => h.id === tempId ? { ...h, id: realId } : h))
+  }), [])
+
+  async function patchHotte(id: any, patch: any) {
+    setHottes(prev => prev.map(h => h.id === id ? { ...h, ...patch } : h))
+    const res = await resilientMutate('PATCH', `${API_URL}/api/hottes-cuisine/${id}/`, patch)
+    if (!res.queued) onRefresh()
   }
 
-  async function supprimerHotte(id: number) {
-    const token = localStorage.getItem('access_token')
-    await fetch(`${API_URL}/api/hottes-cuisine/${id}/`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    onRefresh()
+  async function supprimerHotte(id: any) {
+    const res = await resilientMutate('DELETE', `${API_URL}/api/hottes-cuisine/${id}/`)
+    if (res.ok) {
+      setHottes(prev => prev.filter(h => h.id !== id))
+      if (!res.queued) onRefresh()
+    }
   }
 
   async function ajouterHotte() {
     setAjout(true)
-    const token = localStorage.getItem('access_token')
-    await fetch(`${API_URL}/api/rapports-cuisine/${rapport.id}/hottes/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({}),
-    })
-    setAjout(false)
-    onRefresh()
+    try {
+      const res = await resilientCreate(`${API_URL}/api/rapports-cuisine/${rapport.id}/hottes/`, {})
+      if (res.queued && res.tempId) {
+        setHottes(prev => [...prev, { id: res.tempId, appareils: [], dividers: [], buses: [], label: '' }])
+      } else {
+        onRefresh()
+      }
+    } finally { setAjout(false) }
   }
 
   return (

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useT, useLangue } from '@/lib/i18n'
+import { resilientMutate } from '@/lib/offline/resilientFetch'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -67,20 +68,11 @@ export default function OngletLegende({
   async function patchLigne(code: string, field: 'type' | 'modele', value: string) {
     const updated = { ...lignes, [code]: { ...lignes[code], [field]: value } }
     setLignes(updated)
-    const token = localStorage.getItem('access_token')
-    try {
-      const res = await fetch(`${API_URL}/api/rapports/${rapport.id}/fiche-legende/`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dispositifs: updated }),
-      })
-      if (res.ok) {
-        onSaved()
-      } else {
-        showToast(t('erreur_sauvegarde'), 'error')
-      }
-    } catch {
-      showToast(t('erreur_reseau'), 'error')
+    const res = await resilientMutate('PATCH', `${API_URL}/api/rapports/${rapport.id}/fiche-legende/`, { dispositifs: updated })
+    if (res.ok) {
+      if (!res.queued) onSaved()
+    } else {
+      showToast(t('erreur_sauvegarde'), 'error')
     }
   }
 
