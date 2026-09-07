@@ -195,6 +195,12 @@ export const DICT: Dict = {
   legende_mt: { fr: 'Maintenance requise, voir (Notes)', en: 'Maintenance required, see (Notes)' },
   non_enregistre_reessayez: { fr: 'Non enregistré — réessayez.', en: 'Not saved — try again.' },
   erreur_reseau_non_enregistre: { fr: 'Erreur réseau — non enregistré.', en: 'Network error — not saved.' },
+
+  // ── Mode hors ligne ────────────────────────────────────────────────────
+  sera_synchronise_reconnexion: { fr: 'Enregistré localement — sera synchronisé automatiquement à la reconnexion.', en: 'Saved locally — will sync automatically once back online.' },
+  changement_non_applique: { fr: "Un changement effectué hors ligne n'a pas pu être enregistré (le rapport a peut-être été fermé entre-temps).", en: "A change made offline could not be saved (the report may have been closed in the meantime)." },
+  session_expiree_sync_en_attente: { fr: 'Session expirée — reconnectez-vous pour synchroniser vos changements en attente.', en: 'Session expired — sign in again to sync your pending changes.' },
+  donnees_hors_ligne: { fr: 'Données hors ligne — dernière synchro', en: 'Offline data — last synced' },
   boyaux_incendie: { fr: "Boyaux d'incendie", en: 'Fire hoses' },
   ajouter_un_boyau: { fr: 'Ajouter un boyau', en: 'Add a hose' },
   en_cours: { fr: 'En cours', en: 'In progress' },

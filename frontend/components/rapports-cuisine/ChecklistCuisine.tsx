@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useT } from '@/lib/i18n'
+import { resilientMutate } from '@/lib/offline/resilientFetch'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0f172a'
@@ -50,19 +51,13 @@ export default function ChecklistCuisine({
 
   async function sauvegarder(payload: Record<string, any>) {
     setError('')
-    const token = localStorage.getItem('access_token')
-    const res = await fetch(`${API_URL}/api/rapports-cuisine/${rapport.id}/`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify(payload),
-    })
+    const res = await resilientMutate('PATCH', `${API_URL}/api/rapports-cuisine/${rapport.id}/`, payload)
     if (res.ok) {
       setSaved(true)
-      onRefresh()
+      if (!res.queued) onRefresh()
       setTimeout(() => setSaved(false), 2000)
     } else {
-      const d = await res.json().catch(() => ({}))
-      setError(d.error || t('erreur_sauvegarde'))
+      setError(t('erreur_sauvegarde'))
     }
   }
 

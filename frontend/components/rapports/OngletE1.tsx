@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useT, useLangue } from '@/lib/i18n'
+import { resilientMutate } from '@/lib/offline/resilientFetch'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -88,22 +89,14 @@ export default function OngletE1({
     if (errs.length > 0) { setErreurs(errs); return }
     setErreurs([])
     setSaving(true)
-    const token = localStorage.getItem('access_token')
     try {
-      const res = await fetch(`${API_URL}/api/rapports/${rapport.id}/fiche-e1/`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      })
+      const res = await resilientMutate('PATCH', `${API_URL}/api/rapports/${rapport.id}/fiche-e1/`, form)
       if (res.ok) {
-        showToast(t('fiche_e1_sauvegardee'), 'success')
-        onSaved()
+        showToast(res.queued ? t('sera_synchronise_reconnexion') : t('fiche_e1_sauvegardee'), 'success')
+        if (!res.queued) onSaved()
       } else {
-        const d = await res.json().catch(() => ({}))
-        showToast(d.error || t('erreur_sauvegarde'), 'error')
+        showToast(t('erreur_sauvegarde'), 'error')
       }
-    } catch {
-      showToast(t('erreur_reseau'), 'error')
     } finally {
       setSaving(false)
     }
