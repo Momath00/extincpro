@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { LangueProvider, useT } from '@/lib/i18n'
 import { usePrefLangue } from '@/lib/usePrefLangue'
 import LangueToggleAuth from '@/components/LangueToggleAuth'
+import { scheduleRefresh } from '@/lib/auth/tokenRefresh'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const INK = '#0a0b0d'
@@ -97,6 +98,7 @@ function LoginForm() {
     const tokenData = await tokenRes.json()
     localStorage.setItem('access_token', tokenData.access)
     localStorage.setItem('refresh_token', tokenData.refresh)
+    scheduleRefresh()
 
     const meRes = await fetch(`${API_URL}/api/me/`, {
       headers: { Authorization: `Bearer ${tokenData.access}` },

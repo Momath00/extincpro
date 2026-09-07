@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useT } from '@/lib/i18n'
+import { cancelRefresh } from '@/lib/auth/tokenRefresh'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const RED = '#0a0b0d'
@@ -78,6 +79,7 @@ export default function Sidebar({ user, onClose }: { user: any; onClose?: () => 
   })).filter(group => group.items.length > 0)
 
   function logout() {
+    cancelRefresh()
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     localStorage.removeItem('user_role')
