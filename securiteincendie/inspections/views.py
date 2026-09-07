@@ -169,10 +169,10 @@ def _date_fr(d):
 
 def _creer_rapport_eclairage_lie(rapport_extincteur, utilisateur):
     """Crée le rapport de vérification de l'éclairage d'urgence lié à ce
-    rapport extincteur — même visite, un seul certificat unifié à la
-    fermeture. N'y touche pas si l'organisation n'a pas activé ce module.
-    Appelé après la création d'un RapportExtincteur, qu'il soit créé
-    directement via l'API ou automatiquement avec le rapport principal."""
+    rapport extincteur — même visite. N'y touche pas si l'organisation n'a
+    pas activé ce module. Appelé après la création d'un RapportExtincteur
+    (voir RapportExtincteurViewSet.perform_create) — le réseau d'alarme
+    incendie est un système indépendant et n'en déclenche plus la création."""
     organisation = getattr(utilisateur, "organisation", None)
     if not (organisation and organisation.a_le_module("rapport_eclairage_urgence")):
         return
@@ -258,6 +258,28 @@ def _envoyer_confirmation_planification_si_applicable(rapport, label: str) -> No
     if not (email and rapport.date_inspection):
         return
     envoyer_confirmation_planification(email, nom, label, rapport.batiment, rapport.date_inspection, langue)
+
+
+def _propager_date_aux_rapports_lies(rapport_extincteur) -> None:
+    """Extincteur + éclairage (+ cuisine, si liée) couvrent la même visite —
+    changer la date sur le rapport extincteur doit se refléter sur les
+    rapports liés, sans déclencher un avis de changement séparé pour chacun
+    (un seul avis, depuis le rapport extincteur, suffit pour cette visite)."""
+    for lie in (
+        getattr(rapport_extincteur, "rapport_eclairage_lie", None),
+        getattr(rapport_extincteur, "rapport_cuisine_lie", None),
+    ):
+        if lie is None or lie.statut == lie.Statut.FERME:
+            continue
+        champs = []
+        if lie.date_inspection != rapport_extincteur.date_inspection:
+            lie.date_inspection = rapport_extincteur.date_inspection
+            champs.append("date_inspection")
+        if lie.prochaine_inspection != rapport_extincteur.prochaine_inspection:
+            lie.prochaine_inspection = rapport_extincteur.prochaine_inspection
+            champs.append("prochaine_inspection")
+        if champs:
+            lie.save(update_fields=champs)
 
 
 def _envoyer_avis_changement_date_si_applicable(
@@ -1192,23 +1214,10 @@ class RapportViewSet(viewsets.ModelViewSet):
         FicheLegende.objects.create(rapport=rapport)
         rapport.historiser(self.request.user, "Rapport créé")
 
-        # Crée automatiquement le rapport de vérification des extincteurs
-        # portatifs correspondant — même adresse, même citoyen, mêmes
-        # techniciens assignés au départ (le superviseur peut ensuite les
-        # réassigner indépendamment sur ce rapport).
-        rapport_extincteur = RapportExtincteur.objects.create(
-            batiment=rapport.batiment,
-            rapport_alarme=rapport,
-            cree_par=self.request.user,
-            citoyen=rapport.citoyen,
-            date_inspection=rapport.date_inspection,
-        )
-        rapport_extincteur.techniciens.set(rapport.techniciens.all())
-        rapport_extincteur.historiser(self.request.user, "Rapport créé automatiquement avec le rapport principal")
-
-        _creer_rapport_eclairage_lie(rapport_extincteur, self.request.user)
-        _creer_rapport_cuisine_lie(rapport_extincteur, self.request.user, self.request.data)
-
+        # Le réseau d'alarme incendie est un système indépendant des
+        # extincteurs/éclairage d'urgence/cuisine — il ne crée plus
+        # automatiquement de rapport lié (voir RapportExtincteurViewSet pour
+        # le regroupement extincteur + éclairage + cuisine, qui lui reste).
         _envoyer_confirmation_planification_si_applicable(rapport, "Réseau d'alarme incendie")
 
     def perform_update(self, serializer):
@@ -2048,6 +2057,7 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
         ancienne_prochaine = instance.prochaine_inspection
         rapport = serializer.save()
         rapport.historiser(self.request.user, "Rapport modifié")
+        _propager_date_aux_rapports_lies(rapport)
         _envoyer_avis_changement_date_si_applicable(rapport, "Extincteurs portatifs", ancienne_date, ancienne_prochaine)
 
     @action(detail=True, methods=["post"])
