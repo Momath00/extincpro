@@ -28,7 +28,7 @@ export default function SuperviseurRapportCuisineDetailPage() {
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [confirmFermer, setConfirmFermer] = useState(false)
   const [confirmRouvrir, setConfirmRouvrir] = useState(false)
-  const [modalMode, setModalMode] = useState<'technicien' | null>(null)
+  const [modalMode, setModalMode] = useState<'technicien' | 'date' | null>(null)
 
   function charger() {
     const token = localStorage.getItem('access_token')
@@ -142,13 +142,15 @@ export default function SuperviseurRapportCuisineDetailPage() {
               {estFerme ? t('ferme') : t('ouvert')}
             </span>
           </div>
-          <p className="text-gray-400 text-sm">
-            {[
-              rapport.numero_job ? `${t('job')} ${rapport.numero_job}` : '',
-              rapport.date_inspection
-                ? new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })
-                : '',
-            ].filter(Boolean).join(' · ')}
+          <p className="text-gray-400 text-sm flex items-center gap-1.5">
+            {rapport.date_inspection
+              ? new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })
+              : ''}
+            {!estFerme && (
+              <button onClick={() => setModalMode('date')} className="text-gray-300 hover:text-[#e11324] transition-colors" title={t('modifier_date_inspection')}>
+                <i className="ti ti-pencil text-xs" />
+              </button>
+            )}
           </p>
         </div>
 

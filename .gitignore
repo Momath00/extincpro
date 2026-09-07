@@ -13,6 +13,7 @@ __pycache__/
 db.sqlite3
 staticfiles/
 media/
+celerybeat-schedule
 
 # Node / Next.js
 node_modules/

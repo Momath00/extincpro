@@ -232,7 +232,7 @@ export default function SuperviseurRapportDetailPage() {
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [confirmFermer, setConfirmFermer] = useState(false)
   const [confirmRouvrir, setConfirmRouvrir] = useState(false)
-  const [modalMode, setModalMode] = useState<'technicien' | 'citoyen' | null>(null)
+  const [modalMode, setModalMode] = useState<'technicien' | 'citoyen' | 'date' | null>(null)
 
   function charger() {
     const token = localStorage.getItem('access_token')
@@ -381,6 +381,11 @@ export default function SuperviseurRapportDetailPage() {
                 ? ` ${rapport.batiment?.fabricant_reseau ? '· ' : ''}${new Date(rapport.date_inspection).toLocaleDateString(langue === 'en' ? 'en-CA' : 'fr-CA', { dateStyle: 'long' })}`
                 : ''}
             </p>
+            {!estFerme && (
+              <button onClick={() => setModalMode('date')} className="text-gray-300 hover:text-[#e11324] transition-colors" title={t('modifier_date_inspection')}>
+                <i className="ti ti-pencil text-xs" />
+              </button>
+            )}
             <ProgressionRapport rapport={rapport} />
           </div>
         </div>

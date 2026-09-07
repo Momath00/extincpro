@@ -31,7 +31,7 @@ services:
 
   celery:
     build: .
-    command: celery -A securiteincendie  worker -l info
+    command: celery -A securiteincendie worker -B -l info
     volumes:
       - .:/app
     env_file:

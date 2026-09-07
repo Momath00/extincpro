@@ -21,8 +21,10 @@ export default function SuperviseurDashboard() {
     incendie: { href: '/superviseur/rapports', icon: 'ti-clipboard-check', accent: '#6366f1', bg: '#eef2ff', color: '#4338ca', rowBg: '#f5f6ff' },
     extincteur: { href: '/superviseur/rapports-extincteurs', icon: 'ti-fire-extinguisher', accent: '#f97316', bg: '#fff2e8', color: '#9a4a13', rowBg: '#fffaf5' },
     eclairage: { href: '/superviseur/rapports-eclairage-urgence', icon: 'ti-bulb', accent: '#06b6d4', bg: '#ecfeff', color: '#0e7490', rowBg: '#f0fdfe' },
+    cuisine: { href: '/superviseur/rapports-cuisine', icon: 'ti-tools-kitchen-2', accent: '#a855f7', bg: '#faf5ff', color: '#7e22ce', rowBg: '#fdfaff' },
   }
   const [rapports, setRapports] = useState<any[]>([])
+  const [rappelsEnRetard, setRappelsEnRetard] = useState<any[]>([])
   const [nbClients, setNbClients] = useState(0)
   const [nbTechniciens, setNbTechniciens] = useState(0)
   const [nbCitoyens, setNbCitoyens] = useState(0)
@@ -46,14 +48,16 @@ export default function SuperviseurDashboard() {
       fetch(`${API_URL}/api/clients/`, { headers }),
       fetch(`${API_URL}/api/utilisateurs/?role=technicien`, { headers }),
       fetch(`${API_URL}/api/utilisateurs/?role=citoyen`, { headers }),
+      fetch(`${API_URL}/api/calendrier/rappels-en-retard/`, { headers }),
     ])
-      .then(async ([incendieRes, extincteurRes, eclairageRes, clientsRes, techRes, citRes]) => {
+      .then(async ([incendieRes, extincteurRes, eclairageRes, clientsRes, techRes, citRes, retardRes]) => {
         if (extincteurRes.status === 401) { router.push('/login'); return }
 
         const [incendieList, extincteurList, eclairageList, clientsList, techList, citList] = await Promise.all([
           parseListe(incendieRes), parseListe(extincteurRes), parseListe(eclairageRes),
           parseListe(clientsRes), parseListe(techRes), parseListe(citRes),
         ])
+        const retardData = retardRes.ok ? await retardRes.json() : null
 
         const rapportsTagged = [
           ...incendieList.map((r: any) => ({ ...r, _module: 'incendie' })),
@@ -65,6 +69,7 @@ export default function SuperviseurDashboard() {
         setNbClients(clientsList.length)
         setNbTechniciens(techList.length)
         setNbCitoyens(citList.length)
+        setRappelsEnRetard(retardData?.rappels || [])
         setLoading(false)
       })
       .catch(() => setLoading(false))
@@ -124,6 +129,42 @@ export default function SuperviseurDashboard() {
           </div>
         ))}
       </div>
+
+      {/* Rappels en retard */}
+      {rappelsEnRetard.length > 0 && (
+        <div className="bg-white rounded-md border border-red-100 overflow-hidden mb-6">
+          <div className="px-5 py-4 border-b border-red-100 flex items-center gap-2" style={{ background: '#fef2f2' }}>
+            <i className="ti ti-alert-triangle text-sm" style={{ color: '#7f1d1d' }} />
+            <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: '#7f1d1d' }}>
+              {t('rappels_en_retard_titre')} ({rappelsEnRetard.length})
+            </h2>
+          </div>
+          <div className="p-4 flex flex-col gap-2">
+            {rappelsEnRetard.map((item: any) => {
+              const mod = MODULE_STYLES[item.type] || MODULE_STYLES.extincteur
+              return (
+                <Link
+                  href="/superviseur/calendrier"
+                  key={item.cle}
+                  className="flex items-center gap-3 p-3 pl-3.5 rounded-md border-l-4 hover:shadow-sm transition-all"
+                  style={{ borderLeftColor: '#7f1d1d', background: '#fffbfb' }}
+                >
+                  <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center" style={{ background: mod.bg }}>
+                    <i className={`ti ${mod.icon} text-base`} style={{ color: mod.color }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: RED }}>{item.adresse}</p>
+                    <p className="text-xs text-gray-400 truncate">{item.client_nom} · {t(item.label_cle)}</p>
+                  </div>
+                  <span className="text-xs px-2.5 py-1 rounded-full font-semibold flex-shrink-0" style={{ background: '#fee2e2', color: '#7f1d1d' }}>
+                    {item.jours_de_retard} {item.jours_de_retard > 1 ? t('jours_de_retard') : t('jour_de_retard')}
+                  </span>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Rapports récents */}
       <div className="bg-white rounded-md border border-gray-100 overflow-hidden">

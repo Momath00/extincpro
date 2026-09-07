@@ -8,7 +8,7 @@ const STYLES: Record<ModuleType, { bg: string; color: string; dot: string; icon:
   incendie: { bg: '#eef2ff', color: '#4338ca', dot: '#6366f1', icon: 'ti-clipboard-check' },
   extincteur: { bg: '#fff2e8', color: '#9a4a13', dot: '#f97316', icon: 'ti-fire-extinguisher' },
   eclairage: { bg: '#ecfeff', color: '#0e7490', dot: '#06b6d4', icon: 'ti-bulb' },
-  cuisine: { bg: '#fff7ed', color: '#9a3412', dot: '#f59e0b', icon: 'ti-tools-kitchen-2' },
+  cuisine: { bg: '#faf5ff', color: '#7e22ce', dot: '#a855f7', icon: 'ti-tools-kitchen-2' },
 }
 
 /** Puce indiquant le module courant (système d'alarme / extincteur / éclairage

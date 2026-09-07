@@ -94,6 +94,19 @@ export const DICT: Dict = {
     fr: "Schéma interactif du système d'extinction de cuisine dans ExtincPro",
     en: "Interactive kitchen fire suppression system diagram in ExtincPro",
   },
+  calendrier_kicker: { fr: "Calendrier & rappels", en: "Calendar & reminders" },
+  calendrier_titre: {
+    fr: "Aucune échéance de conformité oubliée",
+    en: "No compliance deadline ever forgotten",
+  },
+  calendrier_desc: {
+    fr: "ExtincPro calcule automatiquement la prochaine date d'inspection de chaque site et vous prévient bien avant l'échéance — plus besoin de suivre ça dans un chiffrier.",
+    en: "ExtincPro automatically calculates each site's next inspection date and warns you well before the deadline — no more tracking it in a spreadsheet.",
+  },
+  calendrier_alt: {
+    fr: "Calendrier des inspections et rappels de conformité dans ExtincPro",
+    en: "Inspection calendar and compliance reminders in ExtincPro",
+  },
   fonctionnalites_kicker: { fr: "Fonctionnalités", en: "Features" },
   fonctionnalites_titre: {
     fr: "Tout ce qu'il faut pour piloter la conformité incendie",
@@ -165,6 +178,8 @@ export const DICT: Dict = {
   un_mois_essai_gratuit: { fr: "1 mois d'essai gratuit", en: "1-month free trial" },
   par_mois: { fr: "/ mois", en: "/ month" },
   facture_annuellement: { fr: "Facturé annuellement", en: "Billed annually" },
+  soit_par_jour_prefix: { fr: "Soit", en: "That's" },
+  soit_par_jour_suffix: { fr: "$ par jour", en: "$ per day" },
   tarifs_note_combinaison: {
     fr: "Vous pouvez combiner plusieurs modules sous un seul abonnement. Contactez-nous pour recevoir une soumission adaptée au nombre de bâtiments et d'utilisateurs de votre entreprise.",
     en: "You can combine several modules under a single subscription. Contact us to receive a quote tailored to your company's number of buildings and users.",

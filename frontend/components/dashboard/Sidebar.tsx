@@ -1,17 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useT } from '@/lib/i18n'
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const RED = '#0a0b0d'
 const ACCENT = '#e11324'
 
 const NAV_GROUPS = [
   {
     label: 'nav_general',
-    items: [{ href: '/superviseur', label: 'nav_dashboard', icon: 'ti-layout-dashboard' }],
+    items: [
+      { href: '/superviseur', label: 'nav_dashboard', icon: 'ti-layout-dashboard' },
+      { href: '/superviseur/calendrier', label: 'nav_calendrier', icon: 'ti-calendar' },
+    ],
   },
   {
     label: 'nav_gestion',
@@ -56,6 +60,16 @@ export default function Sidebar({ user, onClose }: { user: any; onClose?: () => 
   const router = useRouter()
   const t = useT()
   const [openGroup, setOpenGroup] = useState<string | null>(null)
+  const [rappelsCount, setRappelsCount] = useState(0)
+
+  useEffect(() => {
+    const token = localStorage.getItem('access_token')
+    if (!token) return
+    fetch(`${API_URL}/api/calendrier/rappels-compteur/`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => setRappelsCount(data?.total || 0))
+      .catch(() => {})
+  }, [])
 
   const modulesActifs: string[] = user?.organisation?.modules_actifs || []
   const groupesVisibles = NAV_GROUPS.map(group => ({
@@ -141,6 +155,15 @@ export default function Sidebar({ user, onClose }: { user: any; onClose?: () => 
                         style={{ color: '#fff', opacity: active || childActive ? 1 : 0.7 }}
                       />
                       <span className="flex-1 text-left">{t(item.label)}</span>
+                      {item.href === '/superviseur/calendrier' && rappelsCount > 0 && (
+                        <span
+                          className="flex-shrink-0 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-bold"
+                          style={{ background: active || childActive ? '#fff' : ACCENT, color: active || childActive ? ACCENT : '#fff' }}
+                          title={t('rappels_a_venir_ce_mois')}
+                        >
+                          {rappelsCount > 9 ? '9+' : rappelsCount}
+                        </span>
+                      )}
                       {hasChildren && (
                         <i className={`ti ti-chevron-right text-xs transition-transform duration-200 ${groupIsOpen ? 'rotate-90' : ''}`} />
                       )}

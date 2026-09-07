@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 import dj_database_url
+from celery.schedules import crontab
 from decouple import config, RepositoryEnv
 from pathlib import Path
 
@@ -165,6 +166,17 @@ STORAGES = {
 # Celery
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://redis:6379/0')
 CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://redis:6379/0')
+CELERY_TIMEZONE = TIME_ZONE
+
+# Rappels de conformité — voir inspections/tasks.py. Une seule tâche
+# quotidienne (8h) qui avise le citoyen et le(s) superviseur(s) de
+# l'organisation 30 jours avant l'échéance de la prochaine inspection.
+CELERY_BEAT_SCHEDULE = {
+    'rappels-inspections-quotidiens': {
+        'task': 'inspections.tasks.envoyer_rappels_inspections',
+        'schedule': crontab(hour=8, minute=0),
+    },
+}
 
 # Utilisateur personnalisé
 # AUTH_USER_MODEL = 'comptes.Utilisateur'

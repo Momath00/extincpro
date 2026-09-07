@@ -38,6 +38,30 @@ const systems = [
   },
 ];
 
+const calendrierPoints = [
+  {
+    title: { fr: "Rappel 30 jours à l'avance", en: "30-day advance reminder" },
+    desc: {
+      fr: "Un courriel automatique part au client ET au superviseur 30 jours avant la date de prochaine inspection — les deux sont avisés, personne ne l'apprend trop tard.",
+      en: "An automatic email goes out to both the client and the supervisor 30 days before the next inspection date — both are notified, nobody finds out too late.",
+    },
+  },
+  {
+    title: { fr: "Retards signalés automatiquement", en: "Overdue sites flagged automatically" },
+    desc: {
+      fr: "Une adresse dont l'échéance est passée sans qu'une nouvelle inspection soit faite reste visible et signalée dans le calendrier, jusqu'à ce qu'elle soit traitée.",
+      en: "A site whose deadline has passed without a new inspection stays visible and flagged on the calendar until it's dealt with.",
+    },
+  },
+  {
+    title: { fr: "Client avisé à chaque changement", en: "Client notified on every change" },
+    desc: {
+      fr: "Dès qu'une visite est planifiée, le client reçoit un courriel de confirmation — et si la date change ensuite, un nouveau courriel l'en informe automatiquement.",
+      en: "As soon as a visit is scheduled, the client gets a confirmation email — and if the date changes afterward, a new email lets them know automatically.",
+    },
+  },
+]
+
 const roles = [
   {
     title: { fr: "Technicien", en: "Technician" },
@@ -201,6 +225,36 @@ export function HomeContent() {
               height={1029}
               className="mx-auto h-auto w-full max-w-4xl rounded-lg border border-line shadow-xl shadow-ink/5"
             />
+          </div>
+        </Container>
+      </section>
+
+      {/* CALENDRIER & RAPPELS */}
+      <section className="border-t border-line bg-paper py-24 sm:py-28">
+        <Container>
+          <SectionHeading
+            kicker={t("calendrier_kicker")}
+            title={t("calendrier_titre")}
+            description={t("calendrier_desc")}
+            align="center"
+          />
+          <div className="mt-14">
+            <Image
+              src="/captures/calendrier-rappels.png"
+              alt={t("calendrier_alt")}
+              width={1711}
+              height={919}
+              className="mx-auto h-auto w-full max-w-4xl rounded-lg border border-line shadow-xl shadow-ink/5"
+            />
+          </div>
+          <div className="mt-14 grid grid-cols-1 gap-8 sm:grid-cols-3">
+            {calendrierPoints.map((p) => (
+              <div key={p.title.fr}>
+                <div className="h-px w-10 bg-red" />
+                <h3 className="mt-4 text-lg font-semibold text-ink">{p.title[langue]}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-text-muted">{p.desc[langue]}</p>
+              </div>
+            ))}
           </div>
         </Container>
       </section>

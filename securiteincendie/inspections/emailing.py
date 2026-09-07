@@ -361,3 +361,195 @@ def renvoyer_document_direct(rapport, type_rapport: str, utilisateur) -> tuple[b
     rapport.historiser(utilisateur, f"Certificat renvoyé par courriel (mode direct) à {client.contact_email}")
 
     return True, f"Renvoyé avec succès à {client.contact_email}."
+
+
+def envoyer_rappel_inspection(destinataire_email: str, destinataire_nom: str, est_superviseur: bool, label: str, batiment, prochaine_date, langue: str) -> None:
+    """Un seul courriel de rappel, envoyé individuellement à chaque
+    destinataire (citoyen ET chaque superviseur de l'organisation) — voir
+    `inspections/tasks.py:envoyer_rappels_inspections`, exécutée
+    quotidiennement 30 jours avant la date de `prochaine_inspection`."""
+    adresse = f"{batiment.numero_civique} {batiment.rue}, {batiment.ville}"
+    organisation = batiment.client.organisation
+
+    intro_cle = "rappel_intro_superviseur" if est_superviseur else "rappel_intro_citoyen"
+    conseil_cle = "rappel_conseil_superviseur" if est_superviseur else "rappel_conseil_citoyen"
+
+    mois_courts = {
+        "fr": ["JAN", "FÉV", "MARS", "AVR", "MAI", "JUIN", "JUIL", "AOÛT", "SEPT", "OCT", "NOV", "DÉC"],
+        "en": ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"],
+    }
+    mois_abbr = mois_courts.get(langue, mois_courts["fr"])[prochaine_date.month - 1]
+
+    client_ligne = (
+        f"<tr><td style='padding-top:10px;color:#94a3b8;font-size:12px;'>"
+        f"{et('rappel_client_label', langue)} <strong style='color:#102a43;'>{batiment.client.nom}</strong></td></tr>"
+        if est_superviseur else ""
+    )
+
+    html_body = f"""
+{_bandeau_organisation(organisation, langue)}
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:22px;">
+  <tr>
+    <td style="width:34px;height:34px;background:#fef2f2;border-radius:9px;text-align:center;vertical-align:middle;">
+      <span style="font-size:16px;">📅</span>
+    </td>
+    <td style="padding-left:10px;">
+      <p style="margin:0;color:#e11324;font-size:11px;font-weight:800;letter-spacing:1.5px;">{et('rappel_eyebrow', langue)}</p>
+      <h2 style="margin:1px 0 0;font-size:19px;font-weight:800;color:#102a43;">{et('rappel_titre', langue)}</h2>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:0 0 18px;color:#64748b;font-size:14px;line-height:1.6;">
+  {et('bonjour', langue)} <strong style="color:#102a43;">{destinataire_nom}</strong>,<br>
+  {et(intro_cle, langue)} <strong style="color:#102a43;">{label}</strong> {et('rappel_au', langue)}
+  <strong style="color:#102a43;">{adresse}</strong> {et('rappel_prevue_le', langue)}
+</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%"
+  style="background:#fff7ed;border:1px solid #fde3cc;border-radius:12px;margin-bottom:18px;">
+  <tr>
+    <td style="padding:18px 20px;">
+      <table role="presentation" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="width:58px;height:58px;background:#fff;border:1px solid #fde3cc;border-radius:10px;text-align:center;vertical-align:middle;">
+            <p style="margin:0;color:#e11324;font-size:9px;font-weight:800;letter-spacing:1px;line-height:1;">{mois_abbr}</p>
+            <p style="margin:2px 0 0;color:#102a43;font-size:20px;font-weight:800;line-height:1;">{prochaine_date.day}</p>
+          </td>
+          <td style="padding-left:14px;">
+            <p style="margin:0;color:#9a4a13;font-size:11px;font-weight:800;letter-spacing:0.5px;">{et('rappel_dans_30_jours', langue)}</p>
+            <p style="margin:2px 0 0;color:#102a43;font-size:15px;font-weight:700;">{prochaine_date.strftime('%d/%m/%Y')}</p>
+          </td>
+        </tr>
+        {client_ligne}
+      </table>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:0;color:#64748b;font-size:13px;line-height:1.6;">
+  {et(conseil_cle, langue)}
+</p>"""
+
+    envoyer_email(destinataire_email, et('rappel_sujet', langue), html_template(html_body))
+
+
+def envoyer_confirmation_planification(citoyen_email: str, citoyen_nom: str, label: str, batiment, date_inspection, langue: str) -> None:
+    """Avise le citoyen qu'une visite vient d'être planifiée pour son adresse
+    — envoyé une seule fois, à la création du rapport (voir perform_create
+    de RapportViewSet/RapportExtincteurViewSet)."""
+    adresse = f"{batiment.numero_civique} {batiment.rue}, {batiment.ville}"
+    organisation = batiment.client.organisation
+
+    mois_courts = {
+        "fr": ["JAN", "FÉV", "MARS", "AVR", "MAI", "JUIN", "JUIL", "AOÛT", "SEPT", "OCT", "NOV", "DÉC"],
+        "en": ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"],
+    }
+    mois_abbr = mois_courts.get(langue, mois_courts["fr"])[date_inspection.month - 1]
+
+    html_body = f"""
+{_bandeau_organisation(organisation, langue)}
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:22px;">
+  <tr>
+    <td style="width:34px;height:34px;background:#e9f6f2;border-radius:9px;text-align:center;vertical-align:middle;">
+      <span style="font-size:16px;">✅</span>
+    </td>
+    <td style="padding-left:10px;">
+      <p style="margin:0;color:#0d6b4f;font-size:11px;font-weight:800;letter-spacing:1.5px;">{et('confirmation_eyebrow', langue)}</p>
+      <h2 style="margin:1px 0 0;font-size:19px;font-weight:800;color:#102a43;">{et('confirmation_titre', langue)}</h2>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:0 0 18px;color:#64748b;font-size:14px;line-height:1.6;">
+  {et('bonjour', langue)} <strong style="color:#102a43;">{citoyen_nom}</strong>,<br>
+  {et('confirmation_intro', langue)} <strong style="color:#102a43;">{label}</strong> {et('rappel_au', langue)}
+  <strong style="color:#102a43;">{adresse}</strong> {et('confirmation_a_ete_planifiee', langue)}
+</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%"
+  style="background:#e9f6f2;border:1px solid #bfe3d5;border-radius:12px;margin-bottom:18px;">
+  <tr>
+    <td style="padding:18px 20px;">
+      <table role="presentation" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="width:58px;height:58px;background:#fff;border:1px solid #bfe3d5;border-radius:10px;text-align:center;vertical-align:middle;">
+            <p style="margin:0;color:#0d6b4f;font-size:9px;font-weight:800;letter-spacing:1px;line-height:1;">{mois_abbr}</p>
+            <p style="margin:2px 0 0;color:#102a43;font-size:20px;font-weight:800;line-height:1;">{date_inspection.day}</p>
+          </td>
+          <td style="padding-left:14px;">
+            <p style="margin:0;color:#0d6b4f;font-size:11px;font-weight:800;letter-spacing:0.5px;">{et('confirmation_date_label', langue)}</p>
+            <p style="margin:2px 0 0;color:#102a43;font-size:15px;font-weight:700;">{date_inspection.strftime('%d/%m/%Y')}</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:0;color:#64748b;font-size:13px;line-height:1.6;">
+  {et('confirmation_conseil', langue)}
+</p>"""
+
+    envoyer_email(citoyen_email, et('confirmation_sujet', langue), html_template(html_body))
+
+
+def envoyer_avis_changement_date(citoyen_email: str, citoyen_nom: str, label: str, batiment, ancienne_date, nouvelle_date, langue: str) -> None:
+    """Avise le citoyen que la date d'une visite déjà planifiée vient d'être
+    modifiée — envoyé quand `date_inspection` change sur un rapport ouvert
+    (voir perform_update des ViewSets de rapport)."""
+    adresse = f"{batiment.numero_civique} {batiment.rue}, {batiment.ville}"
+    organisation = batiment.client.organisation
+
+    mois_courts = {
+        "fr": ["JAN", "FÉV", "MARS", "AVR", "MAI", "JUIN", "JUIL", "AOÛT", "SEPT", "OCT", "NOV", "DÉC"],
+        "en": ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"],
+    }
+    mois_abbr = mois_courts.get(langue, mois_courts["fr"])[nouvelle_date.month - 1]
+
+    html_body = f"""
+{_bandeau_organisation(organisation, langue)}
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin-bottom:22px;">
+  <tr>
+    <td style="width:34px;height:34px;background:#fff7ed;border-radius:9px;text-align:center;vertical-align:middle;">
+      <span style="font-size:16px;">🔄</span>
+    </td>
+    <td style="padding-left:10px;">
+      <p style="margin:0;color:#9a4a13;font-size:11px;font-weight:800;letter-spacing:1.5px;">{et('changement_eyebrow', langue)}</p>
+      <h2 style="margin:1px 0 0;font-size:19px;font-weight:800;color:#102a43;">{et('changement_titre', langue)}</h2>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:0 0 18px;color:#64748b;font-size:14px;line-height:1.6;">
+  {et('bonjour', langue)} <strong style="color:#102a43;">{citoyen_nom}</strong>,<br>
+  {et('changement_intro', langue)} <strong style="color:#102a43;">{label}</strong> {et('rappel_au', langue)}
+  <strong style="color:#102a43;">{adresse}</strong> {et('changement_a_ete_modifiee', langue)}
+</p>
+
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%"
+  style="background:#fff7ed;border:1px solid #fde3cc;border-radius:12px;margin-bottom:18px;">
+  <tr>
+    <td style="padding:18px 20px;">
+      <table role="presentation" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="padding-right:14px;">
+            <p style="margin:0;color:#94a3b8;font-size:11px;font-weight:700;letter-spacing:0.5px;">{et('changement_ancienne_date', langue)}</p>
+            <p style="margin:2px 0 0;color:#94a3b8;font-size:15px;font-weight:700;text-decoration:line-through;">{ancienne_date.strftime('%d/%m/%Y')}</p>
+          </td>
+          <td style="padding-right:14px;color:#cbd5e1;font-size:18px;">→</td>
+          <td>
+            <p style="margin:0;color:#9a4a13;font-size:11px;font-weight:800;letter-spacing:0.5px;">{et('changement_nouvelle_date', langue)}</p>
+            <p style="margin:2px 0 0;color:#102a43;font-size:15px;font-weight:700;">{nouvelle_date.strftime('%d/%m/%Y')}</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:0;color:#64748b;font-size:13px;line-height:1.6;">
+  {et('changement_conseil', langue)}
+</p>"""
+
+    envoyer_email(citoyen_email, et('changement_sujet', langue), html_template(html_body))

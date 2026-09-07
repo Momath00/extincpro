@@ -51,7 +51,7 @@ export default function TechnicienLayout({ children }: { children: React.ReactNo
     <div className="min-h-screen bg-gray-50 flex">
 
       {/* Sidebar desktop — fixe */}
-      <div className="hidden md:flex flex-col w-64 min-h-screen fixed left-0 top-0 z-40">
+      <div className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 z-40">
         <TechnicienSidebar user={user} />
       </div>
 

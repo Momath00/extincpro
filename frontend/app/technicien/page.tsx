@@ -9,6 +9,24 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ACCENT = '#e11324'
 
+const STYLES_TYPE: Record<string, { bg: string; color: string; icon: string }> = {
+  incendie: { bg: '#eef2ff', color: '#4338ca', icon: 'ti-clipboard-check' },
+  extincteur: { bg: '#fff2e8', color: '#9a4a13', icon: 'ti-fire-extinguisher' },
+  eclairage: { bg: '#ecfeff', color: '#0e7490', icon: 'ti-bulb' },
+  cuisine: { bg: '#faf5ff', color: '#7e22ce', icon: 'ti-tools-kitchen-2' },
+}
+
+type VisitePrevue = {
+  cle: string
+  type: 'incendie' | 'extincteur' | 'eclairage' | 'cuisine'
+  id: number
+  statut: string
+  date_inspection: string
+  adresse: string
+  client_nom: string
+  url: string
+}
+
 export default function TechnicienDashboard() {
   const router = useRouter()
   const t = useT()
@@ -18,8 +36,16 @@ export default function TechnicienDashboard() {
     ferme: { label: t('ferme'), bg: '#e9f6f2', color: '#0d6b4f' },
   }
   const [stats, setStats] = useState({ total: 0, ouverts: 0, fermes: 0 })
-  const [rapportsAujourdhui, setRapportsAujourdhui] = useState<any[]>([])
+  const [rapportsAujourdhui, setRapportsAujourdhui] = useState<VisitePrevue[]>([])
+  const [prochainesVisites, setProchainesVisites] = useState<VisitePrevue[]>([])
   const [loading, setLoading] = useState(true)
+
+  function labelType(type: string) {
+    return type === 'incendie' ? t('titre_rapport_incendie')
+      : type === 'extincteur' ? t('titre_rapport_extincteur')
+      : type === 'eclairage' ? t('titre_rapport_eclairage')
+      : t('systeme_cuisine')
+  }
 
   useEffect(() => {
     const token = localStorage.getItem('access_token')
@@ -28,17 +54,19 @@ export default function TechnicienDashboard() {
 
     Promise.all([
       fetch(`${API_URL}/api/rapports/stats/`, { headers }),
-      fetch(`${API_URL}/api/rapports/aujourdhui/`, { headers }),
+      fetch(`${API_URL}/api/technicien/aujourdhui/`, { headers }),
+      fetch(`${API_URL}/api/technicien/prochaines-visites/`, { headers }),
     ])
-      .then(async ([statsRes, aujourdhuiRes]) => {
+      .then(async ([statsRes, aujourdhuiRes, prochainesRes]) => {
         if (statsRes.status === 401) { router.push('/login'); return }
-        const [statsData, aujourdhuiData] = await Promise.all([
+        const [statsData, aujourdhuiData, prochainesData] = await Promise.all([
           statsRes.json(),
           aujourdhuiRes.json(),
+          prochainesRes.json(),
         ])
         setStats(statsData)
-        const list = Array.isArray(aujourdhuiData) ? aujourdhuiData : (aujourdhuiData.results || [])
-        setRapportsAujourdhui(list)
+        setRapportsAujourdhui(Array.isArray(aujourdhuiData) ? aujourdhuiData : [])
+        setProchainesVisites(Array.isArray(prochainesData) ? prochainesData : [])
         setLoading(false)
       })
       .catch(() => setLoading(false))
@@ -91,7 +119,7 @@ export default function TechnicienDashboard() {
       </div>
 
       {/* Rapports du jour */}
-      <div className="bg-white rounded-md border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-md border border-gray-100 overflow-hidden mb-6">
         <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: ACCENT }}>
@@ -113,27 +141,21 @@ export default function TechnicienDashboard() {
               <p className="text-gray-400 text-sm font-medium">{t('aucune_inspection_aujourdhui')}</p>
               <p className="text-gray-300 text-xs mt-1">{t('rapports_apparaitront_ici')}</p>
             </div>
-          ) : rapportsAujourdhui.map((r: any) => {
+          ) : rapportsAujourdhui.map(r => {
             const badge = STATUT_BADGE[r.statut] || STATUT_BADGE.ouvert
+            const s = STYLES_TYPE[r.type]
             return (
               <Link
-                key={r.id}
-                href={`/technicien/rapports/${r.id}`}
+                key={r.cle}
+                href={r.url}
                 className="flex items-center gap-3 p-3 rounded-md border border-gray-100 hover:shadow-md hover:border-[#e11324] transition-all duration-200"
               >
-                <div className="w-10 h-10 rounded-md flex-shrink-0 flex items-center justify-center" style={{ background: NAVY }}>
-                  <i className="ti ti-building text-white text-sm" />
+                <div className="w-10 h-10 rounded-md flex-shrink-0 flex items-center justify-center" style={{ background: s.bg }}>
+                  <i className={`ti ${s.icon} text-sm`} style={{ color: s.color }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate" style={{ color: NAVY }}>
-                    {r.batiment?.adresse_complete || '—'}
-                  </p>
-                  <p className="text-xs text-gray-400 truncate">
-                    {r.batiment?.client_nom || '—'}
-                    {r.date_inspection
-                      ? ` · ${new Date(r.date_inspection).toLocaleTimeString(langue === 'en' ? 'en-CA' : 'fr-CA', { hour: '2-digit', minute: '2-digit' })}`
-                      : ''}
-                  </p>
+                  <p className="text-sm font-semibold truncate" style={{ color: NAVY }}>{r.adresse}</p>
+                  <p className="text-xs text-gray-400 truncate">{r.client_nom} · {labelType(r.type)}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                   <span className="text-xs px-2.5 py-1 rounded-full font-semibold" style={{ background: badge.bg, color: badge.color }}>
@@ -141,6 +163,47 @@ export default function TechnicienDashboard() {
                   </span>
                   <i className="ti ti-chevron-right text-gray-300 text-sm" />
                 </div>
+              </Link>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Prochaines visites (7 prochains jours) */}
+      <div className="bg-white rounded-md border border-gray-100 overflow-hidden">
+        <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: NAVY }}>
+              <i className="ti ti-calendar-due text-white text-sm" />
+            </div>
+            <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: NAVY }}>
+              {t('prochaines_visites_titre')}
+            </h2>
+          </div>
+          <span className="text-xs text-gray-400">{prochainesVisites.length} {prochainesVisites.length !== 1 ? t('rapports_pluriel') : t('rapport_singulier')}</span>
+        </div>
+
+        <div className="p-4 flex flex-col gap-2">
+          {prochainesVisites.length === 0 ? (
+            <p className="text-gray-300 text-sm text-center py-8">{t('aucune_visite_a_venir')}</p>
+          ) : prochainesVisites.map(r => {
+            const s = STYLES_TYPE[r.type]
+            const d = new Date(r.date_inspection + 'T00:00:00')
+            return (
+              <Link
+                key={r.cle}
+                href={r.url}
+                className="flex items-center gap-3 p-3 rounded-md border border-gray-100 hover:shadow-md hover:border-[#e11324] transition-all duration-200"
+              >
+                <div className="w-10 h-10 rounded-md flex-shrink-0 flex flex-col items-center justify-center" style={{ background: s.bg }}>
+                  <span className="text-[9px] font-black uppercase leading-none" style={{ color: s.color }}>{d.toLocaleDateString(langue === 'en' ? 'en-CA' : 'fr-CA', { month: 'short' })}</span>
+                  <span className="text-sm font-black leading-none mt-0.5" style={{ color: s.color }}>{d.getDate()}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: NAVY }}>{r.adresse}</p>
+                  <p className="text-xs text-gray-400 truncate">{r.client_nom} · {labelType(r.type)}</p>
+                </div>
+                <i className="ti ti-chevron-right text-gray-300 text-sm flex-shrink-0" />
               </Link>
             )
           })}

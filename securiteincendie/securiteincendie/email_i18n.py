@@ -136,6 +136,65 @@ EMAIL_DICT: dict[str, dict[str, str]] = {
     "direct_sujet_court": {"fr": "Rapport(s) et certificat(s) disponibles", "en": "Report(s) and certificate(s) available"},
     "reseau_alarme_incendie_label": {"fr": "Réseau d'alarme incendie", "en": "Fire alarm system"},
     "extincteurs_portatifs_label": {"fr": "Extincteurs portatifs", "en": "Portable fire extinguishers"},
+
+    # ── Rappel d'inspection à venir (citoyen + superviseur) ──────────────
+    "rappel_sujet": {
+        "fr": "Rappel — inspection à prévoir dans 30 jours — ExtincPro",
+        "en": "Reminder — inspection due in 30 days — ExtincPro",
+    },
+    "rappel_titre": {"fr": "Inspection à prévoir bientôt", "en": "Upcoming inspection due"},
+    "rappel_eyebrow": {"fr": "RAPPEL DE CONFORMITÉ", "en": "COMPLIANCE REMINDER"},
+    "rappel_dans_30_jours": {"fr": "DANS 30 JOURS", "en": "IN 30 DAYS"},
+    "rappel_intro_citoyen": {
+        "fr": "la prochaine inspection de votre système",
+        "en": "the next inspection of your",
+    },
+    "rappel_intro_superviseur": {
+        "fr": "la prochaine inspection du système",
+        "en": "the next inspection of the",
+    },
+    "rappel_au": {"fr": "au", "en": "system at"},
+    "rappel_prevue_le": {"fr": "est prévue le", "en": "is due on"},
+    "rappel_conseil_citoyen": {
+        "fr": "Contactez votre entreprise d'inspection pour planifier une visite avant cette date.",
+        "en": "Contact your inspection company to schedule a visit before this date.",
+    },
+    "rappel_conseil_superviseur": {
+        "fr": "Planifiez une visite avant cette date pour éviter un retard de conformité.",
+        "en": "Schedule a visit before this date to avoid a compliance lapse.",
+    },
+    "rappel_client_label": {"fr": "Client", "en": "Client"},
+
+    # ── Confirmation de planification (citoyen) ──────────────────────────
+    "confirmation_sujet": {
+        "fr": "Confirmation — visite planifiée — ExtincPro",
+        "en": "Confirmation — visit scheduled — ExtincPro",
+    },
+    "confirmation_titre": {"fr": "Visite planifiée", "en": "Visit scheduled"},
+    "confirmation_eyebrow": {"fr": "CONFIRMATION DE RENDEZ-VOUS", "en": "APPOINTMENT CONFIRMATION"},
+    "confirmation_intro": {"fr": "une visite pour", "en": "a visit for"},
+    "confirmation_a_ete_planifiee": {"fr": "vient d'être planifiée.", "en": "has just been scheduled."},
+    "confirmation_date_label": {"fr": "DATE PRÉVUE", "en": "SCHEDULED DATE"},
+    "confirmation_conseil": {
+        "fr": "Un technicien se présentera à cette adresse à la date indiquée. Vous serez avisé si cette date devait changer.",
+        "en": "A technician will be on-site at this address on the date shown. You'll be notified if this date changes.",
+    },
+
+    # ── Avis de changement de date (citoyen) ─────────────────────────────
+    "changement_sujet": {
+        "fr": "Changement de date — visite planifiée — ExtincPro",
+        "en": "Date change — scheduled visit — ExtincPro",
+    },
+    "changement_titre": {"fr": "Date de visite modifiée", "en": "Visit date changed"},
+    "changement_eyebrow": {"fr": "CHANGEMENT DE DATE", "en": "DATE CHANGE"},
+    "changement_intro": {"fr": "la date de la visite pour", "en": "the date of the visit for"},
+    "changement_a_ete_modifiee": {"fr": "vient d'être modifiée.", "en": "has just been changed."},
+    "changement_ancienne_date": {"fr": "ANCIENNE DATE", "en": "PREVIOUS DATE"},
+    "changement_nouvelle_date": {"fr": "NOUVELLE DATE", "en": "NEW DATE"},
+    "changement_conseil": {
+        "fr": "Aucune action requise de votre part — un technicien se présentera à la nouvelle date indiquée.",
+        "en": "No action is required on your part — a technician will be on-site on the new date shown.",
+    },
 }
 
 

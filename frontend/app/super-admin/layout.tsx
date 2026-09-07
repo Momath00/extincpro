@@ -47,7 +47,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
   return (
     <div className="min-h-screen bg-gray-50 flex">
 
-      <div className="hidden md:flex flex-col w-64 min-h-screen fixed left-0 top-0 z-40">
+      <div className="hidden md:flex flex-col w-64 h-screen fixed left-0 top-0 z-40">
         <SuperAdminSidebar user={user} />
       </div>
 

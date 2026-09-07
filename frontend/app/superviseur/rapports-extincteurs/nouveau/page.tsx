@@ -23,7 +23,6 @@ export default function NouveauRapportExtincteurPage() {
   const [citoyenId, setCitoyenId] = useState('')
   const [technicienIds, setTechnicienIds] = useState<number[]>([])
   const [dateInspection, setDateInspection] = useState('')
-  const [numeroJob, setNumeroJob] = useState('')
   const [avecSystemeCuisine, setAvecSystemeCuisine] = useState(false)
   const [moduleCuisineActif, setModuleCuisineActif] = useState(false)
 
@@ -94,7 +93,6 @@ export default function NouveauRapportExtincteurPage() {
           citoyen: citoyenId ? Number(citoyenId) : null,
           techniciens: technicienIds,
           date_inspection: dateInspection || null,
-          numero_job: numeroJob,
           avec_systeme_cuisine: avecSystemeCuisine,
         }),
       })
@@ -240,17 +238,6 @@ export default function NouveauRapportExtincteurPage() {
           />
         </div>
 
-        <div>
-          <label className="text-xs font-bold uppercase tracking-widest mb-2 block" style={{ color: NAVY }}>
-            {t('etape_numero_job_6')} <span className="text-gray-300 normal-case font-normal">{t('optionnel')}</span>
-          </label>
-          <input
-            type="text"
-            value={numeroJob}
-            onChange={e => setNumeroJob(e.target.value)}
-            className="w-full sm:w-64 border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
-          />
-        </div>
 
         {moduleCuisineActif && (
           <button

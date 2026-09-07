@@ -1,7 +1,7 @@
 from collections import Counter
 from datetime import date
 
-from django.db.models import Q
+from django.db.models import F, Q
 from django.http import HttpResponse
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -215,6 +215,57 @@ def _creer_rapport_cuisine_lie(rapport_extincteur, utilisateur, request_data):
     rapport_cuisine.techniciens.set(rapport_extincteur.techniciens.all())
     rapport_cuisine.historiser(
         utilisateur, "Rapport créé automatiquement avec le rapport extincteur"
+    )
+
+
+def _citoyen_du_rapport(rapport):
+    """Le citoyen à aviser pour ce rapport — direct sur Rapport/RapportExtincteur,
+    ou via le rapport extincteur lié pour Éclairage/Cuisine (voir modèles)."""
+    citoyen = getattr(rapport, "citoyen", None)
+    if citoyen is None:
+        rapport_extincteur = getattr(rapport, "rapport_extincteur", None)
+        citoyen = getattr(rapport_extincteur, "citoyen", None) if rapport_extincteur else None
+    return citoyen
+
+
+def _envoyer_confirmation_planification_si_applicable(rapport, label: str) -> None:
+    """À la création d'une inspection avec citoyen + date connus, avise le
+    citoyen par courriel que sa visite est planifiée (une seule fois, à la
+    création — voir perform_create de RapportViewSet/RapportExtincteurViewSet)."""
+    from .emailing import envoyer_confirmation_planification, langue_utilisateur
+
+    citoyen = _citoyen_du_rapport(rapport)
+    if not (citoyen and citoyen.email and rapport.date_inspection):
+        return
+    envoyer_confirmation_planification(
+        citoyen.email, citoyen.get_full_name() or citoyen.username,
+        label, rapport.batiment, rapport.date_inspection, langue_utilisateur(citoyen),
+    )
+
+
+def _envoyer_avis_changement_date_si_applicable(
+    rapport, label: str, ancienne_date_inspection, ancienne_prochaine_inspection=None
+) -> None:
+    """Si `date_inspection` (visite planifiée) OU `prochaine_inspection`
+    (échéance de conformité, y compris un rappel en retard qu'on vient de
+    replanifier) vient de changer, avise le citoyen par courriel de la
+    nouvelle date (voir perform_update des ViewSets de rapport)."""
+    from .emailing import envoyer_avis_changement_date, langue_utilisateur
+
+    ancienne, nouvelle = None, None
+    if rapport.date_inspection and ancienne_date_inspection and rapport.date_inspection != ancienne_date_inspection:
+        ancienne, nouvelle = ancienne_date_inspection, rapport.date_inspection
+    elif rapport.prochaine_inspection and ancienne_prochaine_inspection and rapport.prochaine_inspection != ancienne_prochaine_inspection:
+        ancienne, nouvelle = ancienne_prochaine_inspection, rapport.prochaine_inspection
+
+    if not (ancienne and nouvelle):
+        return
+    citoyen = _citoyen_du_rapport(rapport)
+    if not (citoyen and citoyen.email):
+        return
+    envoyer_avis_changement_date(
+        citoyen.email, citoyen.get_full_name() or citoyen.username,
+        label, rapport.batiment, ancienne, nouvelle, langue_utilisateur(citoyen),
     )
 
 
@@ -1053,7 +1104,7 @@ class RapportViewSet(viewsets.ModelViewSet):
         if q:
             qs = _filtrer_recherche_rapport(qs, q)
 
-        return qs.distinct().order_by("-date_inspection", "-id")
+        return qs.distinct().order_by(F("date_inspection").desc(nulls_last=True), "-id")
 
     @action(detail=False, methods=["get"])
     def compteurs(self, request):
@@ -1144,13 +1195,18 @@ class RapportViewSet(viewsets.ModelViewSet):
         _creer_rapport_eclairage_lie(rapport_extincteur, self.request.user)
         _creer_rapport_cuisine_lie(rapport_extincteur, self.request.user, self.request.data)
 
+        _envoyer_confirmation_planification_si_applicable(rapport, "Réseau d'alarme incendie")
+
     def perform_update(self, serializer):
         instance = self.get_object()
         if instance.statut == Rapport.Statut.FERME and not self.request.user.est_superviseur():
             from rest_framework.exceptions import ValidationError
             raise ValidationError("Ce rapport est fermé et ne peut plus être modifié.")
+        ancienne_date = instance.date_inspection
+        ancienne_prochaine = instance.prochaine_inspection
         rapport = serializer.save()
         rapport.historiser(self.request.user, "Rapport modifié")
+        _envoyer_avis_changement_date_si_applicable(rapport, "Réseau d'alarme incendie", ancienne_date, ancienne_prochaine)
 
     @action(detail=True, methods=["post"])
     def fermer(self, request, pk=None):
@@ -1889,7 +1945,7 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
         if q:
             qs = _filtrer_recherche_rapport(qs, q)
 
-        return qs.distinct().order_by("-date_inspection", "-id")
+        return qs.distinct().order_by(F("date_inspection").desc(nulls_last=True), "-id")
 
     @action(detail=False, methods=["get"])
     def compteurs(self, request):
@@ -1967,13 +2023,18 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
         _creer_rapport_eclairage_lie(rapport, self.request.user)
         _creer_rapport_cuisine_lie(rapport, self.request.user, self.request.data)
 
+        _envoyer_confirmation_planification_si_applicable(rapport, "Extincteurs portatifs")
+
     def perform_update(self, serializer):
         instance = self.get_object()
         if instance.statut == RapportExtincteur.Statut.FERME and not self.request.user.est_superviseur():
             from rest_framework.exceptions import ValidationError
             raise ValidationError("Ce rapport est fermé et ne peut plus être modifié.")
+        ancienne_date = instance.date_inspection
+        ancienne_prochaine = instance.prochaine_inspection
         rapport = serializer.save()
         rapport.historiser(self.request.user, "Rapport modifié")
+        _envoyer_avis_changement_date_si_applicable(rapport, "Extincteurs portatifs", ancienne_date, ancienne_prochaine)
 
     @action(detail=True, methods=["post"])
     def fermer(self, request, pk=None):
@@ -2371,7 +2432,7 @@ class RapportEclairageUrgenceViewSet(viewsets.ModelViewSet):
         if q:
             qs = _filtrer_recherche_rapport(qs, q)
 
-        return qs.distinct().order_by("-date_inspection", "-id")
+        return qs.distinct().order_by(F("date_inspection").desc(nulls_last=True), "-id")
 
     @action(detail=False, methods=["get"])
     def compteurs(self, request):
@@ -2431,8 +2492,11 @@ class RapportEclairageUrgenceViewSet(viewsets.ModelViewSet):
         if instance.statut == RapportEclairageUrgence.Statut.FERME and not self.request.user.est_superviseur():
             from rest_framework.exceptions import ValidationError
             raise ValidationError("Ce rapport est fermé et ne peut plus être modifié.")
+        ancienne_date = instance.date_inspection
+        ancienne_prochaine = instance.prochaine_inspection
         rapport = serializer.save()
         rapport.historiser(self.request.user, "Rapport modifié")
+        _envoyer_avis_changement_date_si_applicable(rapport, "Éclairage d'urgence", ancienne_date, ancienne_prochaine)
 
     @action(detail=True, methods=["post"])
     def fermer(self, request, pk=None):
@@ -2826,7 +2890,7 @@ class RapportCuisineViewSet(viewsets.ModelViewSet):
         if q:
             qs = _filtrer_recherche_rapport(qs, q)
 
-        return qs.distinct().order_by("-date_inspection", "-id")
+        return qs.distinct().order_by(F("date_inspection").desc(nulls_last=True), "-id")
 
     @action(detail=False, methods=["get"])
     def compteurs(self, request):
@@ -2890,8 +2954,11 @@ class RapportCuisineViewSet(viewsets.ModelViewSet):
         if instance.statut == RapportCuisine.Statut.FERME and not self.request.user.est_superviseur():
             from rest_framework.exceptions import ValidationError
             raise ValidationError("Ce rapport est fermé et ne peut plus être modifié.")
+        ancienne_date = instance.date_inspection
+        ancienne_prochaine = instance.prochaine_inspection
         rapport = serializer.save()
         rapport.historiser(self.request.user, "Rapport modifié")
+        _envoyer_avis_changement_date_si_applicable(rapport, "Système de cuisine", ancienne_date, ancienne_prochaine)
 
     @action(detail=True, methods=["post"])
     def fermer(self, request, pk=None):
@@ -3092,6 +3159,230 @@ class CertificatsUnifiesView(APIView):
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(resultats, request, view=self)
         return paginator.get_paginated_response(page)
+
+
+def _evenements_calendrier(organisation, annee: int, mois: int) -> list[dict]:
+    """Trois catégories d'événements pour un mois donné, tous types de
+    rapport confondus, avec les coordonnées complètes du client (téléphone,
+    adresse) pour planifier/contacter directement depuis le calendrier :
+
+    - « rappel » : échéance calculée (`prochaine_inspection`, sur un rapport
+      déjà fermé), pas encore dépassée — le rappel automatique par courriel
+      s'appuie dessus.
+    - « en_retard » : même chose, mais la date est déjà passée sans qu'une
+      nouvelle inspection soit faite — reste affiché jusqu'à ce que le
+      superviseur planifie la visite de suivi.
+    - « planifie » : visite à venir déjà programmée à l'avance par le
+      superviseur (`date_inspection` d'un rapport encore ouvert, dans le
+      futur) — permet de voir tout ce qui est à faire, pas seulement les
+      échéances de conformité."""
+    configs = [
+        ("incendie", Rapport.objects.select_related("batiment", "batiment__client").prefetch_related("techniciens"), "/superviseur/rapports", "rapports"),
+        ("extincteur", RapportExtincteur.objects.select_related("batiment", "batiment__client").prefetch_related("techniciens"), "/superviseur/rapports-extincteurs", "rapports-extincteurs"),
+        ("eclairage", RapportEclairageUrgence.objects.select_related("batiment", "batiment__client").prefetch_related("techniciens"), "/superviseur/rapports-eclairage-urgence", "rapports-eclairage-urgence"),
+        ("cuisine", RapportCuisine.objects.select_related("batiment", "batiment__client").prefetch_related("techniciens"), "/superviseur/rapports-cuisine", "rapports-cuisine"),
+    ]
+
+    def _element(type_cle, r, url_base, api_base, champ_date, categorie):
+        bat = r.batiment
+        client = bat.client
+        return {
+            "cle": f"{type_cle}-{categorie}-{r.id}",
+            "type": type_cle,
+            "categorie": categorie,
+            "date": champ_date.isoformat(),
+            "adresse": bat.adresse_complete,
+            "client_nom": client.nom,
+            "client_contact_nom": client.contact_nom,
+            "client_telephone": client.contact_telephone,
+            "rapport_id": r.id,
+            "url_rapport": f"{url_base}/{r.id}",
+            "api_base": api_base,
+            "techniciens": [{"id": tech.id, "username": tech.username} for tech in r.techniciens.all()],
+        }
+
+    resultats = []
+    for type_cle, queryset, url_base, api_base in configs:
+        base = queryset.filter(batiment__client__organisation=organisation)
+
+        for r in base.filter(prochaine_inspection__year=annee, prochaine_inspection__month=mois):
+            categorie = "en_retard" if r.prochaine_inspection < date.today() else "rappel"
+            resultats.append(_element(type_cle, r, url_base, api_base, r.prochaine_inspection, categorie))
+
+        for r in base.filter(statut="ouvert", date_inspection__year=annee, date_inspection__month=mois):
+            resultats.append(_element(type_cle, r, url_base, api_base, r.date_inspection, "planifie"))
+
+    resultats.sort(key=lambda e: e["date"])
+    return resultats
+
+
+def _rapports_en_retard(organisation) -> list[dict]:
+    """Tous les rappels de conformité en retard (`prochaine_inspection`
+    dépassée sans nouvelle inspection planifiée), tous mois confondus —
+    alimente le widget « Rappels en retard » du tableau de bord. Trié du
+    plus ancien au plus récent : le plus urgent en premier."""
+    configs = [
+        ("incendie", Rapport.objects.select_related("batiment", "batiment__client"), "/superviseur/rapports", "titre_rapport_incendie"),
+        ("extincteur", RapportExtincteur.objects.select_related("batiment", "batiment__client"), "/superviseur/rapports-extincteurs", "titre_rapport_extincteur"),
+        ("eclairage", RapportEclairageUrgence.objects.select_related("batiment", "batiment__client"), "/superviseur/rapports-eclairage-urgence", "titre_rapport_eclairage"),
+        ("cuisine", RapportCuisine.objects.select_related("batiment", "batiment__client"), "/superviseur/rapports-cuisine", "systeme_cuisine"),
+    ]
+    aujourdhui = date.today()
+    resultats = []
+    for type_cle, queryset, url_base, label_cle in configs:
+        base = queryset.filter(batiment__client__organisation=organisation, prochaine_inspection__lt=aujourdhui)
+        for r in base:
+            bat = r.batiment
+            resultats.append({
+                "cle": f"{type_cle}-retard-{r.id}",
+                "type": type_cle,
+                "label_cle": label_cle,
+                "date": r.prochaine_inspection.isoformat(),
+                "jours_de_retard": (aujourdhui - r.prochaine_inspection).days,
+                "adresse": bat.adresse_complete,
+                "client_nom": bat.client.nom,
+                "rapport_id": r.id,
+                "url_rapport": f"{url_base}/{r.id}",
+            })
+    resultats.sort(key=lambda e: e["date"])
+    return resultats
+
+
+class RappelsEnRetardView(APIView):
+    """Liste des rappels de conformité en retard pour l'organisation —
+    widget du tableau de bord superviseur."""
+
+    permission_classes = [permissions.IsAuthenticated, EstSuperviseur]
+
+    def get(self, request):
+        return Response({"rappels": _rapports_en_retard(request.user.organisation)})
+
+
+class CalendrierView(APIView):
+    """Calendrier mensuel des prochaines inspections dues, tous types de
+    rapport confondus — `?annee=2026&mois=9` (mois courant par défaut)."""
+
+    permission_classes = [permissions.IsAuthenticated, EstSuperviseur]
+
+    def get(self, request):
+        from datetime import date
+
+        aujourdhui = date.today()
+        try:
+            annee = int(request.query_params.get("annee", aujourdhui.year))
+            mois = int(request.query_params.get("mois", aujourdhui.month))
+        except ValueError:
+            return Response({"error": "Paramètres 'annee'/'mois' invalides."}, status=status.HTTP_400_BAD_REQUEST)
+
+        evenements = _evenements_calendrier(request.user.organisation, annee, mois)
+        return Response({"annee": annee, "mois": mois, "evenements": evenements})
+
+
+class CompteurRappelsView(APIView):
+    """Nombre de rappels de conformité (à venir ou déjà en retard) dans le
+    mois courant, tous types de rapport confondus — alimente la pastille de
+    notification sur le lien Calendrier de la sidebar. Les retards des mois
+    précédents sont couverts séparément par le widget du tableau de bord
+    (voir RappelsEnRetardView)."""
+
+    permission_classes = [permissions.IsAuthenticated, EstSuperviseur]
+
+    def get(self, request):
+        aujourdhui = date.today()
+        evenements = _evenements_calendrier(request.user.organisation, aujourdhui.year, aujourdhui.month)
+        total = sum(1 for e in evenements if e["categorie"] in ("rappel", "en_retard"))
+        return Response({"total": total})
+
+
+class ReassignerCalendrierView(APIView):
+    """Réassignation des techniciens depuis le calendrier, sans devoir ouvrir
+    le rapport — `type` + `id` identifient le rapport (voir `api_base` dans
+    `_evenements_calendrier`), `techniciens` la nouvelle liste d'ids."""
+
+    permission_classes = [permissions.IsAuthenticated, EstSuperviseur]
+
+    MODELES = {
+        "incendie": Rapport,
+        "extincteur": RapportExtincteur,
+        "eclairage": RapportEclairageUrgence,
+        "cuisine": RapportCuisine,
+    }
+
+    def patch(self, request, type_rapport, pk):
+        modele = self.MODELES.get(type_rapport)
+        if modele is None:
+            return Response({"error": "Type de rapport invalide."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            rapport = modele.objects.get(pk=pk, batiment__client__organisation=request.user.organisation)
+        except modele.DoesNotExist:
+            return Response({"error": "Rapport introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+        rapport.techniciens.set(request.data.get("techniciens") or [])
+        rapport.historiser(request.user, "Techniciens réassignés depuis le calendrier")
+        return Response({
+            "techniciens": [{"id": t.id, "username": t.username} for t in rapport.techniciens.all()],
+        })
+
+
+def _rapports_technicien(user, date_min, date_max) -> list[dict]:
+    """Rapports (tous types) assignés au technicien connecté, dont la visite
+    est prévue (`date_inspection`) dans l'intervalle donné — utilisé pour les
+    sections « Aujourd'hui » et « Prochaines visites » du tableau de bord."""
+    configs = [
+        ("incendie", Rapport, "/technicien/rapports"),
+        ("extincteur", RapportExtincteur, "/technicien/rapports-extincteurs"),
+        ("eclairage", RapportEclairageUrgence, "/technicien/rapports-eclairage-urgence"),
+        ("cuisine", RapportCuisine, "/technicien/rapports-cuisine"),
+    ]
+    resultats = []
+    for type_cle, modele, url_base in configs:
+        qs = modele.objects.filter(
+            techniciens=user,
+            date_inspection__gte=date_min,
+            date_inspection__lte=date_max,
+        ).select_related("batiment", "batiment__client").distinct()
+        for r in qs:
+            resultats.append({
+                "cle": f"{type_cle}-{r.id}",
+                "type": type_cle,
+                "id": r.id,
+                "statut": r.statut,
+                "date_inspection": r.date_inspection.isoformat(),
+                "adresse": r.batiment.adresse_complete,
+                "client_nom": r.batiment.client.nom,
+                "url": f"{url_base}/{r.id}",
+            })
+    resultats.sort(key=lambda e: e["date_inspection"])
+    return resultats
+
+
+class TechnicienAujourdhuiView(APIView):
+    """Rapports (4 types) assignés au technicien connecté pour la date du
+    jour — équivalent multi-modules de `RapportViewSet.aujourdhui` (qui ne
+    couvrait que l'incendie)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from datetime import date
+
+        aujourdhui = date.today()
+        return Response(_rapports_technicien(request.user, aujourdhui, aujourdhui))
+
+
+class TechnicienProchainesVisitesView(APIView):
+    """Rapports (4 types) assignés au technicien connecté, prévus dans les
+    7 prochains jours (demain à J+7) — pour se préparer sans encombrer la
+    section « Aujourd'hui »."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from datetime import date, timedelta
+
+        demain = date.today() + timedelta(days=1)
+        fin = date.today() + timedelta(days=7)
+        return Response(_rapports_technicien(request.user, demain, fin))
 
 
 class CertificatsCompteursView(APIView):

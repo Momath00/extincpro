@@ -211,7 +211,7 @@ class RapportListSerializer(serializers.ModelSerializer):
         model = Rapport
         fields = [
             "id", "batiment", "techniciens", "citoyen", "statut", "statut_display",
-            "date_inspection", "date_prise_effet", "date_derniere_sauvegarde",
+            "date_inspection", "prochaine_inspection", "date_prise_effet", "date_derniere_sauvegarde",
             "date_fermeture", "nb_dispositifs", "nb_lacunes", "a_certificat",
             "certificat", "progression",
         ]
@@ -285,7 +285,7 @@ class RapportCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Rapport
-        fields = ["id", "batiment", "techniciens", "citoyen", "date_inspection"]
+        fields = ["id", "batiment", "techniciens", "citoyen", "date_inspection", "prochaine_inspection"]
         read_only_fields = ["id"]
 
 
@@ -406,7 +406,7 @@ class RapportExtincteurCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RapportExtincteur
-        fields = ["id", "batiment", "techniciens", "citoyen", "numero_job", "date_inspection"]
+        fields = ["id", "batiment", "techniciens", "citoyen", "numero_job", "date_inspection", "prochaine_inspection"]
         read_only_fields = ["id"]
 
 
@@ -474,7 +474,7 @@ class RapportEclairageUrgenceCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RapportEclairageUrgence
-        fields = ["id", "batiment", "techniciens", "numero_job", "date_inspection"]
+        fields = ["id", "batiment", "techniciens", "numero_job", "date_inspection", "prochaine_inspection"]
         read_only_fields = ["id"]
 
 

@@ -76,9 +76,8 @@ export default function TechnicienRapportExtincteurDetailPage() {
             </span>
           </div>
           <p className="text-gray-500 text-sm">
-            {rapport.numero_job ? `${t('job')} ${rapport.numero_job}` : ''}
             {rapport.date_inspection
-              ? ` ${rapport.numero_job ? '· ' : ''}${new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })}`
+              ? new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })
               : ''}
           </p>
         </div>

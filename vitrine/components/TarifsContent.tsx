@@ -113,6 +113,9 @@ export function TarifsContent() {
                   </span>
                 </div>
                 <span className={`mt-1 text-xs ${mod.highlight ? "text-white/40" : "text-text-muted/70"}`}>
+                  {t("soit_par_jour_prefix")} {(mod.prix / 30).toFixed(2)}{t("soit_par_jour_suffix")}
+                </span>
+                <span className={`mt-1 text-xs ${mod.highlight ? "text-white/40" : "text-text-muted/70"}`}>
                   {t("facture_annuellement")}
                 </span>
                 <div className={`mt-3 text-sm font-semibold ${mod.highlight ? "text-red-bright" : "text-red"}`}>

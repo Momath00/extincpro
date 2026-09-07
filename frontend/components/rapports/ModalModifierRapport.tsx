@@ -21,7 +21,7 @@ export default function ModalModifierRapport({
   onSaved,
 }: {
   rapport: any
-  mode: 'technicien' | 'adresse' | 'citoyen'
+  mode: 'technicien' | 'adresse' | 'citoyen' | 'date'
   apiBase: string
   onClose: () => void
   onSaved: () => void
@@ -32,6 +32,8 @@ export default function ModalModifierRapport({
 
   const [citoyens, setCitoyens] = useState<any[]>([])
   const [selectedCitoyenId, setSelectedCitoyenId] = useState<string>(String(rapport.citoyen?.id || ''))
+
+  const [dateInspection, setDateInspection] = useState<string>(rapport.date_inspection || '')
 
   const [adresse, setAdresse] = useState({
     numero_civique: rapport.batiment?.numero_civique || '',
@@ -85,6 +87,25 @@ export default function ModalModifierRapport({
         return
       }
 
+      if (mode === 'date') {
+        if (!dateInspection) {
+          setError(t('date_inspection_obligatoire'))
+          return
+        }
+        const res = await fetch(`${API_URL}${apiBase}${rapport.id}/`, {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date_inspection: dateInspection }),
+        })
+        if (res.ok) { onSaved(); onClose() }
+        else {
+          const d = await res.json().catch(() => ({})) as Record<string, any>
+          const premiereErreur = (Object.values(d)[0] as any)?.[0]
+          setError(d.error || premiereErreur || t('erreur_modification'))
+        }
+        return
+      }
+
       const body = mode === 'technicien'
         ? { techniciens: selectedTechIds }
         : { citoyen: selectedCitoyenId ? Number(selectedCitoyenId) : null }
@@ -102,6 +123,7 @@ export default function ModalModifierRapport({
     technicien: t('reassigner_techniciens'),
     adresse: t('corriger_adresse'),
     citoyen: t('modifier_citoyen'),
+    date: t('modifier_date_inspection'),
   }
 
   return (
@@ -168,6 +190,20 @@ export default function ModalModifierRapport({
                 <option key={c.id} value={c.id}>{c.username} — {c.email}</option>
               ))}
             </select>
+          </>
+        )}
+
+        {mode === 'date' && (
+          <>
+            <p className="text-xs text-gray-400 mb-4">
+              {t('modifier_date_inspection_note')}
+            </p>
+            <input
+              type="date"
+              value={dateInspection}
+              onChange={e => setDateInspection(e.target.value)}
+              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
+            />
           </>
         )}
 

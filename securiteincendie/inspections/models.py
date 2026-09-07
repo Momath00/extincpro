@@ -137,6 +137,10 @@ class Rapport(models.Model):
     date_prise_effet = models.DateField(null=True, blank=True)
     date_derniere_sauvegarde = models.DateTimeField(auto_now=True)
     date_fermeture = models.DateTimeField(null=True, blank=True)
+    prochaine_inspection = models.DateField(
+        null=True, blank=True,
+        help_text="Calculée automatiquement à la fermeture (date_inspection + 1 an) — sert aux rappels par courriel.",
+    )
 
     date_creation = models.DateTimeField(auto_now_add=True)
 
@@ -154,10 +158,14 @@ class Rapport(models.Model):
         return any(d.est_defectueux for d in self.dispositifs.all())
 
     def fermer(self, utilisateur):
+        from datetime import timedelta
+
         from django.utils import timezone
 
         self.statut = self.Statut.FERME
         self.date_fermeture = timezone.now()
+        if not self.prochaine_inspection and self.date_inspection:
+            self.prochaine_inspection = self.date_inspection + timedelta(days=365)
         self.save()
         self.historiser(utilisateur, "Rapport fermé")
 
@@ -525,6 +533,10 @@ class RapportExtincteur(models.Model):
     date_derniere_sauvegarde = models.DateTimeField(auto_now=True)
     date_fermeture = models.DateTimeField(null=True, blank=True)
     date_creation = models.DateTimeField(auto_now_add=True)
+    prochaine_inspection = models.DateField(
+        null=True, blank=True,
+        help_text="Calculée automatiquement à la fermeture (date_inspection + 1 an) — sert aux rappels par courriel.",
+    )
 
     class Meta:
         ordering = ["-date_creation"]
@@ -535,10 +547,14 @@ class RapportExtincteur(models.Model):
         )
 
     def fermer(self, utilisateur):
+        from datetime import timedelta
+
         from django.utils import timezone
 
         self.statut = self.Statut.FERME
         self.date_fermeture = timezone.now()
+        if not self.prochaine_inspection and self.date_inspection:
+            self.prochaine_inspection = self.date_inspection + timedelta(days=365)
         self.save()
         self.historiser(utilisateur, "Rapport fermé")
 
@@ -882,6 +898,10 @@ class RapportEclairageUrgence(models.Model):
     date_derniere_sauvegarde = models.DateTimeField(auto_now=True)
     date_fermeture = models.DateTimeField(null=True, blank=True)
     date_creation = models.DateTimeField(auto_now_add=True)
+    prochaine_inspection = models.DateField(
+        null=True, blank=True,
+        help_text="Calculée automatiquement à la fermeture (date_inspection + 1 an) — sert aux rappels par courriel.",
+    )
 
     class Meta:
         ordering = ["-date_creation"]
@@ -892,10 +912,14 @@ class RapportEclairageUrgence(models.Model):
         )
 
     def fermer(self, utilisateur):
+        from datetime import timedelta
+
         from django.utils import timezone
 
         self.statut = self.Statut.FERME
         self.date_fermeture = timezone.now()
+        if not self.prochaine_inspection and self.date_inspection:
+            self.prochaine_inspection = self.date_inspection + timedelta(days=365)
         self.save()
         self.historiser(utilisateur, "Rapport fermé")
 
@@ -1075,10 +1099,16 @@ class RapportCuisine(models.Model):
         )
 
     def fermer(self, utilisateur):
+        from datetime import timedelta
+
         from django.utils import timezone
 
         self.statut = self.Statut.FERME
         self.date_fermeture = timezone.now()
+        # Semi-annuel par défaut si le technicien ne l'a pas précisé lui-même
+        # dans le formulaire (voir CHECKLIST_CUISINE / InfoSystemeForm).
+        if not self.prochaine_inspection and self.date_inspection:
+            self.prochaine_inspection = self.date_inspection + timedelta(days=182)
         self.save()
         self.historiser(utilisateur, "Rapport fermé")
 

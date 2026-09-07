@@ -75,12 +75,9 @@ export default function TechnicienRapportEclairageUrgenceDetailPage() {
             </span>
           </div>
           <p className="text-gray-500 text-sm">
-            {[
-              rapport.numero_job ? `${t('job')} ${rapport.numero_job}` : '',
-              rapport.date_inspection
-                ? new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })
-                : '',
-            ].filter(Boolean).join(' · ')}
+            {rapport.date_inspection
+              ? new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })
+              : ''}
           </p>
         </div>
       </div>
