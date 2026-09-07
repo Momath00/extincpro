@@ -17,8 +17,9 @@ def envoyer_rappels_inspections() -> int:
     qu'une seule fois (le jour où la date cible correspond)."""
     from accounts.models import Utilisateur
 
-    from .emailing import envoyer_rappel_inspection, langue_utilisateur
+    from .emailing import envoyer_rappel_inspection
     from .models import Rapport, RapportCuisine, RapportEclairageUrgence, RapportExtincteur
+    from .views import destinataire_client_du_rapport
 
     cible = date.today() + timedelta(days=JOURS_AVANT_RAPPEL)
 
@@ -38,17 +39,15 @@ def envoyer_rappels_inspections() -> int:
             batiment = rapport.batiment
             organisation = batiment.client.organisation
 
-            # Citoyen assigné directement sur le rapport, ou (éclairage/cuisine,
-            # qui n'ont pas leur propre citoyen) celui du rapport extincteur lié.
-            citoyen = getattr(rapport, "citoyen", None)
-            if citoyen is None:
-                rapport_extincteur = getattr(rapport, "rapport_extincteur", None)
-                citoyen = getattr(rapport_extincteur, "citoyen", None) if rapport_extincteur else None
+            # Citoyen assigné (compte portail) en priorité, sinon le contact
+            # du Client (compagnie) déjà saisi à sa création — aucun compte
+            # séparé n'est nécessaire pour recevoir ce rappel.
+            nom_client, email_client, langue_client = destinataire_client_du_rapport(rapport)
 
-            if citoyen and citoyen.email:
+            if email_client:
                 envoyer_rappel_inspection(
-                    citoyen.email, citoyen.get_full_name() or citoyen.username,
-                    False, label, batiment, rapport.prochaine_inspection, langue_utilisateur(citoyen),
+                    email_client, nom_client,
+                    False, label, batiment, rapport.prochaine_inspection, langue_client,
                 )
                 total += 1
 

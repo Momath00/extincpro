@@ -70,6 +70,9 @@ class OrganisationViewSet(viewsets.ModelViewSet):
                 return Response({"error": erreur}, status=status.HTTP_400_BAD_REQUEST)
             organisation.logo = logo
             champs.append("logo")
+        if "date_fin_essai" in request.data:
+            organisation.date_fin_essai = request.data["date_fin_essai"] or None
+            champs.append("date_fin_essai")
         if champs:
             organisation.save(update_fields=champs)
         return Response(OrganisationSerializer(organisation).data)
@@ -219,6 +222,16 @@ class DemandeEssaiViewSet(viewsets.ModelViewSet):
         if "note_interne" in request.data:
             demande.note_interne = request.data["note_interne"]
             champs.append("note_interne")
+        if "organisation_creee" in request.data:
+            org_id = request.data["organisation_creee"]
+            if org_id:
+                try:
+                    demande.organisation_creee = Organisation.objects.get(pk=org_id)
+                except (Organisation.DoesNotExist, TypeError, ValueError):
+                    return Response({"error": "Organisation introuvable."}, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                demande.organisation_creee = None
+            champs.append("organisation_creee")
         if champs:
             demande.save(update_fields=champs)
         return Response(DemandeEssaiSerializer(demande).data)

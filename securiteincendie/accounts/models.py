@@ -21,7 +21,7 @@ class Utilisateur(AbstractUser):
         SUPER_ADMIN = "super_admin", "Super admin"
         SUPERVISEUR = "superviseur", "Superviseur"
         TECHNICIEN = "technicien", "Technicien"
-        CITOYEN = "citoyen", "Citoyen"
+        CITOYEN = "citoyen", "Contact client"
 
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.CITOYEN)
     telephone = models.CharField(max_length=20, blank=True)

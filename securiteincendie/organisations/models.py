@@ -26,6 +26,11 @@ class Organisation(models.Model):
         default=True,
         help_text="Coupe-circuit global — désactive l'accès à la plateforme pour toute l'organisation.",
     )
+    date_fin_essai = models.DateField(
+        null=True, blank=True,
+        help_text="Date de fin de l'essai gratuit — vide une fois l'organisation confirmée comme "
+                   "cliente payante. Un courriel d'avis est envoyé automatiquement 7 jours avant.",
+    )
     date_creation = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -46,6 +46,12 @@ export default function SuperAdminDashboard() {
   const totalUtilisateurs = organisations.reduce((acc, o) => acc + (o.nb_utilisateurs || 0), 0)
   const nouvellesDemandes = demandes.filter(d => d.statut === 'nouveau').length
 
+  const essaisAVenir = organisations
+    .filter(o => o.date_fin_essai)
+    .map(o => ({ ...o, joursRestants: Math.ceil((new Date(o.date_fin_essai + 'T00:00:00').getTime() - Date.now()) / 86400000) }))
+    .filter(o => o.joursRestants <= 7)
+    .sort((a, b) => a.joursRestants - b.joursRestants)
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
@@ -91,6 +97,44 @@ export default function SuperAdminDashboard() {
           )
         })}
       </div>
+
+      {essaisAVenir.length > 0 && (
+        <div className="bg-white rounded-md border border-red-100 overflow-hidden mb-6">
+          <div className="px-5 py-4 border-b border-red-100 flex items-center gap-2" style={{ background: '#fef2f2' }}>
+            <i className="ti ti-hourglass-low text-sm" style={{ color: '#e11324' }} />
+            <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: '#e11324' }}>
+              Essais qui expirent bientôt ({essaisAVenir.length})
+            </h2>
+          </div>
+          <div className="p-4 flex flex-col gap-2">
+            {essaisAVenir.map((o: any) => {
+              const enRetard = o.joursRestants < 0
+              return (
+                <Link
+                  href={`/super-admin/organisations/${o.id}`}
+                  key={o.id}
+                  className="flex items-center gap-3 p-3 rounded-md border-l-4 hover:shadow-sm transition-all"
+                  style={{ borderLeftColor: enRetard ? '#e11324' : '#d97706', background: enRetard ? '#fffbfb' : '#fffdf7' }}
+                >
+                  <div className="w-9 h-9 rounded-md flex-shrink-0 flex items-center justify-center" style={{ background: NAVY }}>
+                    <i className="ti ti-building-skyscraper text-white text-sm" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: NAVY }}>{o.nom}</p>
+                    <p className="text-xs text-gray-400 truncate">Fin le {new Date(o.date_fin_essai + 'T00:00:00').toLocaleDateString('fr-CA', { dateStyle: 'long' })}</p>
+                  </div>
+                  <span
+                    className="text-xs px-2.5 py-1 rounded-full font-semibold flex-shrink-0"
+                    style={{ background: enRetard ? '#fee2e2' : '#fef3c7', color: enRetard ? '#e11324' : '#b45309' }}
+                  >
+                    {enRetard ? `Expiré depuis ${Math.abs(o.joursRestants)} j` : `${o.joursRestants} j restants`}
+                  </span>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-md border border-gray-100 overflow-hidden">
         <div className="flex justify-between items-center px-5 py-4 border-b border-gray-100">

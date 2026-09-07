@@ -239,8 +239,10 @@ function ModalePlanifier({
   const [clients, setClients] = useState<any[]>([])
   const [batiments, setBatiments] = useState<any[]>([])
   const [techniciens, setTechniciens] = useState<any[]>([])
+  const [citoyens, setCitoyens] = useState<any[]>([])
   const [clientId, setClientId] = useState('')
   const [batimentId, setBatimentId] = useState('')
+  const [citoyenId, setCitoyenId] = useState('')
   const [technicienIds, setTechnicienIds] = useState<number[]>([])
   const [dateInspection, setDateInspection] = useState(dateInitiale)
   const [avecSystemeCuisine, setAvecSystemeCuisine] = useState(false)
@@ -254,11 +256,13 @@ function ModalePlanifier({
     Promise.all([
       fetch(`${API_URL}/api/clients/`, { headers }),
       fetch(`${API_URL}/api/utilisateurs/?role=technicien`, { headers }),
+      fetch(`${API_URL}/api/utilisateurs/?role=citoyen`, { headers }),
       fetch(`${API_URL}/api/me/`, { headers }),
-    ]).then(async ([cRes, tRes, meRes]) => {
-      const [cData, tData] = await Promise.all([cRes.json(), tRes.json()])
+    ]).then(async ([cRes, tRes, ciRes, meRes]) => {
+      const [cData, tData, ciData] = await Promise.all([cRes.json(), tRes.json(), ciRes.json()])
       setClients(Array.isArray(cData) ? cData : (cData.results || []))
       setTechniciens(Array.isArray(tData) ? tData : (tData.results || []))
+      setCitoyens(Array.isArray(ciData) ? ciData : (ciData.results || []))
       if (meRes.ok) {
         const me = await meRes.json()
         const modulesActifs: string[] = me?.organisation?.modules_actifs || []
@@ -293,6 +297,7 @@ function ModalePlanifier({
         body: JSON.stringify({
           batiment: Number(batimentId),
           techniciens: technicienIds,
+          citoyen: citoyenId ? Number(citoyenId) : null,
           date_inspection: dateInspection,
           avec_systeme_cuisine: avecSystemeCuisine,
         }),
@@ -349,6 +354,18 @@ function ModalePlanifier({
               <option value="">{t('selectionner')}</option>
               {batiments.map((b: any) => <option key={b.id} value={b.id}>{b.adresse_complete}</option>)}
             </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>
+              {t('etape_citoyen')} <span className="text-gray-300 normal-case font-normal">{t('optionnel')}</span>
+            </label>
+            <select value={citoyenId} onChange={e => setCitoyenId(e.target.value)}
+              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]">
+              <option value="">{t('aucun_tiret')}</option>
+              {citoyens.map((c: any) => <option key={c.id} value={c.id}>{c.username} — {c.email}</option>)}
+            </select>
+            <p className="text-[11px] text-gray-300 mt-1">{t('citoyen_pourra_consulter')}</p>
           </div>
 
           <div>

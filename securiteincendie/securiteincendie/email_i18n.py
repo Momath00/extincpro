@@ -195,6 +195,22 @@ EMAIL_DICT: dict[str, dict[str, str]] = {
         "fr": "Aucune action requise de votre part — un technicien se présentera à la nouvelle date indiquée.",
         "en": "No action is required on your part — a technician will be on-site on the new date shown.",
     },
+
+    # ── Fin d'essai gratuit (organisation) ───────────────────────────────
+    "essai_sujet": {
+        "fr": "Votre essai gratuit ExtincPro se termine bientôt",
+        "en": "Your ExtincPro free trial is ending soon",
+    },
+    "essai_titre": {"fr": "Fin d'essai à venir", "en": "Trial ending soon"},
+    "essai_eyebrow": {"fr": "ESSAI GRATUIT", "en": "FREE TRIAL"},
+    "essai_intro": {"fr": "l'essai gratuit de", "en": "the free trial for"},
+    "essai_se_termine_le": {"fr": "se termine bientôt.", "en": "is ending soon."},
+    "essai_fin_label": {"fr": "FIN DE L'ESSAI", "en": "TRIAL ENDS"},
+    "essai_conseil": {
+        "fr": "Pour continuer à utiliser ExtincPro sans interruption après cette date, veuillez contacter l'administrateur de la plateforme.",
+        "en": "To keep using ExtincPro without interruption after this date, please contact the platform administrator.",
+    },
+    "essai_contact_label": {"fr": "Contactez-nous", "en": "Contact us"},
 }
 
 

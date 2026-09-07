@@ -228,19 +228,36 @@ def _citoyen_du_rapport(rapport):
     return citoyen
 
 
-def _envoyer_confirmation_planification_si_applicable(rapport, label: str) -> None:
-    """À la création d'une inspection avec citoyen + date connus, avise le
-    citoyen par courriel que sa visite est planifiée (une seule fois, à la
-    création — voir perform_create de RapportViewSet/RapportExtincteurViewSet)."""
-    from .emailing import envoyer_confirmation_planification, langue_utilisateur
+def destinataire_client_du_rapport(rapport):
+    """(nom, email, langue) du destinataire à aviser pour ce rapport — le
+    citoyen assigné (compte avec accès au portail) en priorité s'il a un
+    courriel ; sinon le contact du Client (compagnie), déjà saisi à sa
+    création (`contact_nom`/`contact_email`), sans qu'un compte séparé soit
+    nécessaire. Retourne (None, None, None) si aucun des deux n'est disponible."""
+    from securiteincendie.email_i18n import langue_utilisateur
 
     citoyen = _citoyen_du_rapport(rapport)
-    if not (citoyen and citoyen.email and rapport.date_inspection):
+    if citoyen and citoyen.email:
+        return citoyen.get_full_name() or citoyen.username, citoyen.email, langue_utilisateur(citoyen)
+
+    client = rapport.batiment.client
+    if client.contact_email:
+        langue = getattr(client.organisation, "langue", "fr") or "fr"
+        return client.contact_nom or client.nom, client.contact_email, langue
+
+    return None, None, None
+
+
+def _envoyer_confirmation_planification_si_applicable(rapport, label: str) -> None:
+    """À la création d'une inspection avec un destinataire client + date
+    connus, avise par courriel que la visite est planifiée (une seule fois, à
+    la création — voir perform_create de RapportViewSet/RapportExtincteurViewSet)."""
+    from .emailing import envoyer_confirmation_planification
+
+    nom, email, langue = destinataire_client_du_rapport(rapport)
+    if not (email and rapport.date_inspection):
         return
-    envoyer_confirmation_planification(
-        citoyen.email, citoyen.get_full_name() or citoyen.username,
-        label, rapport.batiment, rapport.date_inspection, langue_utilisateur(citoyen),
-    )
+    envoyer_confirmation_planification(email, nom, label, rapport.batiment, rapport.date_inspection, langue)
 
 
 def _envoyer_avis_changement_date_si_applicable(
@@ -248,9 +265,9 @@ def _envoyer_avis_changement_date_si_applicable(
 ) -> None:
     """Si `date_inspection` (visite planifiée) OU `prochaine_inspection`
     (échéance de conformité, y compris un rappel en retard qu'on vient de
-    replanifier) vient de changer, avise le citoyen par courriel de la
-    nouvelle date (voir perform_update des ViewSets de rapport)."""
-    from .emailing import envoyer_avis_changement_date, langue_utilisateur
+    replanifier) vient de changer, avise par courriel de la nouvelle date
+    (voir perform_update des ViewSets de rapport)."""
+    from .emailing import envoyer_avis_changement_date
 
     ancienne, nouvelle = None, None
     if rapport.date_inspection and ancienne_date_inspection and rapport.date_inspection != ancienne_date_inspection:
@@ -260,13 +277,10 @@ def _envoyer_avis_changement_date_si_applicable(
 
     if not (ancienne and nouvelle):
         return
-    citoyen = _citoyen_du_rapport(rapport)
-    if not (citoyen and citoyen.email):
+    nom, email, langue = destinataire_client_du_rapport(rapport)
+    if not email:
         return
-    envoyer_avis_changement_date(
-        citoyen.email, citoyen.get_full_name() or citoyen.username,
-        label, rapport.batiment, ancienne, nouvelle, langue_utilisateur(citoyen),
-    )
+    envoyer_avis_changement_date(email, nom, label, rapport.batiment, ancienne, nouvelle, langue)
 
 
 def _est_conforme_extincteur(rapport_extincteur):

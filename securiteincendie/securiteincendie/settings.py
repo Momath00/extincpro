@@ -176,6 +176,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'inspections.tasks.envoyer_rappels_inspections',
         'schedule': crontab(hour=8, minute=0),
     },
+    'avis-fin-essai-organisations-quotidien': {
+        'task': 'organisations.tasks.envoyer_avis_fin_essai_organisations',
+        'schedule': crontab(hour=8, minute=15),
+    },
 }
 
 # Utilisateur personnalisé

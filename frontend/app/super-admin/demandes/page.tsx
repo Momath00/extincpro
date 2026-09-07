@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Fragment } from 'react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -247,7 +248,24 @@ export default function DemandesEssaiPage() {
                   </div>
                 </div>
 
-                <div className="mt-4 pt-4 border-t border-gray-50 flex justify-end overflow-x-auto min-w-0">
+                <div className="mt-4 pt-4 border-t border-gray-50 flex items-center justify-between gap-3 overflow-x-auto min-w-0">
+                  {d.organisation_creee ? (
+                    <Link
+                      href={`/super-admin/organisations/${d.organisation_creee}`}
+                      className="text-xs font-semibold flex items-center gap-1.5 flex-shrink-0 hover:underline"
+                      style={{ color: '#16a34a' }}
+                    >
+                      <i className="ti ti-building-skyscraper" /> Organisation créée : {d.organisation_creee_nom}
+                    </Link>
+                  ) : (
+                    <Link
+                      href={`/super-admin/organisations/nouveau?demande=${d.id}`}
+                      className="text-xs font-bold px-3 py-1.5 rounded-md text-white hover:opacity-90 transition-opacity flex items-center gap-1.5 flex-shrink-0"
+                      style={{ background: NAVY }}
+                    >
+                      <i className="ti ti-building-plus" /> Créer l'organisation
+                    </Link>
+                  )}
                   <Progression
                     statut={d.statut}
                     disabled={maj === d.id}

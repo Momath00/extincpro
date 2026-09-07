@@ -42,6 +42,8 @@ export default function OrganisationDetailPage() {
   const [busyModule, setBusyModule] = useState<string | null>(null)
   const [busyStatut, setBusyStatut] = useState(false)
   const [busyLangue, setBusyLangue] = useState(false)
+  const [busyEssai, setBusyEssai] = useState(false)
+  const [dateFinEssai, setDateFinEssai] = useState('')
 
   const [selectionnes, setSelectionnes] = useState<number[]>([])
   const [busyUtilisateur, setBusyUtilisateur] = useState<number | null>(null)
@@ -87,6 +89,7 @@ export default function OrganisationDetailPage() {
   }
 
   useEffect(() => { charger() }, [id])
+  useEffect(() => { setDateFinEssai(organisation?.date_fin_essai || '') }, [organisation])
 
   async function toggleModule(code: string) {
     setBusyModule(code)
@@ -191,6 +194,17 @@ export default function OrganisationDetailPage() {
     })
     if (res.ok) setOrganisation(await res.json())
     setBusyStatut(false)
+  }
+
+  async function sauvegarderDateFinEssai(nouvelleValeur: string) {
+    setBusyEssai(true)
+    const res = await fetch(`${API_URL}/api/organisations/${id}/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+      body: JSON.stringify({ date_fin_essai: nouvelleValeur || null }),
+    })
+    if (res.ok) setOrganisation(await res.json())
+    setBusyEssai(false)
   }
 
   async function changerLangue(langue: 'fr' | 'en') {
@@ -371,6 +385,65 @@ export default function OrganisationDetailPage() {
         </div>
         <Switch actif={organisation.est_active} onClick={toggleStatutOrganisation} busy={busyStatut} />
       </div>
+
+      {/* Essai gratuit */}
+      {(() => {
+        const finEssai = organisation.date_fin_essai as string | null
+        const joursRestants = finEssai ? Math.ceil((new Date(finEssai + 'T00:00:00').getTime() - Date.now()) / 86400000) : null
+        const enRetard = joursRestants !== null && joursRestants < 0
+        return (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden mb-5">
+            <div className="px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: finEssai ? (enRetard ? '#fef2f2' : '#fff7ed') : '#f0fdf4', color: finEssai ? (enRetard ? '#e11324' : '#9a4a13') : '#16a34a' }}
+                >
+                  <i className={`ti ${finEssai ? 'ti-hourglass' : 'ti-circle-check'} text-base`} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: NAVY }}>
+                    {finEssai
+                      ? enRetard ? 'Essai gratuit expiré' : `Essai gratuit — ${joursRestants} jour${joursRestants !== 1 ? 's' : ''} restant${joursRestants !== 1 ? 's' : ''}`
+                      : 'Client payant confirmé'}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {finEssai
+                      ? `Fin le ${new Date(finEssai + 'T00:00:00').toLocaleDateString('fr-CA', { dateStyle: 'long' })} — un courriel d'avis part automatiquement 7 jours avant.`
+                      : "Aucun essai en cours — cette organisation n'est pas suivie pour une échéance d'essai."}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <input
+                  type="date"
+                  value={dateFinEssai}
+                  onChange={e => setDateFinEssai(e.target.value)}
+                  disabled={busyEssai}
+                  className="border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324] disabled:opacity-50"
+                />
+                <button
+                  onClick={() => sauvegarderDateFinEssai(dateFinEssai)}
+                  disabled={busyEssai || dateFinEssai === (finEssai || '')}
+                  className="text-xs font-bold px-3 py-2 rounded-md text-white hover:opacity-90 transition-opacity disabled:opacity-40"
+                  style={{ background: NAVY }}
+                >
+                  Enregistrer
+                </button>
+                {finEssai && (
+                  <button
+                    onClick={() => sauvegarderDateFinEssai('')}
+                    disabled={busyEssai}
+                    className="text-xs font-bold px-3 py-2 rounded-md text-green-700 bg-green-50 hover:bg-green-100 transition-colors disabled:opacity-50"
+                  >
+                    Marquer payant
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Langue */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden mb-5">

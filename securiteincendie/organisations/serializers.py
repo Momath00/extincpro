@@ -62,6 +62,7 @@ class OrganisationSerializer(serializers.ModelSerializer):
             "langue",
             "logo",
             "est_active",
+            "date_fin_essai",
             "date_creation",
             "modules",
             "nb_utilisateurs",
@@ -103,6 +104,7 @@ class CreerSuperviseurSerializer(serializers.Serializer):
 class OrganisationCreateSerializer(serializers.Serializer):
     nom = serializers.CharField(max_length=150)
     adresse = serializers.CharField(max_length=300, required=False, allow_blank=True)
+    date_fin_essai = serializers.DateField(required=False, allow_null=True)
 
     def validate_nom(self, value):
         if Organisation.objects.filter(nom=value).exists():
@@ -112,6 +114,7 @@ class OrganisationCreateSerializer(serializers.Serializer):
     def create(self, validated_data):
         nom = validated_data["nom"]
         adresse = validated_data.get("adresse", "")
+        date_fin_essai = validated_data.get("date_fin_essai")
         slug_base = slugify(nom)
         slug = slug_base
         i = 2
@@ -119,7 +122,9 @@ class OrganisationCreateSerializer(serializers.Serializer):
             slug = f"{slug_base}-{i}"
             i += 1
 
-        organisation = Organisation.objects.create(nom=nom, slug=slug, adresse=adresse)
+        organisation = Organisation.objects.create(
+            nom=nom, slug=slug, adresse=adresse, date_fin_essai=date_fin_essai
+        )
 
         # Tous les modules existants sont créés inactifs par défaut pour la
         # nouvelle organisation — le super admin les active explicitement.
