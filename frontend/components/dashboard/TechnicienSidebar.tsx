@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useT } from '@/lib/i18n'
+import { cancelRefresh } from '@/lib/auth/tokenRefresh'
 
 const RED = '#0a0b0d'
 const ACCENT = '#e11324'
@@ -31,6 +32,7 @@ export default function TechnicienSidebar({ user, onClose }: { user: any; onClos
   })).filter(group => group.items.length > 0)
 
   function logout() {
+    cancelRefresh()
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     localStorage.removeItem('user_role')
