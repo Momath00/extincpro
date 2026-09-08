@@ -96,11 +96,11 @@ export default function OngletLegende({
             <col className="w-[25%]" />
           </colgroup>
           <thead>
-            <tr className="bg-gray-50 text-left">
-              <th className="px-2 sm:px-3 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-gray-400">{t('col_dispositif')}</th>
-              <th className="px-2 sm:px-3 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-gray-400">{t('description_label')}</th>
-              <th className="px-1.5 sm:px-3 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-gray-400">{t('col_type')}</th>
-              <th className="px-1.5 sm:px-3 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-gray-400">{t('col_no_modele')}</th>
+            <tr className="text-left" style={{ background: `linear-gradient(135deg, ${NAVY}, #232733)` }}>
+              <th className="px-2 sm:px-3 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-white">{t('col_dispositif')}</th>
+              <th className="px-2 sm:px-3 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-white">{t('description_label')}</th>
+              <th className="px-1.5 sm:px-3 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-white">{t('col_type')}</th>
+              <th className="px-1.5 sm:px-3 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-white">{t('col_no_modele')}</th>
             </tr>
           </thead>
           <tbody>

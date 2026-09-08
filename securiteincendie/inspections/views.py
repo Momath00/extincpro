@@ -898,7 +898,7 @@ def _html_rapport_incendie_complet(rapport) -> str:
         )
         e1_html = f"""<div class="sec-title">E1 — Rapport annuel de mise à l'essai</div>
 <table class="data-grid"><thead><tr><th></th><th>Champ</th><th class='center'>Valeur</th></tr></thead><tbody>{rows}</tbody></table>
-{'<p style="margin-top:6px;font-size:9pt;"><strong>Commentaires :</strong> ' + (e1.commentaires or '—') + '</p>' if e1 else ''}"""
+{'<div class="comment-box"><strong>Commentaires :</strong> ' + (e1.commentaires or '—') + '</div>' if e1 else ''}"""
 
     e2_html = ""
     e2_parts = []
