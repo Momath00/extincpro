@@ -1824,7 +1824,6 @@ def _html_rapport_extincteur_complet(rapport) -> str:
             f"<td class='center'>{_td(langue, 'type_extincteur', it.type_extincteur) or '—'}</td>"
             f"<td class='center'>{_td(langue, 'format', it.format) or '—'}</td>"
             f"<td>{_td(langue, 'marque', it.marque) or '—'}</td>"
-            f"<td>{it.numero_serie or '—'}</td>"
             f"<td class='center'>{it.date_fabrication or '—'}</td>"
             f"<td class='center'>{it.prochaine_maintenance or '—'}</td>"
             f"<td class='center'>{it.prochain_test_hydrostatique or '—'}</td>"
@@ -1833,7 +1832,7 @@ def _html_rapport_extincteur_complet(rapport) -> str:
             f"</tr>"
         )
     if not item_rows:
-        item_rows = f"<tr><td colspan='12' class='muted center'>{t('aucun_extincteur')}</td></tr>"
+        item_rows = f"<tr><td colspan='11' class='muted center'>{t('aucun_extincteur')}</td></tr>"
 
     boyaux = list(rapport.boyaux.all())
     boyau_rows = ""
@@ -1897,7 +1896,7 @@ def _html_rapport_extincteur_complet(rapport) -> str:
 <div class="sec-title">{t("detail_extincteurs")}</div>
 <table class="data-grid">
   <thead><tr>
-    <th>{t("col_no")}</th><th>{t("col_etage")}</th><th>{t("col_emplacement")}</th><th>{t("col_type")}</th><th>{t("col_format")}</th><th>{t("col_marque")}</th><th>{t("col_numero_serie")}</th>
+    <th>{t("col_no")}</th><th>{t("col_etage")}</th><th>{t("col_emplacement")}</th><th>{t("col_type")}</th><th>{t("col_format")}</th><th>{t("col_marque")}</th>
     <th>{t("col_date_fabrication")}</th><th>{t("col_prochaine_maintenance")}</th><th>{t("col_prochain_test_hydro")}</th>
     <th title="{t('etat_titre_abbr')}">{t("col_etat")}</th><th>{t("col_remarque")}</th>
   </tr></thead>
