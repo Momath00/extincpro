@@ -64,7 +64,7 @@ CSS_DOCUMENT = """
   .card-main{ font-size:11pt; font-weight:700; color:#0a0b0d; line-height:1.3; }
   .sec-title{ font-size:8pt; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:#0a0b0d; border-bottom:1.5px solid #0a0b0d; padding-bottom:4px; margin-bottom:8px; margin-top:16px; }
   table{ width:100%; border-collapse:collapse; font-size:9pt; }
-  th{ background:#f1f5f9; color:#0a0b0d; font-weight:700; padding:6px 10px; text-align:left; font-size:8pt; text-transform:uppercase; }
+  th{ background:#0a0b0d; color:#fff; font-weight:700; padding:6px 10px; text-align:left; font-size:8pt; text-transform:uppercase; letter-spacing:0.4px; }
   td{ padding:5px 10px; border-bottom:1px solid #f1f5f9; color:#111; }
   .center{ text-align:center; } .bold{ font-weight:700; } .muted{ color:#9ca3af; font-style:italic; }
   .conf-box{ border:1.5px solid #0a0b0d; border-radius:6px; padding:12px 16px; background:#f8fafc; }
@@ -86,6 +86,8 @@ CSS_DOCUMENT = """
   .sec-sub{ font-size:8.5pt; font-weight:700; color:#0a0b0d; border-bottom:1px solid #d1d5db; padding-bottom:2px; margin-top:12px; margin-bottom:5px; }
   .legende-box{ border:1px solid #999999; border-radius:4px; padding:8px 10px; margin-bottom:10px; background:#fafafa; }
   .legende-box table td{ border:none; padding:2px 8px; font-size:8pt; }
+  .comment-box{ border:1.5px solid #e11324; border-radius:6px; padding:8px 12px; margin-top:8px; background:#fff8f8; font-size:9pt; }
+  .comment-box strong{ color:#e11324; }
   .data-grid{ border:1px solid #d1d5db; border-collapse:collapse; }
   .data-grid th{ border:1px solid #d1d5db; }
   .data-grid td{ border:1px solid #e5e7eb; }

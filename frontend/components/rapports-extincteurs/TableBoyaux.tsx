@@ -305,7 +305,8 @@ export default function TableBoyaux({
           <div className="overflow-x-auto">
             <table className="w-full text-sm min-w-[900px]">
               <thead>
-                <tr className="text-[10px] font-bold uppercase tracking-widest text-gray-400 bg-gray-50">
+                <tr className="text-[10px] font-bold uppercase tracking-widest text-white"
+                  style={{ background: `linear-gradient(135deg, ${NAVY}, #232733)` }}>
                   <th className="text-center px-2 py-2.5 w-10">{t('col_no')}</th>
                   <th className="text-left px-2 py-2.5">{t('col_etage')}</th>
                   <th className="text-left px-2 py-2.5">{t('col_emplacement')}</th>

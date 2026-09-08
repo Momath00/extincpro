@@ -55,7 +55,7 @@ export const E2_STRUCTURE: E2Section[] = [
       { id: 'DD', label: { fr: "Réception de la transmission d'un signal d'alarme à la centrale de réception d'alarme incendie", en: 'Receipt of transmission of an alarm signal at the fire alarm receiving centre' }, type: 'oui_non_so' },
       { id: 'EE', label: { fr: "Réception de la transmission d'un signal de surveillance à la centrale de réception d'alarme incendie", en: 'Receipt of transmission of a supervisory signal at the fire alarm receiving centre' }, type: 'oui_non_so' },
       { id: 'FF', label: { fr: "Réception de la transmission d'un signal de défectuosité à la centrale de réception d'alarme incendie", en: 'Receipt of transmission of a trouble signal at the fire alarm receiving centre' }, type: 'oui_non_so' },
-      { id: 'GG', label: { fr: "Nom et numéro de téléphone de la centrale de réception d'alarme incendie", en: 'Name and telephone number of the fire alarm receiving centre' }, type: 'oui_non_so' },
+      { id: 'GG', label: { fr: "Nom et numéro de téléphone de la centrale de réception d'alarme incendie", en: 'Name and telephone number of the fire alarm receiving centre' }, type: 'texte' },
       { id: 'HH', label: { fr: "Le déclenchement du sectionneur de la centrale de réception d'alarme incendie produit une indication de défectuosité précise au poste de contrôle et achemine un signal de défectuosité à la centrale", en: 'Actuation of the fire alarm receiving centre disconnect switch produces an accurate trouble indication at the control unit and transmits a trouble signal to the centre' }, type: 'oui_non_so' },
     ],
   },

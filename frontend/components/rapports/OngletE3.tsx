@@ -59,10 +59,27 @@ function LigneDispositif({
   if (filtreType !== 'Tous' && d.type_dispositif !== filtreType) return null
 
   async function patchField(field: string, value: any) {
-    const updated = { ...d, [field]: value }
+    await patchFields({ [field]: value })
+  }
+
+  async function patchFields(fields: Record<string, any>) {
+    const updated = { ...d, ...fields }
     setD(updated)
-    onUpdate(field, value)
-    await resilientMutate('PATCH', `${API_URL}/api/dispositifs/${d.id}/`, { [field]: value })
+    Object.entries(fields).forEach(([field, value]) => onUpdate(field, value))
+    await resilientMutate('PATCH', `${API_URL}/api/dispositifs/${d.id}/`, fields)
+  }
+
+  function handleStatutChange(value: string) {
+    if (value === 'I') {
+      patchFields({
+        annonce_statut: value,
+        installation_correcte: true,
+        necessite_entretien: false,
+        alarme_confirmee: true,
+      })
+    } else {
+      patchField('annonce_statut', value || null)
+    }
   }
 
   async function supprimer() {
@@ -73,6 +90,7 @@ function LigneDispositif({
 
   const isDefect = d.annonce_statut === 'D'
   const isNI = !isDefect && d.annonce_statut === 'NI'
+  const isInspecte = !isDefect && !isNI && d.annonce_statut === 'I'
 
   return (
     <>
@@ -84,12 +102,15 @@ function LigneDispositif({
         } : isNI ? {
           background: '#fffbeb',
           borderLeft: '3px solid #f59e0b',
+        } : isInspecte ? {
+          background: '#f0fdf4',
+          borderLeft: '3px solid #22c55e',
         } : {}}
       >
         {/* Localisation */}
         <td className="px-3 py-2.5">
           {readOnly ? (
-            <span className="text-sm font-semibold" style={{ color: isDefect ? '#e11324' : isNI ? '#b45309' : NAVY }}>
+            <span className="text-sm font-semibold" style={{ color: isDefect ? '#e11324' : isNI ? '#b45309' : isInspecte ? '#15803d' : NAVY }}>
               {d.localisation}
             </span>
           ) : (
@@ -98,7 +119,7 @@ function LigneDispositif({
               defaultValue={d.localisation}
               onBlur={e => patchField('localisation', e.target.value)}
               className="w-full text-sm border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-orange-300 rounded px-1 py-0.5 min-w-[80px] font-medium"
-              style={{ color: isDefect ? '#e11324' : isNI ? '#b45309' : NAVY }}
+              style={{ color: isDefect ? '#e11324' : isNI ? '#b45309' : isInspecte ? '#15803d' : NAVY }}
             />
           )}
         </td>
@@ -108,7 +129,7 @@ function LigneDispositif({
           {readOnly ? (
             d.type_dispositif ? (
               <span className="text-xs font-mono font-bold px-1.5 py-0.5 rounded"
-                style={{ background: isDefect ? '#fee2e2' : isNI ? '#fef3c7' : '#f1f5f9', color: isDefect ? '#e11324' : isNI ? '#b45309' : '#475569' }}>
+                style={{ background: isDefect ? '#fee2e2' : isNI ? '#fef3c7' : isInspecte ? '#dcfce7' : '#f1f5f9', color: isDefect ? '#e11324' : isNI ? '#b45309' : isInspecte ? '#15803d' : '#475569' }}>
                 {d.type_dispositif}
               </span>
             ) : <span className="text-gray-300 text-xs">—</span>
@@ -204,7 +225,7 @@ function LigneDispositif({
           ) : (
             <select
               value={d.annonce_statut || ''}
-              onChange={e => patchField('annonce_statut', e.target.value || null)}
+              onChange={e => handleStatutChange(e.target.value)}
               className="w-full min-w-0 text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
             >
               <option value="">-</option>
@@ -1012,7 +1033,8 @@ export default function OngletE3({
                     {!readOnly && <col className="w-[5%]" />}
                   </colgroup>
                   <thead>
-                    <tr className="text-[10px] font-bold uppercase tracking-widest text-gray-400 bg-gray-50">
+                    <tr className="text-[10px] font-bold uppercase tracking-widest text-white"
+                      style={{ background: `linear-gradient(135deg, ${NAVY}, #232733)` }}>
                       <th className="text-left px-3 py-2.5">{t('localisation_label')}</th>
                       <th className="text-left px-2 py-2.5">{t('col_type')}</th>
                       <th className="text-center px-2 py-2.5">A</th>
