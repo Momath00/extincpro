@@ -2628,15 +2628,25 @@ _HOTTE_BOX = {"x0": 34, "x1": 456, "topY": 92, "botY": 132}
 def _icone_appareil_svg(code, color="#334155", size=15):
     """Icône monoligne d'un appareil — mêmes tracés que AppareilIcon côté
     frontend (frontend/components/rapports-cuisine/SchemaHottes.tsx), pour
-    que le rapport imprimé corresponde exactement à l'éditeur."""
+    que le rapport imprimé corresponde exactement à l'éditeur.
+
+    'G' et 'R' sont les anciens codes plaque/cuisinière (avant l'introduction
+    des variantes P/R2/R4/R6) — repris ici en repli visuel (P / R4) pour que
+    les hottes déjà enregistrées avec ces codes s'imprimment toujours
+    correctement."""
     attrs = f'width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"'
     formes = {
-        "F": '<path d="M5 9h14l-1.5 9a2 2 0 0 1-2 1.7H8.5a2 2 0 0 1-2-1.7L5 9Z"/><path d="M8 9V7a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M9 12.5h6M8.5 15.5h7"/>',
+        "F": '<rect x="5" y="4" width="14" height="16"/><rect x="9" y="6.5" width="6" height="7"/><path d="M12 20v-6.5"/><path d="M9.7 15.7L12 13.5l2.3 2.2"/>',
         "B": '<path d="M5 10h11l-1.2 8a2 2 0 0 1-2 1.7H8.2a2 2 0 0 1-2-1.7L5 10Z"/><path d="M9 13h5"/><circle cx="18.5" cy="7.5" r="2.5"/><path d="M18.5 6v1.5l1 1"/>',
-        "G": '<rect x="4" y="8" width="16" height="9" rx="1.5"/><path d="M7 11.5h10M7 14.5h10"/>',
-        "R": '<circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2.3"/><path d="M12 3.5v2M20.5 12h-2M3.5 12h2M12 20.5v-2"/>',
-        "C": '<rect x="4" y="8" width="16" height="9" rx="1.5"/><path d="M7 8v9M11 8v9M15 8v9"/>',
-        "S": '<path d="M5 7h14v3a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7Z"/><path d="M8 12v6M12 12v6M16 12v6"/>',
+        "P": '<rect x="2" y="8" width="20" height="8"/>',
+        "G": '<rect x="2" y="8" width="20" height="8"/>',
+        "R2": '<rect x="7" y="3" width="10" height="18" rx="1.5"/><circle cx="12" cy="8" r="2"/><circle cx="12" cy="16" r="2"/>',
+        "R4": '<rect x="4" y="4" width="16" height="16" rx="1.5"/><circle cx="9" cy="9" r="1.8"/><circle cx="15" cy="9" r="1.8"/><circle cx="9" cy="15" r="1.8"/><circle cx="15" cy="15" r="1.8"/>',
+        "R": '<rect x="4" y="4" width="16" height="16" rx="1.5"/><circle cx="9" cy="9" r="1.8"/><circle cx="15" cy="9" r="1.8"/><circle cx="9" cy="15" r="1.8"/><circle cx="15" cy="15" r="1.8"/>',
+        "R6": '<rect x="2" y="6" width="20" height="12" rx="1.5"/><circle cx="7" cy="10" r="1.4"/><circle cx="12" cy="10" r="1.4"/><circle cx="17" cy="10" r="1.4"/><circle cx="7" cy="14" r="1.4"/><circle cx="12" cy="14" r="1.4"/><circle cx="17" cy="14" r="1.4"/>',
+        "C": '<rect x="4" y="5" width="16" height="14"/><path d="M6 19l1.5-14M9.5 19l1.5-14M13 19l1.5-14M16.5 19l1.5-14"/>',
+        "S": '<rect x="4" y="9" width="16" height="9"/><path d="M6.5 9v-3M10 9v-3M13.5 9v-3M17 9v-3"/>',
+        "SP": f'<rect x="4" y="4" width="16" height="16" rx="1.5"/><circle cx="12" cy="12" r="1.4" fill="{color}"/><path d="M12 6.5v2.2M12 15.3v2.2M5.5 12h2.2M16.3 12h2.2M8 8l1.5 1.5M14.5 14.5L16 16M8 16l1.5-1.5M14.5 9.5L16 8"/>',
         "BP": '<path d="M4 10c1.5 1 3 1.5 8 1.5s6.5-.5 8-1.5"/><path d="M4 10v3a4 4 0 0 0 4 4h8a4 4 0 0 0 4-4v-3"/>',
         "W": '<path d="M3 12a9 9 0 0 0 18 0"/><path d="M3 12h18M5 9l-2-1.5M19 9l2-1.5"/>',
     }
@@ -2644,25 +2654,62 @@ def _icone_appareil_svg(code, color="#334155", size=15):
     return f"<svg {attrs}>{contenu}</svg>"
 
 
-def _unite_appareil_svg(code, qty, x, y):
+_CUISINIERE_DIMS = {
+    "R2": {"w": 16, "h": 30, "cols": 1, "rows": 2},
+    "R4": {"w": 26, "h": 26, "cols": 2, "rows": 2},
+    "R6": {"w": 40, "h": 26, "cols": 3, "rows": 2},
+}
+
+_clip_seq_appareil = 0
+
+
+def _unite_appareil_svg(code_brut, qty, x, y):
     """Rendu réaliste d'un appareil avec sa quantité (batterie de friteuses,
-    cuisinière à N feux, plaque/grille sur N sections) — même logique que
-    AppareilUnit côté frontend."""
+    cuisinière à feux fixes, plaque/grille sur N sections) — même logique que
+    AppareilUnit côté frontend. 'G' et 'R' (anciens codes) sont ramenés vers
+    'P' et 'R4' pour que les hottes déjà enregistrées s'imprimment toujours
+    correctement."""
+    global _clip_seq_appareil
+    code = "P" if code_brut == "G" else "R4" if code_brut == "R" else code_brut
     n = max(1, qty or 1)
     step = 15
     w = 22 + (n - 1) * step
     h = 26
     stroke = "#334155"
 
-    if code == "R":
-        burners = "".join(
-            f'<circle cx="{x - w / 2 + 11 + i * step}" cy="{y}" r="5.2" fill="none" stroke="{stroke}" stroke-width="1.3"/>'
-            f'<circle cx="{x - w / 2 + 11 + i * step}" cy="{y}" r="1.6" fill="{stroke}"/>'
+    if code in _CUISINIERE_DIMS:
+        dims = _CUISINIERE_DIMS[code]
+        gap = 6
+        total_w = dims["w"] * n + gap * (n - 1)
+        cell_w = dims["w"] / (dims["cols"] + 1)
+        cell_h = dims["h"] / (dims["rows"] + 1)
+        r = min(cell_w, cell_h) * 0.32
+        units = []
+        for i in range(n):
+            bx = x - total_w / 2 + dims["w"] / 2 + i * (dims["w"] + gap)
+            burners = "".join(
+                f'<circle cx="{bx - dims["w"] / 2 + cell_w * (c + 1)}" cy="{y - dims["h"] / 2 + cell_h * (row + 1)}" r="{r}" fill="none" stroke="{stroke}" stroke-width="1.1"/>'
+                for row in range(dims["rows"]) for c in range(dims["cols"])
+            )
+            units.append(
+                f'<rect x="{bx - dims["w"] / 2}" y="{y - dims["h"] / 2}" width="{dims["w"]}" height="{dims["h"]}" rx="3" fill="#fff" stroke="{stroke}" stroke-width="1.4"/>{burners}'
+            )
+        return "".join(units)
+
+    if code == "F":
+        # Rectangle net avec panier intérieur et tige relevée (poignée) —
+        # comme la friteuse dessinée à la main.
+        paniers = "".join(
+            (lambda cx: (
+                f'<rect x="{cx - 5}" y="{y - 7}" width="10" height="12" fill="none" stroke="{stroke}" stroke-width="1.1"/>'
+                f'<path d="M {cx} {y + h / 2 - 2} V {y - 4}" fill="none" stroke="{stroke}" stroke-width="1.1"/>'
+                f'<path d="M {cx - 2} {y - 1.5} L {cx} {y - 4.5} L {cx + 2} {y - 1.5}" fill="none" stroke="{stroke}" stroke-width="1.1"/>'
+            ))(x - w / 2 + 11 + i * step)
             for i in range(n)
         )
-        return f'<rect x="{x - w / 2}" y="{y - h / 2}" width="{w}" height="{h}" rx="5" fill="#fff" stroke="{stroke}" stroke-width="1.4"/>{burners}'
+        return f'<rect x="{x - w / 2}" y="{y - h / 2}" width="{w}" height="{h}" fill="#fff" stroke="{stroke}" stroke-width="1.4"/>{paniers}'
 
-    if code in ("F", "B"):
+    if code == "B":
         paniers = "".join(
             (lambda cx: (
                 f'<path d="M {cx - 5} {y - 6} h 10 l -1.4 9 a 1.6 1.6 0 0 1 -1.6 1.4 h -3.6 a 1.6 1.6 0 0 1 -1.6 -1.4 Z" fill="none" stroke="{stroke}" stroke-width="1.1"/>'
@@ -2672,23 +2719,46 @@ def _unite_appareil_svg(code, qty, x, y):
         )
         return f'<rect x="{x - w / 2}" y="{y - h / 2}" width="{w}" height="{h}" rx="5" fill="#fff" stroke="{stroke}" stroke-width="1.4"/>{paniers}'
 
-    if code in ("G", "C"):
+    if code == "P":
+        # Plaque — rectangle net, plus long que les autres appareils.
+        w_plaque = 46 + (n - 1) * step
         dividers = "".join(
-            f'<line x1="{x - w / 2 + (i + 1) * step}" y1="{y - h / 2 + 4}" x2="{x - w / 2 + (i + 1) * step}" y2="{y + h / 2 - 4}" stroke="{stroke}" stroke-width="1"/>'
+            f'<line x1="{x - w_plaque / 2 + (i + 1) * (w_plaque / n)}" y1="{y - h / 2 + 4}" x2="{x - w_plaque / 2 + (i + 1) * (w_plaque / n)}" y2="{y + h / 2 - 4}" stroke="{stroke}" stroke-width="1"/>'
             for i in range(n - 1)
         )
-        if code == "G":
-            interieur = f'<path d="M {x - w / 2 + 6} {y} H {x + w / 2 - 6}" stroke="{stroke}" stroke-width="1" stroke-dasharray="3 3"/>'
-        else:
-            interieur = "".join(
-                f'<path d="M {x - w / 2 + 7 + i * step} {y - 6} v 12" stroke="{stroke}" stroke-width="1"/>'
-                for i in range(n)
-            )
-        return f'<rect x="{x - w / 2}" y="{y - h / 2}" width="{w}" height="{h}" rx="5" fill="#fff" stroke="{stroke}" stroke-width="1.4"/>{dividers}{interieur}'
+        return f'<rect x="{x - w_plaque / 2}" y="{y - h / 2}" width="{w_plaque}" height="{h}" fill="#fff" stroke="{stroke}" stroke-width="1.4"/>{dividers}'
 
-    # Comme les autres types (friteuse, cuisinière, grille) : une seule boîte
-    # arrondie, même hauteur — la quantité est indiquée par une pastille ×N
-    # plutôt que de répéter l'icône, pour rester lisible.
+    if code == "C":
+        # Rectangle net (coins non arrondis) rempli de traits quasi verticaux
+        # (léger biais), serrés, comme une grille de charbon vue de face.
+        _clip_seq_appareil += 1
+        clip_id = f"grillClip{_clip_seq_appareil}"
+        slant = 6
+        diag_lines = []
+        dx = -slant
+        while dx <= w + slant:
+            lx1 = x - w / 2 + dx
+            ly1 = y + h / 2
+            lx2 = lx1 + slant
+            ly2 = y - h / 2
+            diag_lines.append(f'<line x1="{lx1}" y1="{ly1}" x2="{lx2}" y2="{ly2}" stroke="{stroke}" stroke-width="1"/>')
+            dx += 6
+        return (
+            f'<defs><clipPath id="{clip_id}"><rect x="{x - w / 2}" y="{y - h / 2}" width="{w}" height="{h}"/></clipPath></defs>'
+            f'<rect x="{x - w / 2}" y="{y - h / 2}" width="{w}" height="{h}" fill="#fff" stroke="{stroke}" stroke-width="1.4"/>'
+            f'<g clip-path="url(#{clip_id})">{"".join(diag_lines)}</g>'
+        )
+
+    if code == "S":
+        tick_count = max(3, round(w / 8))
+        ticks = "".join(
+            f'<line x1="{x - w / 2 + 4 + (i * (w - 8)) / (tick_count - 1)}" y1="{y - h / 2}" x2="{x - w / 2 + 4 + (i * (w - 8)) / (tick_count - 1)}" y2="{y - h / 2 + 6}" stroke="{stroke}" stroke-width="1"/>'
+            for i in range(tick_count)
+        )
+        return f'<rect x="{x - w / 2}" y="{y - h / 2}" width="{w}" height="{h}" fill="#fff" stroke="{stroke}" stroke-width="1.4"/>{ticks}'
+
+    # Même boîte arrondie que friteuse/cuisinière/grille — la quantité est une
+    # pastille ×N plutôt que de répéter l'icône, pour rester lisible.
     w_badge = 34
     badge = (
         f'<circle cx="{x + w_badge / 2 - 3}" cy="{y + h / 2 - 3}" r="7" fill="#dc2626"/>'
@@ -2733,6 +2803,7 @@ def _rendu_hotte_html(hotte):
     icon_y = 195
     appareils_svg = "".join(
         _unite_appareil_svg(a.get("code", ""), a.get("qty", 1), a.get("x", 0), icon_y)
+        + f'<text x="{a.get("x", 0)}" y="{icon_y + 24}" text-anchor="middle" fill="#64748b" font-size="9" font-weight="700">{a.get("code", "")}</text>'
         for a in appareils
     )
     dividers_svg = "".join(
@@ -2782,12 +2853,14 @@ def _lignes_caracteristiques_cuisine(rapport):
     )
 
 
-def _legende_appareils_html():
-    """Légende complète — tous les types possibles, pas seulement ceux
-    utilisés sur cette hotte (même logique que l'éditeur interactif)."""
+def _legende_appareils_html(hottes):
+    """Légende limitée aux types réellement utilisés sur ce système — même
+    logique que l'éditeur interactif (SchemaHottes.tsx)."""
+    codes_utilises = {a.get("code") for h in hottes for a in (h.appareils or [])}
+    labels = dict(HotteCuisine.CodeAppareil.choices)
     return "".join(
-        f"<span style='margin-right:9px;'><strong style='color:#64748b;'>{code}</strong> {label}</span>"
-        for code, label in HotteCuisine.CodeAppareil.choices
+        f"<span style='margin-right:9px;'><strong style='color:#64748b;'>{code}</strong> {labels.get(code, code)}</span>"
+        for code in sorted(codes_utilises) if code
     )
 
 
@@ -2807,7 +2880,7 @@ def _html_rapport_cuisine_complet(rapport) -> str:
     hottes = list(rapport.hottes.all())
 
     hottes_html = "".join(_rendu_hotte_html(h) for h in hottes) or f"<p class='muted'>{t('aucune_hotte')}</p>"
-    legende_appareils = _legende_appareils_html()
+    legende_appareils = _legende_appareils_html(hottes)
     verif_rows = "".join(
         f"<div style='display:flex;align-items:center;gap:6px;padding:3px 8px;'>"
         f"{case(getattr(rapport, champ) is True, '#16a34a')}<span>{label}</span></div>"
