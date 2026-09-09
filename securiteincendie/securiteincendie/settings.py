@@ -204,6 +204,17 @@ CSRF_TRUSTED_ORIGINS = [
     origin for origin in config('CSRF_TRUSTED_ORIGINS', default='').split(',') if origin
 ]
 
+# Derrière Railway (et tout proxy qui termine le TLS avant de relayer en HTTP
+# vers le conteneur) : sans ceci, request.is_secure() reste faux même en
+# HTTPS, ce qui perturbe la vérification CSRF et les cookies Secure. Sans
+# effet en local (docker-compose n'envoie pas cet en-tête).
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = True
+
 from datetime import timedelta
 
 SIMPLE_JWT = {
