@@ -10,21 +10,30 @@ const NAVY = '#0f172a'
 const ORANGE = '#dc2626'
 
 // ── Icônes d'appareils (monoline, style Tabler) ─────────────────────────────
+// 'G' et 'R' sont les anciens codes plaque/cuisinière (avant l'introduction
+// des variantes P/R2/R4/R6) — conservés en repli visuel (P / R4) pour que
+// les hottes déjà enregistrées avec ces codes continuent de s'afficher.
 function AppareilIcon({ code, color = '#dc2626', size = 15 }: { code: string; color?: string; size?: number }) {
   const common = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
   switch (code) {
-    case 'F': // Friteuse — panier
-      return <svg {...common}><path d="M5 9h14l-1.5 9a2 2 0 0 1-2 1.7H8.5a2 2 0 0 1-2-1.7L5 9Z" /><path d="M8 9V7a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" /><path d="M9 12.5h6M8.5 15.5h7" /></svg>
+    case 'F': // Friteuse — rectangle, panier intérieur, tige relevée
+      return <svg {...common}><rect x="5" y="4" width="14" height="16" /><rect x="9" y="6.5" width="6" height="7" /><path d="M12 20v-6.5" /><path d="M9.7 15.7L12 13.5l2.3 2.2" /></svg>
     case 'B': // Friteuse sous pression — panier + jauge
       return <svg {...common}><path d="M5 10h11l-1.2 8a2 2 0 0 1-2 1.7H8.2a2 2 0 0 1-2-1.7L5 10Z" /><path d="M9 13h5" /><circle cx="18.5" cy="7.5" r="2.5" /><path d="M18.5 6v1.5l1 1" /></svg>
-    case 'G': // Plaque chauffante
-      return <svg {...common}><rect x="4" y="8" width="16" height="9" rx="1.5" /><path d="M7 11.5h10M7 14.5h10" /></svg>
-    case 'R': // Cuisinière
-      return <svg {...common}><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2.3" /><path d="M12 3.5v2M20.5 12h-2M3.5 12h2M12 20.5v-2" /></svg>
-    case 'C': // Grille charbon
-      return <svg {...common}><rect x="4" y="8" width="16" height="9" rx="1.5" /><path d="M7 8v9M11 8v9M15 8v9" /></svg>
-    case 'S': // Salamandre — élément chauffant suspendu
-      return <svg {...common}><path d="M5 7h14v3a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7Z" /><path d="M8 12v6M12 12v6M16 12v6" /></svg>
+    case 'P': case 'G': // Plaque chauffante — surface unie, rectangle net et allongé
+      return <svg {...common}><rect x="2" y="8" width="20" height="8" /></svg>
+    case 'R2': // Cuisinière 2 feux — rectangle vertical, 1 colonne
+      return <svg {...common}><rect x="7" y="3" width="10" height="18" rx="1.5" /><circle cx="12" cy="8" r="2" /><circle cx="12" cy="16" r="2" /></svg>
+    case 'R4': case 'R': // Cuisinière 4 feux — carré, 2×2
+      return <svg {...common}><rect x="4" y="4" width="16" height="16" rx="1.5" /><circle cx="9" cy="9" r="1.8" /><circle cx="15" cy="9" r="1.8" /><circle cx="9" cy="15" r="1.8" /><circle cx="15" cy="15" r="1.8" /></svg>
+    case 'R6': // Cuisinière 6 feux — rectangle large, 2×3
+      return <svg {...common}><rect x="2" y="6" width="20" height="12" rx="1.5" /><circle cx="7" cy="10" r="1.4" /><circle cx="12" cy="10" r="1.4" /><circle cx="17" cy="10" r="1.4" /><circle cx="7" cy="14" r="1.4" /><circle cx="12" cy="14" r="1.4" /><circle cx="17" cy="14" r="1.4" /></svg>
+    case 'C': // Grille charbon — rectangle net, hachures quasi verticales
+      return <svg {...common}><rect x="4" y="5" width="16" height="14" /><path d="M6 19l1.5-14M9.5 19l1.5-14M13 19l1.5-14M16.5 19l1.5-14" /></svg>
+    case 'S': // Salamandre — élément chauffant suspendu (peigne), rectangle net
+      return <svg {...common}><rect x="4" y="9" width="16" height="9" /><path d="M6.5 9v-3M10 9v-3M13.5 9v-3M17 9v-3" /></svg>
+    case 'SP': // Marmite (Stock pot) — brûleur haute puissance en éclat
+      return <svg {...common}><rect x="4" y="4" width="16" height="16" rx="1.5" /><circle cx="12" cy="12" r="1.4" fill={color} /><path d="M12 6.5v2.2M12 15.3v2.2M5.5 12h2.2M16.3 12h2.2M8 8l1.5 1.5M14.5 14.5L16 16M8 16l1.5-1.5M14.5 9.5L16 8" /></svg>
     case 'BP': // Bassin à frire
       return <svg {...common}><path d="M4 10c1.5 1 3 1.5 8 1.5s6.5-.5 8-1.5" /><path d="M4 10v3a4 4 0 0 0 4 4h8a4 4 0 0 0 4-4v-3" /></svg>
     case 'W': // Wok
@@ -34,27 +43,130 @@ function AppareilIcon({ code, color = '#dc2626', size = 15 }: { code: string; co
   }
 }
 
+const CUISINIERE_DIMS: Record<string, { w: number; h: number; cols: number; rows: number }> = {
+  R2: { w: 16, h: 30, cols: 1, rows: 2 },
+  R4: { w: 26, h: 26, cols: 2, rows: 2 },
+  R6: { w: 40, h: 26, cols: 3, rows: 2 },
+}
+
 // ── Unité d'appareil avec quantité — rendu réaliste (batterie de friteuses,
-// cuisinière à N feux, plaque/grille sur N sections) plutôt qu'un simple badge. ──
-function AppareilUnit({ code, qty, x, y }: { code: string; qty: number; x: number; y: number }) {
+// cuisinière à feux fixes, plaque/grille sur N sections) plutôt qu'un simple
+// badge. Les anciens codes 'G' et 'R' (avant les variantes P/R2/R4/R6) sont
+// ramenés vers 'P' et 'R4' pour que les hottes déjà enregistrées s'affichent
+// toujours correctement. ──
+let clipSeq = 0
+function AppareilUnit({ code: codeBrut, qty, x, y }: { code: string; qty: number; x: number; y: number }) {
+  const code = codeBrut === 'G' ? 'P' : codeBrut === 'R' ? 'R4' : codeBrut
   const n = Math.max(1, qty)
   const step = 15
   const w = 22 + (n - 1) * step
   const h = 26
   const stroke = '#334155'
+  const clipId = useRef(`grillClip${clipSeq++}`).current
 
-  if (code === 'R') {
+  if (CUISINIERE_DIMS[code]) {
+    const dims = CUISINIERE_DIMS[code]
+    const gap = 6
+    const totalW = dims.w * n + gap * (n - 1)
     return (
       <g>
-        <rect x={x - w / 2} y={y - h / 2} width={w} height={h} rx={5} fill="#fff" stroke={stroke} strokeWidth={1.4} />
         {Array.from({ length: n }).map((_, i) => {
-          const cx = x - w / 2 + 11 + i * step
-          return <g key={i}><circle cx={cx} cy={y} r={5.2} fill="none" stroke={stroke} strokeWidth={1.3} /><circle cx={cx} cy={y} r={1.6} fill={stroke} /></g>
+          const bx = x - totalW / 2 + dims.w / 2 + i * (dims.w + gap)
+          const cellW = dims.w / (dims.cols + 1)
+          const cellH = dims.h / (dims.rows + 1)
+          return (
+            <g key={i}>
+              <rect x={bx - dims.w / 2} y={y - dims.h / 2} width={dims.w} height={dims.h} rx={3} fill="#fff" stroke={stroke} strokeWidth={1.4} />
+              {Array.from({ length: dims.rows }).flatMap((_, r) =>
+                Array.from({ length: dims.cols }).map((_, c) => (
+                  <circle
+                    key={`${r}-${c}`}
+                    cx={bx - dims.w / 2 + cellW * (c + 1)}
+                    cy={y - dims.h / 2 + cellH * (r + 1)}
+                    r={Math.min(cellW, cellH) * 0.32}
+                    fill="none"
+                    stroke={stroke}
+                    strokeWidth={1.1}
+                  />
+                ))
+              )}
+            </g>
+          )
         })}
       </g>
     )
   }
-  if (code === 'F' || code === 'B') {
+  if (code === 'P') {
+    // Plaque — rectangle net, plus long que les autres appareils.
+    const wPlaque = 46 + (n - 1) * step
+    return (
+      <g>
+        <rect x={x - wPlaque / 2} y={y - h / 2} width={wPlaque} height={h} fill="#fff" stroke={stroke} strokeWidth={1.4} />
+        {Array.from({ length: n - 1 }).map((_, i) => (
+          <line key={i} x1={x - wPlaque / 2 + (i + 1) * (wPlaque / n)} y1={y - h / 2 + 4} x2={x - wPlaque / 2 + (i + 1) * (wPlaque / n)} y2={y + h / 2 - 4} stroke={stroke} strokeWidth={1} />
+        ))}
+      </g>
+    )
+  }
+  if (code === 'C') {
+    // Rectangle net (coins non arrondis) rempli de traits quasi verticaux
+    // (léger biais), serrés, comme une grille de charbon vue de face.
+    const slant = 6
+    const spacing = 6
+    const diagLines = []
+    for (let dx = -slant; dx <= w + slant; dx += spacing) {
+      const lx1 = x - w / 2 + dx
+      const ly1 = y + h / 2
+      const lx2 = lx1 + slant
+      const ly2 = y - h / 2
+      diagLines.push(<line key={dx} x1={lx1} y1={ly1} x2={lx2} y2={ly2} stroke={stroke} strokeWidth={1} />)
+    }
+    return (
+      <g>
+        <defs>
+          <clipPath id={clipId}>
+            <rect x={x - w / 2} y={y - h / 2} width={w} height={h} />
+          </clipPath>
+        </defs>
+        <rect x={x - w / 2} y={y - h / 2} width={w} height={h} fill="#fff" stroke={stroke} strokeWidth={1.4} />
+        <g clipPath={`url(#${clipId})`}>{diagLines}</g>
+      </g>
+    )
+  }
+  if (code === 'S') {
+    const tickCount = Math.max(3, Math.round(w / 8))
+    const ticks = Array.from({ length: tickCount }).map((_, i) => {
+      const tx = x - w / 2 + 4 + (i * (w - 8)) / (tickCount - 1)
+      return <line key={i} x1={tx} y1={y - h / 2} x2={tx} y2={y - h / 2 + 6} stroke={stroke} strokeWidth={1} />
+    })
+    return (
+      <g>
+        <rect x={x - w / 2} y={y - h / 2} width={w} height={h} fill="#fff" stroke={stroke} strokeWidth={1.4} />
+        {ticks}
+      </g>
+    )
+  }
+  if (code === 'F') {
+    // Rectangle net avec panier intérieur et tige relevée (poignée) —
+    // comme la friteuse dessinée à la main.
+    return (
+      <g>
+        <rect x={x - w / 2} y={y - h / 2} width={w} height={h} fill="#fff" stroke={stroke} strokeWidth={1.4} />
+        {Array.from({ length: n }).map((_, i) => {
+          const cx = x - w / 2 + 11 + i * step
+          const innerW = 10, innerH = 12
+          return (
+            <g key={i}>
+              <rect x={cx - innerW / 2} y={y - innerH / 2 - 1} width={innerW} height={innerH} fill="none" stroke={stroke} strokeWidth={1.1} />
+              <path d={`M ${cx} ${y + h / 2 - 2} V ${y - innerH / 2 + 3}`} fill="none" stroke={stroke} strokeWidth={1.1} />
+              <path d={`M ${cx - 2} ${y - innerH / 2 + 5.5} L ${cx} ${y - innerH / 2 + 2.5} L ${cx + 2} ${y - innerH / 2 + 5.5}`} fill="none" stroke={stroke} strokeWidth={1.1} />
+            </g>
+          )
+        })}
+      </g>
+    )
+  }
+  if (code === 'B') {
     return (
       <g>
         <rect x={x - w / 2} y={y - h / 2} width={w} height={h} rx={5} fill="#fff" stroke={stroke} strokeWidth={1.4} />
@@ -67,21 +179,6 @@ function AppareilUnit({ code, qty, x, y }: { code: string; qty: number; x: numbe
             </g>
           )
         })}
-      </g>
-    )
-  }
-  if (code === 'G' || code === 'C') {
-    return (
-      <g>
-        <rect x={x - w / 2} y={y - h / 2} width={w} height={h} rx={5} fill="#fff" stroke={stroke} strokeWidth={1.4} />
-        {Array.from({ length: n - 1 }).map((_, i) => (
-          <line key={i} x1={x - w / 2 + (i + 1) * step} y1={y - h / 2 + 4} x2={x - w / 2 + (i + 1) * step} y2={y + h / 2 - 4} stroke={stroke} strokeWidth={1} />
-        ))}
-        {code === 'G'
-          ? <path d={`M ${x - w / 2 + 6} ${y} H ${x + w / 2 - 6}`} stroke={stroke} strokeWidth={1} strokeDasharray="3 3" />
-          : Array.from({ length: n }).map((_, i) => (
-            <path key={i} d={`M ${x - w / 2 + 7 + i * step} ${y - 6} v 12`} stroke={stroke} strokeWidth={1} />
-          ))}
       </g>
     )
   }
@@ -110,18 +207,31 @@ function useCodes() {
   const CODES: { code: string; label: string }[] = [
     { code: 'F', label: t('appareil_friteuse') },
     { code: 'B', label: t('appareil_friteuse_pression') },
-    { code: 'G', label: t('appareil_plaque_chauffante') },
-    { code: 'R', label: t('appareil_cuisiniere') },
+    { code: 'P', label: t('appareil_plaque_chauffante') },
+    { code: 'R2', label: t('appareil_cuisiniere_2feux') },
+    { code: 'R4', label: t('appareil_cuisiniere_4feux') },
+    { code: 'R6', label: t('appareil_cuisiniere_6feux') },
     { code: 'C', label: t('appareil_grille_charbon') },
     { code: 'S', label: t('appareil_salamandre') },
+    { code: 'SP', label: t('appareil_marmite') },
     { code: 'BP', label: t('appareil_bassin_frire') },
     { code: 'W', label: t('appareil_wok') },
     { code: 'O', label: t('appareil_autre') },
   ]
-  const CODE_LABEL = Object.fromEntries(CODES.map(c => [c.code, c.label]))
+  // 'G' et 'R' : anciens codes (avant les variantes P/R2/R4/R6), gardés
+  // uniquement pour que la popup d'édition d'une hotte déjà enregistrée
+  // avec ces codes affiche un nom au lieu d'un vide — jamais proposés dans
+  // la palette d'ajout (CODES) ni dans la légende.
+  const CODE_LABEL: Record<string, string> = {
+    ...Object.fromEntries(CODES.map(c => [c.code, c.label])),
+    G: t('appareil_plaque_chauffante'),
+    R: t('appareil_cuisiniere'),
+  }
   const QTY_LABEL: Record<string, string> = {
-    F: t('qty_bassins'), B: t('qty_bassins'), R: t('qty_feux'),
-    G: t('qty_sections'), C: t('qty_sections'),
+    F: t('qty_bassins'), B: t('qty_bassins'),
+    R2: t('qty_nombre_appareils'), R4: t('qty_nombre_appareils'), R6: t('qty_nombre_appareils'),
+    P: t('qty_sections'),
+    G: t('qty_sections'), R: t('qty_feux'),
   }
   return { CODES, CODE_LABEL, QTY_LABEL }
 }
@@ -399,6 +509,9 @@ function HotteEditor({
             return (
               <g key={i} style={{ cursor: readOnly ? 'default' : (enTrain ? 'grabbing' : 'grab') }} onPointerDown={e => demarrerGlisser(e, i)}>
                 <AppareilUnit code={a.code} qty={a.qty || 1} x={x} y={iconY} />
+                <text x={x} y={iconY + 24} textAnchor="middle" fill="#64748b" fontSize={9} fontWeight={700} style={{ pointerEvents: 'none' }}>
+                  {a.code}
+                </text>
               </g>
             )
           })}
@@ -527,7 +640,7 @@ export default function SchemaHottes({
   onRefresh: () => void
 }) {
   const t = useT()
-  const { CODES } = useCodes()
+  const { CODE_LABEL } = useCodes()
   const [hottes, setHottes] = useState<any[]>(rapport.hottes || [])
   const [ajout, setAjout] = useState(false)
 
@@ -568,6 +681,8 @@ export default function SchemaHottes({
     } finally { setAjout(false) }
   }
 
+  const codesUtilises = Array.from(new Set(hottes.flatMap(h => (h.appareils || []).map((a: Appareil) => a.code))))
+
   return (
     <div className="bg-white rounded-md border border-gray-100 p-5">
       <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
@@ -606,16 +721,18 @@ export default function SchemaHottes({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-gray-50">
-        {CODES.map(({ code, label }) => (
-          <div key={code} className="flex items-center gap-1.5">
-            <span className="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center bg-gray-50">
-              <AppareilIcon code={code} color="#64748b" size={13} />
-            </span>
-            <span className="text-xs text-gray-500">{label}</span>
-          </div>
-        ))}
-      </div>
+      {codesUtilises.length > 0 && (
+        <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-gray-50">
+          {codesUtilises.map(code => (
+            <div key={code} className="flex items-center gap-1.5">
+              <span className="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center bg-gray-50">
+                <AppareilIcon code={code} color="#64748b" size={13} />
+              </span>
+              <span className="text-xs text-gray-500">{CODE_LABEL[code] || code}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
