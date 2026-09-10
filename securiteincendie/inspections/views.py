@@ -1609,6 +1609,12 @@ class SectionDispositifViewSet(viewsets.ModelViewSet):
             raise ValidationError("Le rapport associé est fermé.")
         serializer.save()
 
+    def perform_destroy(self, instance):
+        rapport = instance.rapport
+        nom = instance.nom
+        instance.delete()
+        rapport.historiser(self.request.user, f"Section supprimée — {nom}")
+
 
 # ── Dispositif ───────────────────────────────────────────────────────────
 class DispositifViewSet(viewsets.ModelViewSet):
@@ -1630,6 +1636,12 @@ class DispositifViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import ValidationError
             raise ValidationError("Le rapport associé est fermé.")
         serializer.save()
+
+    def perform_destroy(self, instance):
+        rapport = instance.rapport
+        description = f"Dispositif supprimé — {instance.get_type_dispositif_display() or '—'} ({instance.localisation})"
+        instance.delete()
+        rapport.historiser(self.request.user, description)
 
 
 def _html_certificat_extincteur(rapport) -> str:
@@ -2302,6 +2314,12 @@ class ExtincteurItemViewSet(viewsets.ModelViewSet):
             raise ValidationError("Le rapport associé est fermé.")
         serializer.save()
 
+    def perform_destroy(self, instance):
+        rapport = instance.rapport
+        emplacement = instance.emplacement or instance.etage or f"#{instance.ordre}"
+        instance.delete()
+        rapport.historiser(self.request.user, f"Extincteur supprimé — {emplacement}")
+
 
 class BoyauItemViewSet(viewsets.ModelViewSet):
     """Accès direct à une ligne de boyau — pour la corriger ou la supprimer."""
@@ -2322,6 +2340,12 @@ class BoyauItemViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import ValidationError
             raise ValidationError("Le rapport associé est fermé.")
         serializer.save()
+
+    def perform_destroy(self, instance):
+        rapport = instance.rapport
+        emplacement = instance.emplacement or instance.etage or f"#{instance.ordre}"
+        instance.delete()
+        rapport.historiser(self.request.user, f"Boyau supprimé — {emplacement}")
 
 
 def _html_rapport_eclairage_complet(rapport) -> str:
@@ -2618,6 +2642,12 @@ class EclairageUrgenceItemViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import ValidationError
             raise ValidationError("Le rapport associé est fermé.")
         serializer.save()
+
+    def perform_destroy(self, instance):
+        rapport = instance.rapport
+        emplacement = instance.emplacement or instance.etage or f"#{instance.ordre}"
+        instance.delete()
+        rapport.historiser(self.request.user, f"Appareil d'éclairage d'urgence supprimé — {emplacement}")
 
 
 # ── Système d'extinction de cuisine (hotte, norme ULC ORD 1254.6 / ULC 300) ──
@@ -3122,6 +3152,12 @@ class HotteCuisineViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import ValidationError
             raise ValidationError("Le rapport associé est fermé.")
         serializer.save()
+
+    def perform_destroy(self, instance):
+        rapport = instance.rapport
+        label = instance.label
+        instance.delete()
+        rapport.historiser(self.request.user, f"Hotte supprimée — {label}")
 
 
 # ── Certificats (vue unifiée, tous modules) ─────────────────────────────────

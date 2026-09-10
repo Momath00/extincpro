@@ -11,6 +11,7 @@ import { fetchWithCache } from '@/lib/offline/reportCache'
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
+const ROUGE = '#7f1d1d'
 
 type OngletPrincipal = 'extincteurs' | 'historique'
 
@@ -171,16 +172,18 @@ export default function TechnicienRapportExtincteurDetailPage() {
             <p className="text-gray-300 text-sm text-center py-10">{t('aucune_activite')}</p>
           ) : (
             <div className="flex flex-col">
-              {rapport.historique.map((h: any, i: number) => (
+              {rapport.historique.map((h: any, i: number) => {
+                const suppression = typeof h.description === 'string' && h.description.includes('supprimé')
+                return (
                 <div key={h.id} className="flex gap-3">
                   <div className="flex flex-col items-center">
-                    <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" style={{ background: ORANGE }} />
+                    <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" style={{ background: suppression ? ROUGE : ORANGE }} />
                     {i < rapport.historique.length - 1 && (
                       <span className="w-px flex-1" style={{ background: '#eef1f5' }} />
                     )}
                   </div>
-                  <div className="pb-4">
-                    <p className="text-sm" style={{ color: NAVY }}>
+                  <div className={`pb-4${suppression ? ' bg-red-50 border border-red-200 rounded-md px-2.5 py-1.5 -mt-1' : ''}`}>
+                    <p className="text-sm" style={{ color: suppression ? ROUGE : NAVY }}>
                       <span className="font-semibold">{h.utilisateur?.username || 'Système'}</span> — {h.description}
                     </p>
                     <p className="text-xs text-gray-400">
@@ -188,7 +191,8 @@ export default function TechnicienRapportExtincteurDetailPage() {
                     </p>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
