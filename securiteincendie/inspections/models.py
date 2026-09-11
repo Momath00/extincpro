@@ -88,9 +88,35 @@ class Batiment(models.Model):
     class Meta:
         ordering = ["rue", "numero_civique"]
 
+    class Taille(models.TextChoices):
+        PETIT = "petit", "Petit bâtiment"
+        MOYEN = "moyen", "Bâtiment moyen"
+        GROS = "gros", "Gros bâtiment"
+
+    # Seuils (nombre d'extincteurs) séparant les catégories de taille.
+    SEUIL_MOYEN = 8
+    SEUIL_GROS = 15
+
     @property
     def adresse_complete(self):
         return f"{self.numero_civique} {self.rue}, {self.ville}"
+
+    @property
+    def taille(self) -> str | None:
+        """Catégorie de taille déduite du nombre d'extincteurs du dernier
+        rapport extincteurs — jamais saisie manuellement, toujours à jour
+        avec l'inventaire réel. Sert à ajuster le préavis de rappel et la
+        charge de travail estimée pour une tournée. None si le bâtiment n'a
+        encore aucun rapport extincteurs (ex. client tout juste ajouté)."""
+        dernier_rapport = self.rapports_extincteurs.order_by("-date_creation").first()
+        if dernier_rapport is None:
+            return None
+        nb_extincteurs = dernier_rapport.extincteurs.count()
+        if nb_extincteurs < self.SEUIL_MOYEN:
+            return self.Taille.PETIT
+        if nb_extincteurs < self.SEUIL_GROS:
+            return self.Taille.MOYEN
+        return self.Taille.GROS
 
     def __str__(self):
         return f"{self.adresse_complete} ({self.client.nom})"
@@ -164,8 +190,14 @@ class Rapport(models.Model):
 
         self.statut = self.Statut.FERME
         self.date_fermeture = timezone.now()
-        if not self.prochaine_inspection and self.date_inspection:
-            self.prochaine_inspection = self.date_inspection + timedelta(days=365)
+        if not self.prochaine_inspection:
+            # Même si `date_inspection` n'a jamais été saisie (rapport fermé
+            # sans date de visite renseignée) — la prochaine échéance doit
+            # quand même être calculée, sinon ce bâtiment ne rentre jamais
+            # dans la planification. On se rabat alors sur la date de
+            # fermeture réelle.
+            base = self.date_inspection or self.date_fermeture.date()
+            self.prochaine_inspection = base + timedelta(days=365)
         self.save()
         self.historiser(utilisateur, "Rapport fermé")
 
@@ -537,6 +569,15 @@ class RapportExtincteur(models.Model):
         null=True, blank=True,
         help_text="Calculée automatiquement à la fermeture (date_inspection + 1 an) — sert aux rappels par courriel.",
     )
+    rapport_precedent = models.OneToOneField(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="brouillon_suivant",
+        help_text="Le rapport dont celui-ci a été généré automatiquement à la fermeture — permet "
+                   "de retrouver le brouillon déjà préparé plutôt que d'en recréer un doublon.",
+    )
 
     class Meta:
         ordering = ["-date_creation"]
@@ -553,8 +594,14 @@ class RapportExtincteur(models.Model):
 
         self.statut = self.Statut.FERME
         self.date_fermeture = timezone.now()
-        if not self.prochaine_inspection and self.date_inspection:
-            self.prochaine_inspection = self.date_inspection + timedelta(days=365)
+        if not self.prochaine_inspection:
+            # Même si `date_inspection` n'a jamais été saisie (rapport fermé
+            # sans date de visite renseignée) — la prochaine échéance doit
+            # quand même être calculée, sinon ce bâtiment ne rentre jamais
+            # dans la planification. On se rabat alors sur la date de
+            # fermeture réelle.
+            base = self.date_inspection or self.date_fermeture.date()
+            self.prochaine_inspection = base + timedelta(days=365)
         self.save()
         self.historiser(utilisateur, "Rapport fermé")
 
@@ -571,6 +618,53 @@ class RapportExtincteur(models.Model):
         cuisine = getattr(self, "rapport_cuisine_lie", None)
         if cuisine is not None and cuisine.statut != cuisine.Statut.FERME:
             cuisine.fermer(utilisateur)
+
+        self._generer_ou_rafraichir_brouillon_suivant(utilisateur)
+
+    def _generer_ou_rafraichir_brouillon_suivant(self, utilisateur):
+        """Prépare le rapport de la prochaine visite : copie l'inventaire des
+        extincteurs (mêmes appareils, mêmes emplacements) mais remet à neuf
+        l'état et la remarque de chacun — rien ne se propage d'une visite à
+        l'autre, le technicien réévalue tout à neuf.
+
+        Si un brouillon suivant existe déjà (généré lors d'une fermeture
+        précédente de ce même rapport, après un rouvrir/refermer) et que
+        personne ne l'a encore planifié, sa copie est rafraîchie avec l'état
+        le plus récent de ce rapport. S'il est déjà planifié (date_inspection
+        renseignée), on ne touche à rien pour ne pas écraser du travail réel
+        déjà en cours dessus.
+        """
+        brouillon = getattr(self, "brouillon_suivant", None)
+
+        if brouillon is not None and brouillon.date_inspection is not None:
+            return
+
+        if brouillon is None:
+            brouillon = RapportExtincteur.objects.create(
+                batiment=self.batiment,
+                cree_par=utilisateur,
+                rapport_precedent=self,
+            )
+            brouillon.historiser(utilisateur, "Brouillon généré automatiquement à la fermeture du rapport précédent")
+        else:
+            brouillon.extincteurs.all().delete()
+
+        for item in self.extincteurs.all():
+            ExtincteurItem.objects.create(
+                rapport=brouillon,
+                etage=item.etage,
+                emplacement=item.emplacement,
+                date_fabrication=item.date_fabrication,
+                format=item.format,
+                type_extincteur=item.type_extincteur,
+                marque=item.marque,
+                numero_serie=item.numero_serie,
+                prochaine_maintenance=item.prochaine_maintenance,
+                prochain_test_hydrostatique=item.prochain_test_hydrostatique,
+                ordre=item.ordre,
+                # etat et remarque volontairement omis — ils gardent leur
+                # valeur par défaut (non évalué), à réévaluer à la prochaine visite.
+            )
 
     def rouvrir(self, utilisateur):
         self.statut = self.Statut.OUVERT
@@ -918,8 +1012,14 @@ class RapportEclairageUrgence(models.Model):
 
         self.statut = self.Statut.FERME
         self.date_fermeture = timezone.now()
-        if not self.prochaine_inspection and self.date_inspection:
-            self.prochaine_inspection = self.date_inspection + timedelta(days=365)
+        if not self.prochaine_inspection:
+            # Même si `date_inspection` n'a jamais été saisie (rapport fermé
+            # sans date de visite renseignée) — la prochaine échéance doit
+            # quand même être calculée, sinon ce bâtiment ne rentre jamais
+            # dans la planification. On se rabat alors sur la date de
+            # fermeture réelle.
+            base = self.date_inspection or self.date_fermeture.date()
+            self.prochaine_inspection = base + timedelta(days=365)
         self.save()
         self.historiser(utilisateur, "Rapport fermé")
 
@@ -1106,9 +1206,13 @@ class RapportCuisine(models.Model):
         self.statut = self.Statut.FERME
         self.date_fermeture = timezone.now()
         # Semi-annuel par défaut si le technicien ne l'a pas précisé lui-même
-        # dans le formulaire (voir CHECKLIST_CUISINE / InfoSystemeForm).
-        if not self.prochaine_inspection and self.date_inspection:
-            self.prochaine_inspection = self.date_inspection + timedelta(days=182)
+        # dans le formulaire (voir CHECKLIST_CUISINE / InfoSystemeForm). Même
+        # sans date_inspection saisie, la prochaine échéance doit être
+        # calculée (rabattue sur la date de fermeture réelle) — sinon ce
+        # bâtiment ne rentre jamais dans la planification.
+        if not self.prochaine_inspection:
+            base = self.date_inspection or self.date_fermeture.date()
+            self.prochaine_inspection = base + timedelta(days=182)
         self.save()
         self.historiser(utilisateur, "Rapport fermé")
 
@@ -1207,3 +1311,88 @@ class HistoriqueAppelService(models.Model):
 
     def __str__(self):
         return f"{self.date_heure:%Y-%m-%d %H:%M} — {self.description}"
+
+
+class Tournee(models.Model):
+    """Une tournée : un ou plusieurs bâtiments d'un même secteur, regroupés
+    pour être visités le même jour par le(s) même(s) technicien(s) — évite
+    les allers-retours (visiter A, puis B, puis revenir en A).
+
+    `secteur` reprend librement les valeurs déjà saisies dans
+    `Batiment.direction` (ex. « Secteur Nord ») — pas de liste rigide,
+    chaque organisation nomme ses secteurs comme elle l'entend.
+    """
+
+    class Statut(models.TextChoices):
+        PLANIFIEE = "planifiee", "Planifiée"
+        EN_COURS = "en_cours", "En cours"
+        TERMINEE = "terminee", "Terminée"
+
+    organisation = models.ForeignKey(
+        "organisations.Organisation", on_delete=models.CASCADE, related_name="tournees"
+    )
+    secteur = models.CharField(max_length=100, blank=True)
+    date_tournee = models.DateField(help_text="Jour où la tournée doit être effectuée.")
+    cree_par = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="tournees_creees",
+        limit_choices_to={"role": "superviseur"},
+    )
+    techniciens = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name="tournees_assignees",
+        limit_choices_to={"role": "technicien"},
+        blank=True,
+    )
+    statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.PLANIFIEE)
+    notes = models.TextField(blank=True)
+    date_creation = models.DateTimeField(auto_now_add=True)
+
+    batiments = models.ManyToManyField(
+        Batiment, through="TourneeBatiment", related_name="tournees"
+    )
+
+    class Meta:
+        ordering = ["-date_tournee"]
+
+    def ajouter_batiment(self, batiment, techniciens=None):
+        """Ajoute un bâtiment à la fin de l'itinéraire de la tournée.
+        `techniciens`, si fourni, assigne cette étape spécifiquement à ces
+        techniciens — permet de diviser la route d'un même secteur entre
+        plusieurs techniciens (chacun ne voit que ses arrêts)."""
+        dernier_ordre = self.etapes.aggregate(models.Max("ordre"))["ordre__max"] or 0
+        etape = TourneeBatiment.objects.create(tournee=self, batiment=batiment, ordre=dernier_ordre + 1)
+        if techniciens:
+            etape.techniciens.set(techniciens)
+        return etape
+
+    def __str__(self):
+        return f"Tournée {self.date_tournee:%Y-%m-%d} — {self.secteur or 'secteur non précisé'}"
+
+
+class TourneeBatiment(models.Model):
+    """Une étape de l'itinéraire d'une tournée — un bâtiment, dans l'ordre
+    de passage prévu."""
+
+    tournee = models.ForeignKey(Tournee, on_delete=models.CASCADE, related_name="etapes")
+    batiment = models.ForeignKey(Batiment, on_delete=models.CASCADE, related_name="etapes_tournee")
+    ordre = models.PositiveIntegerField(default=0)
+    visite = models.BooleanField(default=False, help_text="Coché par le technicien une fois la visite complétée.")
+    techniciens = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name="etapes_tournee_assignees",
+        limit_choices_to={"role": "technicien"},
+        blank=True,
+        help_text="Technicien(s) assignés spécifiquement à cette étape. Vide = "
+                   "n'importe quel technicien de la tournée peut la couvrir. Permet "
+                   "de diviser un même secteur entre plusieurs techniciens (chacun "
+                   "sa portion de la route) plutôt que tous sur tous les arrêts.",
+    )
+
+    class Meta:
+        ordering = ["ordre"]
+        unique_together = [("tournee", "batiment")]
+
+    def __str__(self):
+        return f"{self.tournee} — {self.batiment.adresse_complete} (#{self.ordre})"

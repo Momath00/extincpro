@@ -3,6 +3,8 @@ from rest_framework.routers import DefaultRouter
 
 from .views import (
     AppelServiceViewSet,
+    AssignerPlanificationView,
+    BatimentsAPlanifierView,
     BatimentViewSet,
     BoyauItemViewSet,
     CalendrierView,
@@ -25,6 +27,8 @@ from .views import (
     SectionDispositifViewSet,
     TechnicienAujourdhuiView,
     TechnicienProchainesVisitesView,
+    TourneeViewSet,
+    VisitesPlanifieesView,
 )
 
 router = DefaultRouter()
@@ -41,6 +45,7 @@ router.register(r"eclairages-urgence", EclairageUrgenceItemViewSet, basename="ec
 router.register(r"rapports-cuisine", RapportCuisineViewSet, basename="rapport-cuisine")
 router.register(r"hottes-cuisine", HotteCuisineViewSet, basename="hotte-cuisine")
 router.register(r"appels-service", AppelServiceViewSet, basename="appel-service")
+router.register(r"tournees", TourneeViewSet, basename="tournee")
 
 # Routes générées, à titre de référence :
 # GET/POST    /api/clients/                     → liste / créer un client (superviseur)
@@ -66,6 +71,9 @@ urlpatterns = [
     path("calendrier/rappels-compteur/", CompteurRappelsView.as_view(), name="calendrier_rappels_compteur"),
     path("calendrier/rappels-en-retard/", RappelsEnRetardView.as_view(), name="calendrier_rappels_en_retard"),
     path("calendrier/<str:type_rapport>/<int:pk>/reassigner/", ReassignerCalendrierView.as_view(), name="calendrier_reassigner"),
+    path("planification/a-planifier/", BatimentsAPlanifierView.as_view(), name="planification_a_planifier"),
+    path("planification/assigner/", AssignerPlanificationView.as_view(), name="planification_assigner"),
+    path("planification/planifiees/", VisitesPlanifieesView.as_view(), name="planification_planifiees"),
     path("technicien/aujourdhui/", TechnicienAujourdhuiView.as_view(), name="technicien_aujourdhui"),
     path("technicien/prochaines-visites/", TechnicienProchainesVisitesView.as_view(), name="technicien_prochaines_visites"),
     path("certificats/excel/", CertificatsExcelView.as_view(), name="certificats_excel"),

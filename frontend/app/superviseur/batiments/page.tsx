@@ -29,6 +29,26 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // Secteurs déjà utilisés par d'autres bâtiments — pour proposer une liste
+  // plutôt qu'un champ libre qui finit par diverger (fautes de frappe,
+  // variantes) entre la création d'un bâtiment et la page Tournées.
+  const [secteursConnus, setSecteursConnus] = useState<string[]>([])
+  const [creationSecteur, setCreationSecteur] = useState(false)
+
+  useEffect(() => {
+    const token = localStorage.getItem('access_token')
+    fetch(`${API_URL}/api/batiments/`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(data => {
+        const liste = Array.isArray(data) ? data : (data.results || [])
+        const secteurs = [...new Set(liste.map((b: any) => b.direction).filter(Boolean))].sort() as string[]
+        setSecteursConnus(secteurs)
+        const valeurActuelle = batiment?.direction || ''
+        setCreationSecteur(secteurs.length === 0 || (!!valeurActuelle && !secteurs.includes(valeurActuelle)))
+      })
+      .catch(() => {})
+  }, [])
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -108,9 +128,26 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('direction_secteur')}</label>
-              <input value={direction} onChange={e => setDirection(e.target.value)} placeholder="Secteur Nord"
-                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold uppercase tracking-widest block" style={{ color: NAVY }}>{t('direction_secteur')}</label>
+                {secteursConnus.length > 0 && (
+                  <button type="button" onClick={() => { setCreationSecteur(v => !v); if (creationSecteur) setDirection('') }}
+                    className="text-[11px] font-bold uppercase tracking-wide flex items-center gap-1" style={{ color: ORANGE }}>
+                    <i className={`ti ${creationSecteur ? 'ti-list' : 'ti-plus'} text-[12px]`} />
+                    {creationSecteur ? t('choisir_secteur_existant') : t('creer_secteur_bouton')}
+                  </button>
+                )}
+              </div>
+              {creationSecteur ? (
+                <input value={direction} onChange={e => setDirection(e.target.value)} placeholder="Secteur Nord"
+                  className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
+              ) : (
+                <select value={direction} onChange={e => setDirection(e.target.value)}
+                  className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" style={{ color: NAVY }}>
+                  <option value="">{t('secteur_non_precise')}</option>
+                  {secteursConnus.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              )}
             </div>
             <div>
               <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('type_label')}</label>
@@ -158,6 +195,7 @@ export default function BatimentsPage() {
   const [clients, setClients] = useState<any[]>([])
   const [citoyens, setCitoyens] = useState<any[]>([])
   const [filtreClient, setFiltreClient] = useState(searchParams.get('client') || '')
+  const [filtreTaille, setFiltreTaille] = useState<'' | 'petit' | 'moyen' | 'gros'>('')
   const [page, setPage] = useState(1)
   const [recherche, setRecherche] = useState('')
   const [rechercheDebouncee, setRechercheDebouncee] = useState('')
@@ -182,6 +220,7 @@ export default function BatimentsPage() {
     const headers = { Authorization: `Bearer ${token}` }
     const params = new URLSearchParams({ page: String(page) })
     if (filtreClient) params.set('client', filtreClient)
+    if (filtreTaille) params.set('taille', filtreTaille)
     if (rechercheDebouncee.trim()) params.set('q', rechercheDebouncee.trim())
     Promise.all([
       fetch(`${API_URL}/api/batiments/?${params}`, { headers }),
@@ -199,7 +238,7 @@ export default function BatimentsPage() {
     chargerCompteurs()
   }
 
-  useEffect(() => { charger() }, [page, filtreClient, rechercheDebouncee])
+  useEffect(() => { charger() }, [page, filtreClient, filtreTaille, rechercheDebouncee])
 
   useEffect(() => {
     const id = setTimeout(() => setRechercheDebouncee(recherche), 300)
@@ -210,7 +249,7 @@ export default function BatimentsPage() {
   useEffect(() => {
     if (premierRendu.current) { premierRendu.current = false; return }
     setPage(1)
-  }, [filtreClient, rechercheDebouncee])
+  }, [filtreClient, filtreTaille, rechercheDebouncee])
 
   async function supprimer(id: number) {
     const token = localStorage.getItem('access_token')
@@ -291,6 +330,18 @@ export default function BatimentsPage() {
       )}
 
       {total > 0 && (
+        <div className="flex gap-1 p-1 rounded-md border border-gray-100 bg-white mb-4 w-fit">
+          {(['', 'petit', 'moyen', 'gros'] as const).map(taille => (
+            <button key={taille || 'tous'} onClick={() => setFiltreTaille(taille)}
+              className="px-3 py-1.5 rounded text-xs font-bold transition-colors"
+              style={{ background: filtreTaille === taille ? NAVY : 'transparent', color: filtreTaille === taille ? '#fff' : '#6b7280' }}>
+              {taille === '' ? t('tous') : taille === 'petit' ? t('taille_petit') : taille === 'moyen' ? t('taille_moyen') : t('taille_gros')}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {total > 0 && (
         <div className="relative mb-5 max-w-xs">
           <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 text-sm" />
           <input
@@ -324,7 +375,14 @@ export default function BatimentsPage() {
                 <i className="ti ti-building text-xl flex-shrink-0 mt-0.5" style={{ color: col.bg }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold truncate" style={{ color: NAVY }}>{b.adresse_complete}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{b.client_nom} · {TYPE_LABELS[b.type_application]}</p>
+                  <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
+                    {b.client_nom} · {TYPE_LABELS[b.type_application]}
+                    {b.taille && (
+                      <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full" style={{ background: '#f1f5f9', color: NAVY }}>
+                        {b.taille === 'petit' ? t('taille_petit') : b.taille === 'moyen' ? t('taille_moyen') : t('taille_gros')}
+                      </span>
+                    )}
+                  </p>
                   {b.proprietaire && <p className="text-xs text-gray-300 mt-1">{t('citoyen_deux_points')} : {b.proprietaire.username}</p>}
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">

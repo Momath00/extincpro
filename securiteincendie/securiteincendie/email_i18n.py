@@ -138,13 +138,15 @@ EMAIL_DICT: dict[str, dict[str, str]] = {
     "extincteurs_portatifs_label": {"fr": "Extincteurs portatifs", "en": "Portable fire extinguishers"},
 
     # ── Rappel d'inspection à venir (citoyen + superviseur) ──────────────
-    "rappel_sujet": {
-        "fr": "Rappel — inspection à prévoir dans 30 jours — ExtincPro",
-        "en": "Reminder — inspection due in 30 days — ExtincPro",
+    # {jours} est substitué au préavis réel (30/45/60 jours selon la taille
+    # du bâtiment — voir JOURS_AVANT_RAPPEL_PAR_TAILLE dans inspections/tasks.py).
+    "rappel_sujet_gabarit": {
+        "fr": "Rappel — inspection à prévoir dans {jours} jours — ExtincPro",
+        "en": "Reminder — inspection due in {jours} days — ExtincPro",
     },
     "rappel_titre": {"fr": "Inspection à prévoir bientôt", "en": "Upcoming inspection due"},
     "rappel_eyebrow": {"fr": "RAPPEL DE CONFORMITÉ", "en": "COMPLIANCE REMINDER"},
-    "rappel_dans_30_jours": {"fr": "DANS 30 JOURS", "en": "IN 30 DAYS"},
+    "rappel_dans_n_jours": {"fr": "DANS {jours} JOURS", "en": "IN {jours} DAYS"},
     "rappel_intro_citoyen": {
         "fr": "la prochaine inspection de votre système",
         "en": "the next inspection of your",
@@ -156,8 +158,8 @@ EMAIL_DICT: dict[str, dict[str, str]] = {
     "rappel_au": {"fr": "au", "en": "system at"},
     "rappel_prevue_le": {"fr": "est prévue le", "en": "is due on"},
     "rappel_conseil_citoyen": {
-        "fr": "Contactez votre entreprise d'inspection pour planifier une visite avant cette date.",
-        "en": "Contact your inspection company to schedule a visit before this date.",
+        "fr": "D'ici la visite, assurez-vous que chaque extincteur reste bien identifié, accessible et dégagé de tout obstacle — cela permet au technicien de compléter l'inspection sans retard. Contactez votre entreprise d'inspection pour confirmer ou ajuster la date si nécessaire.",
+        "en": "Before the visit, make sure every extinguisher stays clearly marked, accessible, and free of obstructions — this lets the technician complete the inspection without delay. Contact your inspection company to confirm or adjust the date if needed.",
     },
     "rappel_conseil_superviseur": {
         "fr": "Planifiez une visite avant cette date pour éviter un retard de conformité.",

@@ -25,6 +25,8 @@ export default function NouveauRapportExtincteurPage() {
   const [dateInspection, setDateInspection] = useState('')
   const [avecSystemeCuisine, setAvecSystemeCuisine] = useState(false)
   const [moduleCuisineActif, setModuleCuisineActif] = useState(false)
+  const [avecEclairageUrgence, setAvecEclairageUrgence] = useState(false)
+  const [moduleEclairageActif, setModuleEclairageActif] = useState(false)
 
   const [loadingBatiments, setLoadingBatiments] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -55,6 +57,7 @@ export default function NouveauRapportExtincteurPage() {
         const me = await meRes.json()
         const modulesActifs: string[] = me?.organisation?.modules_actifs || []
         setModuleCuisineActif(modulesActifs.includes('rapport_cuisine'))
+        setModuleEclairageActif(modulesActifs.includes('rapport_eclairage_urgence'))
       }
     })
   }, [])
@@ -94,6 +97,7 @@ export default function NouveauRapportExtincteurPage() {
           techniciens: technicienIds,
           date_inspection: dateInspection || null,
           avec_systeme_cuisine: avecSystemeCuisine,
+          avec_eclairage_urgence: avecEclairageUrgence,
         }),
       })
       const data = await res.json() as any
@@ -238,6 +242,26 @@ export default function NouveauRapportExtincteurPage() {
           />
         </div>
 
+
+        {moduleEclairageActif && (
+          <button
+            type="button"
+            onClick={() => setAvecEclairageUrgence(v => !v)}
+            className="flex items-start gap-3 p-3 rounded-md border-2 text-left transition-colors"
+            style={{ borderColor: avecEclairageUrgence ? ORANGE : '#e5e7eb', background: avecEclairageUrgence ? '#fff2e8' : '#fff' }}
+          >
+            <span
+              className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border-2 mt-0.5"
+              style={{ borderColor: avecEclairageUrgence ? ORANGE : '#d1d5db', background: avecEclairageUrgence ? ORANGE : 'transparent' }}
+            >
+              {avecEclairageUrgence && <i className="ti ti-check text-white text-xs" />}
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold" style={{ color: NAVY }}>{t('avec_eclairage_urgence_label')}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{t('avec_eclairage_urgence_desc')}</p>
+            </div>
+          </button>
+        )}
 
         {moduleCuisineActif && (
           <button

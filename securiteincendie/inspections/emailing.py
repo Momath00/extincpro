@@ -363,11 +363,12 @@ def renvoyer_document_direct(rapport, type_rapport: str, utilisateur) -> tuple[b
     return True, f"Renvoyé avec succès à {client.contact_email}."
 
 
-def envoyer_rappel_inspection(destinataire_email: str, destinataire_nom: str, est_superviseur: bool, label: str, batiment, prochaine_date, langue: str) -> None:
+def envoyer_rappel_inspection(destinataire_email: str, destinataire_nom: str, est_superviseur: bool, label: str, batiment, prochaine_date, langue: str, jours_avant: int = 30) -> None:
     """Un seul courriel de rappel, envoyé individuellement à chaque
     destinataire (citoyen ET chaque superviseur de l'organisation) — voir
-    `inspections/tasks.py:envoyer_rappels_inspections`, exécutée
-    quotidiennement 30 jours avant la date de `prochaine_inspection`."""
+    `inspections/tasks.py:envoyer_rappels_inspections`, exécutée quotidiennement.
+    `jours_avant` varie selon la taille du bâtiment (30/45/60 jours —
+    voir `JOURS_AVANT_RAPPEL_PAR_TAILLE` dans tasks.py)."""
     adresse = f"{batiment.numero_civique} {batiment.rue}, {batiment.ville}"
     organisation = batiment.client.organisation
 
@@ -417,7 +418,7 @@ def envoyer_rappel_inspection(destinataire_email: str, destinataire_nom: str, es
             <p style="margin:2px 0 0;color:#102a43;font-size:20px;font-weight:800;line-height:1;">{prochaine_date.day}</p>
           </td>
           <td style="padding-left:14px;">
-            <p style="margin:0;color:#9a4a13;font-size:11px;font-weight:800;letter-spacing:0.5px;">{et('rappel_dans_30_jours', langue)}</p>
+            <p style="margin:0;color:#9a4a13;font-size:11px;font-weight:800;letter-spacing:0.5px;">{et('rappel_dans_n_jours', langue).format(jours=jours_avant)}</p>
             <p style="margin:2px 0 0;color:#102a43;font-size:15px;font-weight:700;">{prochaine_date.strftime('%d/%m/%Y')}</p>
           </td>
         </tr>
@@ -431,7 +432,8 @@ def envoyer_rappel_inspection(destinataire_email: str, destinataire_nom: str, es
   {et(conseil_cle, langue)}
 </p>"""
 
-    envoyer_email(destinataire_email, et('rappel_sujet', langue), html_template(html_body))
+    sujet = et('rappel_sujet_gabarit', langue).format(jours=jours_avant)
+    envoyer_email(destinataire_email, sujet, html_template(html_body))
 
 
 def envoyer_confirmation_planification(citoyen_email: str, citoyen_nom: str, label: str, batiment, date_inspection, langue: str) -> None:

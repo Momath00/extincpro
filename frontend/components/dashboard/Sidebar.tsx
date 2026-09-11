@@ -16,6 +16,15 @@ const NAV_GROUPS = [
     items: [
       { href: '/superviseur', label: 'nav_dashboard', icon: 'ti-layout-dashboard' },
       { href: '/superviseur/calendrier', label: 'nav_calendrier', icon: 'ti-calendar' },
+      {
+        href: '/superviseur/tournees',
+        label: 'nav_tournees',
+        icon: 'ti-route',
+        children: [
+          { href: '/superviseur/tournees', label: 'nav_planification', icon: 'ti-list-check' },
+          { href: '/superviseur/tournees/planifiees', label: 'nav_visites_planifiees', icon: 'ti-calendar-event' },
+        ],
+      },
     ],
   },
   {
@@ -23,27 +32,14 @@ const NAV_GROUPS = [
     items: [
       {
         href: '/superviseur/rapports',
-        label: 'nav_rapport_incendie',
-        icon: 'ti-clipboard-check',
-        module: 'rapport_incendie',
-      },
-      {
-        href: '/superviseur/rapports-extincteurs',
-        label: 'nav_rapport_extincteur',
-        icon: 'ti-fire-extinguisher',
-        module: 'rapport_extincteur',
-      },
-      {
-        href: '/superviseur/rapports-eclairage-urgence',
-        label: 'nav_rapport_eclairage',
-        icon: 'ti-bulb',
-        module: 'rapport_eclairage_urgence',
-      },
-      {
-        href: '/superviseur/rapports-cuisine',
-        label: 'nav_rapport_cuisine',
-        icon: 'ti-tools-kitchen-2',
-        module: 'rapport_cuisine',
+        label: 'nav_rapports',
+        icon: 'ti-clipboard-list',
+        children: [
+          { href: '/superviseur/rapports', label: 'nav_systeme_alarme', icon: 'ti-clipboard-check', module: 'rapport_incendie' },
+          { href: '/superviseur/rapports-extincteurs', label: 'nav_extincteur', icon: 'ti-fire-extinguisher', module: 'rapport_extincteur' },
+          { href: '/superviseur/rapports-eclairage-urgence', label: 'nav_eclairage_urgence', icon: 'ti-bulb', module: 'rapport_eclairage_urgence' },
+          { href: '/superviseur/rapports-cuisine', label: 'nav_systeme_cuisine', icon: 'ti-tools-kitchen-2', module: 'rapport_cuisine' },
+        ],
       },
       { href: '/superviseur/certificats', label: 'nav_certificats', icon: 'ti-certificate' },
       { href: '/superviseur/clients', label: 'nav_clients', icon: 'ti-building' },
@@ -73,9 +69,12 @@ export default function Sidebar({ user, onClose }: { user: any; onClose?: () => 
   }, [])
 
   const modulesActifs: string[] = user?.organisation?.modules_actifs || []
+  const visible = (item: any) => !item.module || modulesActifs.includes(item.module)
   const groupesVisibles = NAV_GROUPS.map(group => ({
     ...group,
-    items: group.items.filter((item: any) => !item.module || modulesActifs.includes(item.module)),
+    items: group.items
+      .map((item: any) => item.children ? { ...item, children: item.children.filter(visible) } : item)
+      .filter((item: any) => item.children ? item.children.length > 0 : visible(item)),
   })).filter(group => group.items.length > 0)
 
   function logout() {
@@ -184,8 +183,8 @@ export default function Sidebar({ user, onClose }: { user: any; onClose?: () => 
                             className="flex items-center gap-2 pl-6 pr-3 py-2 text-xs rounded-md transition-colors duration-150"
                             style={{ color: pathname === child.href ? '#fff' : 'rgba(255,255,255,0.5)' }}
                           >
-                            <span className="w-1 h-1 rounded-full" style={{ background: pathname === child.href ? ACCENT : 'rgba(255,255,255,0.3)' }} />
-                            {child.label}
+                            <i className={`ti ${child.icon} text-sm flex-shrink-0`} style={{ opacity: pathname === child.href ? 1 : 0.6 }} />
+                            {t(child.label)}
                           </Link>
                         ))}
                       </div>

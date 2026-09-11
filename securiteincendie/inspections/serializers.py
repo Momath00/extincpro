@@ -28,6 +28,8 @@ from .models import (
     RapportExtincteur,
     ResumeSommaire,
     SectionDispositif,
+    Tournee,
+    TourneeBatiment,
 )
 
 
@@ -53,6 +55,7 @@ class BatimentSerializer(serializers.ModelSerializer):
     client_contact_email = serializers.CharField(source="client.contact_email", read_only=True)
     proprietaire = UtilisateurSerializer(read_only=True)
     proprietaire_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    taille = serializers.CharField(read_only=True)
 
     class Meta:
         model = Batiment
@@ -60,7 +63,7 @@ class BatimentSerializer(serializers.ModelSerializer):
             "id", "client", "client_nom", "client_mode_livraison", "client_contact_email",
             "numero_civique", "rue", "ville", "code_postal",
             "adresse_complete", "fabricant_reseau", "modele_systeme", "direction",
-            "type_application", "proprietaire", "proprietaire_id", "date_creation",
+            "type_application", "proprietaire", "proprietaire_id", "taille", "date_creation",
         ]
 
 
@@ -622,3 +625,68 @@ class AppelServiceCreateSerializer(serializers.ModelSerializer):
         model = AppelService
         fields = ["id", "batiment", "titre", "description", "techniciens", "date_inspection"]
         read_only_fields = ["id"]
+
+
+# ── Tournées ─────────────────────────────────────────────────────────────
+class TourneeEtapeSerializer(serializers.ModelSerializer):
+    batiment = BatimentSerializer(read_only=True)
+    techniciens = UtilisateurSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = TourneeBatiment
+        fields = ["id", "batiment", "ordre", "visite", "techniciens"]
+
+
+class TourneeSerializer(serializers.ModelSerializer):
+    """Lecture — détail et liste."""
+
+    techniciens = UtilisateurSerializer(many=True, read_only=True)
+    etapes = TourneeEtapeSerializer(many=True, read_only=True)
+    statut_display = serializers.CharField(source="get_statut_display", read_only=True)
+    cree_par = UtilisateurSerializer(read_only=True)
+
+    class Meta:
+        model = Tournee
+        fields = [
+            "id", "secteur", "date_tournee", "statut", "statut_display", "notes",
+            "techniciens", "etapes", "cree_par", "date_creation",
+        ]
+
+
+class TourneeCreateSerializer(serializers.ModelSerializer):
+    """Création — à partir d'une sélection de bâtiments à planifier (ex.
+    depuis le tableau de bord « à planifier par secteur »)."""
+
+    techniciens = serializers.PrimaryKeyRelatedField(
+        many=True, required=False,
+        queryset=Utilisateur.objects.filter(role=Utilisateur.Role.TECHNICIEN),
+    )
+    batiment_ids = serializers.ListField(
+        child=serializers.IntegerField(), required=False, default=list,
+    )
+
+    class Meta:
+        model = Tournee
+        fields = ["id", "secteur", "date_tournee", "techniciens", "notes", "batiment_ids"]
+        read_only_fields = ["id"]
+
+    def create(self, validated_data):
+        batiment_ids = validated_data.pop("batiment_ids", [])
+        techniciens = validated_data.pop("techniciens", [])
+        request = self.context["request"]
+        organisation = request.user.organisation
+
+        tournee = Tournee.objects.create(
+            organisation=organisation, cree_par=request.user, **validated_data
+        )
+        if techniciens:
+            tournee.techniciens.set(techniciens)
+
+        batiments_par_id = {
+            b.id: b for b in Batiment.objects.filter(id__in=batiment_ids, client__organisation=organisation)
+        }
+        for batiment_id in batiment_ids:
+            batiment = batiments_par_id.get(batiment_id)
+            if batiment is not None:
+                tournee.ajouter_batiment(batiment)
+        return tournee
