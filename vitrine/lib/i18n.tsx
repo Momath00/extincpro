@@ -107,6 +107,15 @@ export const DICT: Dict = {
     fr: "Calendrier des inspections et rappels de conformité dans ExtincPro",
     en: "Inspection calendar and compliance reminders in ExtincPro",
   },
+  planification_kicker: { fr: "Planification par secteur", en: "Planning by sector" },
+  planification_titre: {
+    fr: "Des tournées pensées pour vos secteurs, pas au hasard",
+    en: "Routes built around your sectors, not left to chance",
+  },
+  planification_desc: {
+    fr: "Moins de déplacements inutiles, plus de temps pour vous préparer, et une continuité de suivi que vous n'avez jamais à redemander.",
+    en: "Less wasted travel, more time to get ready, and a continuity of tracking you never have to ask for.",
+  },
   fonctionnalites_kicker: { fr: "Fonctionnalités", en: "Features" },
   fonctionnalites_titre: {
     fr: "Tout ce qu'il faut pour piloter la conformité incendie",
