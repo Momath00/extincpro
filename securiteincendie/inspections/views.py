@@ -43,6 +43,8 @@ from .models import (
     RapportEclairageUrgence,
     RapportExtincteur,
     SectionDispositif,
+    Tournee,
+    TourneeBatiment,
 )
 from .serializers import (
     AppelServiceCreateSerializer,
@@ -75,6 +77,8 @@ from .serializers import (
     RapportExtincteurListSerializer,
     RapportListSerializer,
     SectionDispositifSerializer,
+    TourneeCreateSerializer,
+    TourneeSerializer,
 )
 
 # ── Titres des sections E2 ───────────────────────────────────────────────
@@ -167,14 +171,18 @@ def _date_fr(d):
     return f"{d.day} {_MOIS_FR[d.month - 1]} {d.year}"
 
 
-def _creer_rapport_eclairage_lie(rapport_extincteur, utilisateur):
+def _creer_rapport_eclairage_lie(rapport_extincteur, utilisateur, request_data):
     """Crée le rapport de vérification de l'éclairage d'urgence lié à ce
-    rapport extincteur — même visite. N'y touche pas si l'organisation n'a
-    pas activé ce module. Appelé après la création d'un RapportExtincteur
-    (voir RapportExtincteurViewSet.perform_create) — le réseau d'alarme
-    incendie est un système indépendant et n'en déclenche plus la création."""
+    rapport extincteur, uniquement si demandé explicitement — comme pour la
+    cuisine (voir _creer_rapport_cuisine_lie), certaines compagnies clientes
+    ne font que l'inspection des extincteurs pour un bâtiment donné, sans
+    éclairage d'urgence. Le superviseur/technicien coche donc l'option au
+    moment de créer le rapport extincteur (`avec_eclairage_urgence`) pour
+    indiquer que CE bâtiment en a un."""
     organisation = getattr(utilisateur, "organisation", None)
     if not (organisation and organisation.a_le_module("rapport_eclairage_urgence")):
+        return
+    if not request_data.get("avec_eclairage_urgence"):
         return
 
     rapport_eclairage = RapportEclairageUrgence.objects.create(
@@ -679,7 +687,18 @@ class BatimentViewSet(viewsets.ModelViewSet):
                 Q(numero_civique__icontains=q) | Q(rue__icontains=q) | Q(ville__icontains=q) | Q(client__nom__icontains=q)
             )
 
-        return qs.distinct().order_by("client__nom", "rue")
+        qs = qs.distinct().order_by("client__nom", "rue")
+
+        # `taille` est une propriété Python (déduite du nombre d'extincteurs),
+        # pas une colonne — impossible à filtrer directement en base. Évalué
+        # ici en Python puis réappliqué en `id__in` pour garder la pagination
+        # et le count() cohérents en aval.
+        taille = self.request.query_params.get("taille")
+        if taille:
+            ids = [b.id for b in qs if b.taille == taille]
+            qs = qs.filter(id__in=ids)
+
+        return qs
 
     @action(detail=False, methods=["get"])
     def compteurs(self, request):
@@ -1694,10 +1713,10 @@ def _html_certificat_extincteur(rapport) -> str:
             f"<td class='center'>{_badge_equipement(conforme, defectueux, so)}</td></tr>"
         )
 
-    # Le système cuisine n'existe que sur les bâtiments qui en sont dotés
-    # (voir avec_systeme_cuisine) : quand il n'est pas lié, la ligne ne doit
-    # pas apparaître du tout au certificat (pas même en S.O.), contrairement
-    # à l'éclairage d'urgence qui reste affiché en S.O. quand non lié.
+    # Éclairage d'urgence et système de cuisine n'existent que sur les
+    # bâtiments qui en sont dotés (voir avec_eclairage_urgence /
+    # avec_systeme_cuisine) : quand l'un n'est pas lié, sa ligne ne doit pas
+    # apparaître du tout au certificat — pas même en S.O.
     ligne_cuisine = (
         _ligne_equipement(
             t("systeme_cuisine"), ICONE_CUISINE, True, [],
@@ -1705,10 +1724,14 @@ def _html_certificat_extincteur(rapport) -> str:
         )
         if rapport_cuisine is not None else ""
     )
+    ligne_eclairage = (
+        _ligne_equipement(t("eclairage_urgence_label"), ICONE_SORTIE, True, eclairages)
+        if rapport_eclairage is not None else ""
+    )
     equipement_rows = (
         ligne_cuisine
         + _ligne_equipement(t("extincteur_label"), ICONE_EXTINCTEUR, True, items)
-        + _ligne_equipement(t("eclairage_urgence_label"), ICONE_SORTIE, rapport_eclairage is not None, eclairages)
+        + ligne_eclairage
     )
 
     logo_content = organisation_logo_content(bat.client.organisation, 46)
@@ -1945,6 +1968,15 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
             "batiment", "batiment__client", "cree_par", "citoyen"
         ).prefetch_related("techniciens").filter(batiment__client__organisation=user.organisation)
 
+        # Un brouillon auto-généré à la fermeture du précédent (voir
+        # RapportExtincteur.fermer()) n'a ni date ni technicien tant qu'il
+        # n'est pas planifié — il ne représente rien à faire pour personne
+        # et doublerait la liste pour toujours (une visite fermée = un
+        # brouillon en plus, indéfiniment). Sa place est dans « à planifier »
+        # (/superviseur/tournees), pas ici — une fois planifié, il a une
+        # date et redevient un rapport normal, visible comme les autres.
+        qs = qs.exclude(rapport_precedent__isnull=False, date_inspection__isnull=True)
+
         if user.est_citoyen():
             qs = qs.filter(citoyen=user)
         elif user.est_technicien():
@@ -2039,10 +2071,10 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
         rapport = serializer.save(cree_par=self.request.user)
         rapport.historiser(self.request.user, "Rapport créé")
 
-        # Une inspection couvre extincteurs + éclairage d'urgence en même
-        # temps — le rapport éclairage correspondant est donc créé et lié
-        # automatiquement, pour n'avoir qu'un seul certificat à la fermeture.
-        _creer_rapport_eclairage_lie(rapport, self.request.user)
+        # Éclairage d'urgence et système de cuisine sont tous deux optionnels
+        # — certaines compagnies ne font que l'extincteur pour un bâtiment
+        # donné (voir _creer_rapport_eclairage_lie / _creer_rapport_cuisine_lie).
+        _creer_rapport_eclairage_lie(rapport, self.request.user, self.request.data)
         _creer_rapport_cuisine_lie(rapport, self.request.user, self.request.data)
 
         _envoyer_confirmation_planification_si_applicable(rapport, "Extincteurs portatifs")
@@ -3618,6 +3650,310 @@ class AppelServiceViewSet(viewsets.ModelViewSet):
         appel = self.get_object()
         appel.synchroniser_vers_pubms()
         return Response(AppelServiceDetailSerializer(appel).data)
+
+
+# ── Tournées ─────────────────────────────────────────────────────────────
+RAPPORTS_A_PLANIFIER_CONFIGS = [
+    ("incendie", Rapport, "titre_rapport_incendie"),
+    ("extincteur", RapportExtincteur, "titre_rapport_extincteur"),
+    ("eclairage", RapportEclairageUrgence, "titre_rapport_eclairage"),
+    ("cuisine", RapportCuisine, "systeme_cuisine"),
+]
+
+
+def _batiments_a_planifier(organisation, batiment_ids=None) -> list[dict]:
+    """Bâtiments ayant au moins une échéance de conformité (à venir ou en
+    retard) pas encore planifiée — groupés par secteur (`Batiment.direction`)
+    pour le tableau de bord de planification. Un même bâtiment peut avoir
+    plusieurs échéances (extincteurs, éclairage, etc.) : elles sont
+    regroupées sous une seule entrée par bâtiment.
+
+    Le rapport qui porte `prochaine_inspection` est déjà FERMÉ — c'est
+    l'enregistrement de la visite passée, son `date_inspection` ne doit
+    jamais être réécrit (ça détruirait l'historique). Une échéance est
+    considérée « déjà planifiée » quand un nouveau rapport OUVERT du même
+    type existe pour ce bâtiment avec une `date_inspection` fixée — que ce
+    nouveau rapport ait été créé manuellement ou via l'assignation groupée.
+
+    `batiment_ids`, si fourni, restreint la recherche à ces bâtiments
+    (utilisé par l'assignation groupée pour retrouver les rapports dus)."""
+    aujourdhui = date.today()
+
+    par_batiment: dict[int, dict] = {}
+    for type_cle, model, label_cle in RAPPORTS_A_PLANIFIER_CONFIGS:
+        deja_planifies = set(
+            model.objects.filter(
+                batiment__client__organisation=organisation,
+                statut="ouvert",
+                date_inspection__isnull=False,
+            ).values_list("batiment_id", flat=True)
+        )
+
+        qs = model.objects.select_related("batiment", "batiment__client").filter(
+            batiment__client__organisation=organisation,
+            prochaine_inspection__isnull=False,
+        ).exclude(batiment_id__in=deja_planifies)
+        if batiment_ids is not None:
+            qs = qs.filter(batiment_id__in=batiment_ids)
+
+        for r in qs:
+            bat = r.batiment
+            entree = par_batiment.setdefault(bat.id, {
+                "batiment_id": bat.id,
+                "adresse": bat.adresse_complete,
+                "secteur": bat.direction,
+                "taille": bat.taille,
+                "client_nom": bat.client.nom,
+                "echeances": [],
+            })
+            entree["echeances"].append({
+                "type": type_cle,
+                "rapport_id": r.id,
+                "label_cle": label_cle,
+                "date": r.prochaine_inspection.isoformat(),
+                "en_retard": r.prochaine_inspection < aujourdhui,
+            })
+
+    resultats = list(par_batiment.values())
+    for entree in resultats:
+        entree["echeances"].sort(key=lambda e: e["date"])
+        entree["prochaine_echeance"] = entree["echeances"][0]["date"]
+        entree["en_retard"] = entree["echeances"][0]["en_retard"]
+    resultats.sort(key=lambda e: e["prochaine_echeance"])
+    return resultats
+
+
+class BatimentsAPlanifierView(APIView):
+    """Bâtiments à planifier, groupés par secteur — alimente le tableau de
+    bord de planification (page « Tournées »)."""
+
+    permission_classes = [permissions.IsAuthenticated, EstSuperviseur]
+
+    def get(self, request):
+        return Response({"batiments": _batiments_a_planifier(request.user.organisation)})
+
+
+def _visites_planifiees(organisation) -> list[dict]:
+    """Visites déjà planifiées (rapports ouverts avec `date_inspection`
+    fixée, aujourd'hui ou plus tard) — une seule entrée par date, avec les
+    équipes de techniciens différentes regroupées à l'intérieur (`equipes`).
+    Deux dates identiques ne doivent jamais apparaître comme deux cartes
+    séparées, même si des adresses de ce jour-là sont réparties entre
+    plusieurs équipes — sinon ça prête à confusion.
+
+    Calculée à la volée à partir des vrais rapports plutôt que stockée à
+    part : aucune resynchronisation possible, la vue reflète toujours
+    l'état réel (si un rapport est replanifié ailleurs, il change de groupe
+    tout seul au prochain chargement)."""
+    aujourdhui = date.today()
+    par_date: dict[str, dict[tuple, dict]] = {}
+
+    for type_cle, model, label_cle in RAPPORTS_A_PLANIFIER_CONFIGS:
+        qs = model.objects.select_related("batiment", "batiment__client").prefetch_related("techniciens").filter(
+            batiment__client__organisation=organisation,
+            statut="ouvert",
+            date_inspection__isnull=False,
+            date_inspection__gte=aujourdhui,
+        )
+        for r in qs:
+            jour = r.date_inspection.isoformat()
+            techs = tuple(sorted(r.techniciens.values_list("id", flat=True)))
+            equipes_du_jour = par_date.setdefault(jour, {})
+            equipe = equipes_du_jour.setdefault(techs, {
+                "techniciens": [{"id": t.id, "username": t.username} for t in r.techniciens.all()],
+                "batiments": [],
+            })
+            equipe["batiments"].append({
+                "batiment_id": r.batiment_id,
+                "rapport_id": r.id,
+                "adresse": r.batiment.adresse_complete,
+                "secteur": r.batiment.direction,
+                "client_nom": r.batiment.client.nom,
+                "type": type_cle,
+                "label_cle": label_cle,
+                "techniciens": [{"id": t.id, "username": t.username} for t in r.techniciens.all()],
+            })
+
+    resultats = [
+        {
+            "date": jour,
+            "total": sum(len(equipe["batiments"]) for equipe in equipes_du_jour.values()),
+            "equipes": list(equipes_du_jour.values()),
+        }
+        for jour, equipes_du_jour in par_date.items()
+    ]
+    resultats.sort(key=lambda g: g["date"])
+    return resultats
+
+
+class VisitesPlanifieesView(APIView):
+    """Visites déjà planifiées, groupées par date + équipe de techniciens —
+    calculée à la volée à partir des vrais rapports (voir
+    `_visites_planifiees`), pas stockée séparément."""
+
+    permission_classes = [permissions.IsAuthenticated, EstSuperviseur]
+
+    def get(self, request):
+        return Response({"visites": _visites_planifiees(request.user.organisation)})
+
+
+class AssignerPlanificationView(APIView):
+    """Planifie la prochaine visite (date + techniciens) pour tous les
+    rapports dus d'une sélection de bâtiments, en un seul geste depuis le
+    tableau de bord « à planifier » plutôt que bâtiment par bâtiment.
+
+    Le rapport qui porte l'échéance (`prochaine_inspection`) est déjà FERMÉ —
+    c'est l'enregistrement de la visite passée, donc on ne touche jamais à
+    son `date_inspection`. On planifie plutôt le rapport OUVERT qui
+    représente la prochaine visite : pour les extincteurs, c'est le brouillon
+    déjà généré automatiquement à la fermeture (`brouillon_suivant`, avec
+    l'inventaire copié — voir `RapportExtincteur.fermer()`) ; pour les autres
+    types, un nouveau rapport est créé (comme le ferait manuellement le
+    superviseur via « Planifier une inspection »).
+
+    Écrit directement sur ce vrai rapport (`date_inspection`, `techniciens`)
+    : le technicien voit donc cette visite dans son propre tableau de bord,
+    ça n'est pas juste une liste que le superviseur garde pour lui.
+
+    Le client est avisé par courriel que sa visite est planifiée — même
+    mécanisme que la création manuelle d'un rapport (voir
+    `_envoyer_confirmation_planification_si_applicable`). Un seul courriel
+    par bâtiment (pas un par type de rapport touché) : plusieurs échéances
+    du même bâtiment planifiées ensemble représentent une seule visite."""
+
+    permission_classes = [permissions.IsAuthenticated, EstSuperviseur]
+
+    MODELES = {cle: modele for cle, modele, _ in RAPPORTS_A_PLANIFIER_CONFIGS}
+
+    LABELS = {
+        "incendie": "Réseau d'alarme incendie",
+        "extincteur": "Extincteurs portatifs",
+        "eclairage": "Éclairage d'urgence",
+        "cuisine": "Système de cuisine",
+    }
+
+    def post(self, request):
+        organisation = request.user.organisation
+        batiment_ids = request.data.get("batiment_ids") or []
+        technicien_ids = request.data.get("techniciens") or []
+        date_inspection = request.data.get("date_inspection")
+
+        if not batiment_ids:
+            return Response({"error": "batiment_ids requis."}, status=status.HTTP_400_BAD_REQUEST)
+        if not date_inspection:
+            return Response({"error": "date_inspection requise."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            # Assignée directement à `rapport.date_inspection` plus bas sans
+            # passer par un serializer — doit donc déjà être un vrai `date`
+            # (sinon `envoyer_confirmation_planification` plante en essayant
+            # de lire `.month` sur une chaîne).
+            date_inspection = date.fromisoformat(date_inspection)
+        except (TypeError, ValueError):
+            return Response({"error": "date_inspection invalide."}, status=status.HTTP_400_BAD_REQUEST)
+
+        techniciens = list(Utilisateur.objects.filter(id__in=technicien_ids, role="technicien"))
+
+        a_planifier = _batiments_a_planifier(organisation, batiment_ids=batiment_ids)
+        total = 0
+        for entree in a_planifier:
+            premier_rapport, premier_label = None, None
+            for echeance in entree["echeances"]:
+                modele = self.MODELES[echeance["type"]]
+                rapport_precedent = modele.objects.get(id=echeance["rapport_id"])
+
+                brouillon = getattr(rapport_precedent, "brouillon_suivant", None)
+                rapport = brouillon if brouillon is not None else modele.objects.create(
+                    batiment_id=entree["batiment_id"], cree_par=request.user,
+                )
+
+                rapport.date_inspection = date_inspection
+                rapport.save()
+                if techniciens:
+                    rapport.techniciens.set(techniciens)
+                rapport.historiser(
+                    request.user,
+                    f"Visite planifiée le {date_inspection} depuis la planification par secteur",
+                )
+                total += 1
+                if premier_rapport is None:
+                    premier_rapport, premier_label = rapport, self.LABELS[echeance["type"]]
+
+            if premier_rapport is not None:
+                _envoyer_confirmation_planification_si_applicable(premier_rapport, premier_label)
+
+        return Response({"rapports_planifies": total})
+
+
+class TourneeViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return TourneeCreateSerializer
+        return TourneeSerializer
+
+    def get_serializer_context(self):
+        return {**super().get_serializer_context(), "request": self.request}
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        tournee = serializer.save()
+        return Response(TourneeSerializer(tournee).data, status=status.HTTP_201_CREATED)
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = Tournee.objects.select_related("cree_par").prefetch_related(
+            "techniciens", "etapes__batiment", "etapes__batiment__client", "etapes__techniciens",
+        ).filter(organisation=user.organisation)
+
+        if user.est_technicien():
+            qs = qs.filter(Q(techniciens=user) | Q(etapes__techniciens=user))
+
+        secteur = self.request.query_params.get("secteur")
+        statut = self.request.query_params.get("statut")
+        if secteur:
+            qs = qs.filter(secteur=secteur)
+        if statut:
+            qs = qs.filter(statut=statut)
+
+        return qs.distinct().order_by("-date_tournee")
+
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy", "ajouter_batiment", "retirer_batiment", "assigner_etape"]:
+            return [permissions.IsAuthenticated(), EstSuperviseur()]
+        return super().get_permissions()
+
+    @action(detail=True, methods=["post"], url_path="ajouter-batiment")
+    def ajouter_batiment(self, request, pk=None):
+        tournee = self.get_object()
+        try:
+            batiment = Batiment.objects.get(id=request.data.get("batiment_id"), client__organisation=request.user.organisation)
+        except Batiment.DoesNotExist:
+            return Response({"error": "Bâtiment introuvable."}, status=status.HTTP_404_NOT_FOUND)
+        if tournee.etapes.filter(batiment=batiment).exists():
+            return Response({"error": "Ce bâtiment est déjà dans la tournée."}, status=status.HTTP_400_BAD_REQUEST)
+        tournee.ajouter_batiment(batiment)
+        return Response(TourneeSerializer(tournee).data)
+
+    @action(detail=True, methods=["post"], url_path="retirer-batiment")
+    def retirer_batiment(self, request, pk=None):
+        tournee = self.get_object()
+        tournee.etapes.filter(batiment_id=request.data.get("batiment_id")).delete()
+        return Response(TourneeSerializer(tournee).data)
+
+    @action(detail=True, methods=["post"], url_path="assigner-etape")
+    def assigner_etape(self, request, pk=None):
+        """Divise la route : assigne une étape précise à un ou des
+        techniciens spécifiques (sous-ensemble des techniciens de la
+        tournée, ou non), au lieu de laisser toute la tournée à tous."""
+        tournee = self.get_object()
+        try:
+            etape = tournee.etapes.get(id=request.data.get("etape_id"))
+        except TourneeBatiment.DoesNotExist:
+            return Response({"error": "Étape introuvable."}, status=status.HTTP_404_NOT_FOUND)
+        etape.techniciens.set(request.data.get("techniciens") or [])
+        return Response(TourneeSerializer(tournee).data)
 
 
 class ServiceKeyPermission(permissions.BasePermission):
