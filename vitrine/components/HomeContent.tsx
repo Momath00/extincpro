@@ -40,10 +40,10 @@ const systems = [
 
 const calendrierPoints = [
   {
-    title: { fr: "Rappel 30 jours à l'avance", en: "30-day advance reminder" },
+    title: { fr: "Préavis adapté à la taille du bâtiment", en: "Advance notice matched to building size" },
     desc: {
-      fr: "Un courriel automatique part au client ET au superviseur 30 jours avant la date de prochaine inspection — les deux sont avisés, personne ne l'apprend trop tard.",
-      en: "An automatic email goes out to both the client and the supervisor 30 days before the next inspection date — both are notified, nobody finds out too late.",
+      fr: "Un courriel automatique part au client ET au superviseur avant la date de prochaine inspection — 30, 45 ou 60 jours d'avance selon la taille du bâtiment, pour laisser le temps de coordonner une grosse visite.",
+      en: "An automatic email goes out to both the client and the supervisor before the next inspection date — 30, 45, or 60 days ahead depending on the building's size, leaving enough time to coordinate a larger visit.",
     },
   },
   {
@@ -58,6 +58,37 @@ const calendrierPoints = [
     desc: {
       fr: "Dès qu'une visite est planifiée, le client reçoit un courriel de confirmation — et si la date change ensuite, un nouveau courriel l'en informe automatiquement.",
       en: "As soon as a visit is scheduled, the client gets a confirmation email — and if the date changes afterward, a new email lets them know automatically.",
+    },
+  },
+]
+
+const planificationPoints = [
+  {
+    title: { fr: "Organisation par secteur géographique", en: "Organization by geographic sector" },
+    desc: {
+      fr: "Vos bâtiments sont regroupés par zone (ex. Secteur Nord, Centre-ville, etc.). Résultat : les techniciens planifient leurs visites par quartier plutôt qu'au hasard, ce qui réduit les déplacements inutiles et permet de couvrir plusieurs adresses en une seule tournée — moins de délais, moins de frais de déplacement répercutés.",
+      en: "Your buildings are grouped by zone (e.g. North Sector, Downtown, etc.). The result: technicians plan their visits by neighborhood instead of at random, cutting wasted travel and covering several addresses in a single route — fewer delays, fewer travel costs passed on to you.",
+    },
+  },
+  {
+    title: { fr: "Assignation d'équipe par secteur", en: "Team assignment by sector" },
+    desc: {
+      fr: "Un ou plusieurs techniciens peuvent être assignés à tout un secteur en un seul geste, avec la possibilité de diviser le travail entre eux si le volume l'exige (un technicien par portion du secteur). Des visites mieux coordonnées, et une meilleure capacité à absorber les pics de demande sans retard.",
+      en: "One or more technicians can be assigned to an entire sector in a single action, with the option to split the work between them when volume requires it (one technician per portion of the sector). Better-coordinated visits, and a stronger ability to absorb demand spikes without delay.",
+    },
+  },
+  {
+    title: { fr: "Préavis de rappel adapté à la taille de chaque bâtiment", en: "Reminder notice matched to each building's size" },
+    desc: {
+      fr: "Fini le rappel uniforme à 30 jours pour tout le monde : plus un bâtiment est grand, plus le préavis est long — jusqu'à 60 jours pour vos plus gros immeubles. Le temps nécessaire pour préparer l'accès et l'identification de vos extincteurs avant notre passage, sans surprise de dernière minute.",
+      en: "No more one-size-fits-all 30-day reminder: the larger the building, the longer the notice — up to 60 days for your biggest properties. Enough time to prepare access and identification of your extinguishers before the visit, with no last-minute surprises.",
+    },
+  },
+  {
+    title: { fr: "Continuité automatique d'une année à l'autre", en: "Automatic continuity from year to year" },
+    desc: {
+      fr: "Dès qu'un rapport d'inspection est fermé, la visite de l'an prochain est automatiquement inscrite au calendrier — rien à redemander. La liste de vos équipements est conservée d'une année à l'autre pour éviter toute ressaisie inutile, mais chaque appareil est réévalué à neuf à chaque visite : aucun état ni remarque n'est reporté d'une année sur l'autre.",
+      en: "As soon as an inspection report is closed, next year's visit is automatically added to the calendar — nothing to ask for again. Your equipment list carries over from year to year to avoid needless re-entry, but every device is freshly reassessed at each visit: no status or note ever carries over from one year to the next.",
     },
   },
 ]
@@ -134,6 +165,20 @@ const features = [
     desc: {
       fr: "Basculez l'interface de votre équipe entre français et anglais en un clic, par organisation.",
       en: "Switch your team's interface between French and English in one click, per organization.",
+    },
+  },
+  {
+    title: { fr: "Planification par secteur", en: "Planning by sector" },
+    desc: {
+      fr: "Regroupez vos bâtiments par zone géographique et planifiez une tournée entière en un seul geste, au lieu d'un déplacement par adresse.",
+      en: "Group your buildings by geographic zone and schedule an entire route in a single action, instead of one trip per address.",
+    },
+  },
+  {
+    title: { fr: "Équipes flexibles", en: "Flexible team assignment" },
+    desc: {
+      fr: "Assignez un ou plusieurs techniciens à un secteur, avec la possibilité de diviser la route entre eux au besoin.",
+      en: "Assign one or more technicians to a sector, with the option to split the route between them as needed.",
     },
   },
 ];
@@ -250,6 +295,27 @@ export function HomeContent() {
           <div className="mt-14 grid grid-cols-1 gap-8 sm:grid-cols-3">
             {calendrierPoints.map((p) => (
               <div key={p.title.fr}>
+                <div className="h-px w-10 bg-red" />
+                <h3 className="mt-4 text-lg font-semibold text-ink">{p.title[langue]}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-text-muted">{p.desc[langue]}</p>
+              </div>
+            ))}
+          </div>
+        </Container>
+      </section>
+
+      {/* PLANIFICATION PAR SECTEUR */}
+      <section className="border-t border-line bg-paper-2 py-24 sm:py-28">
+        <Container>
+          <SectionHeading
+            kicker={t("planification_kicker")}
+            title={t("planification_titre")}
+            description={t("planification_desc")}
+            align="center"
+          />
+          <div className="mt-14 grid grid-cols-1 gap-8 sm:grid-cols-2">
+            {planificationPoints.map((p) => (
+              <div key={p.title.fr} className="rounded-2xl border border-line bg-paper p-8">
                 <div className="h-px w-10 bg-red" />
                 <h3 className="mt-4 text-lg font-semibold text-ink">{p.title[langue]}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-text-muted">{p.desc[langue]}</p>

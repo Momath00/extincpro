@@ -50,7 +50,9 @@ const modules = [
       { fr: "Vue d'ensemble des bâtiments, clients et équipes", en: "Overview of buildings, clients, and teams" },
       { fr: "Validation des rapports soumis par les techniciens", en: "Validation of reports submitted by technicians" },
       { fr: "Suivi en temps réel du taux de conformité", en: "Real-time tracking of the compliance rate" },
-      { fr: "Planification des inspections à venir", en: "Scheduling of upcoming inspections" },
+      { fr: "Planification des bâtiments à échéance, regroupés par secteur géographique", en: "Scheduling of buildings coming due, grouped by geographic sector" },
+      { fr: "Assignation d'un ou plusieurs techniciens par secteur, route divisible au besoin", en: "Assignment of one or more technicians per sector, with a splittable route as needed" },
+      { fr: "Préavis de rappel adapté à la taille de chaque bâtiment (30 à 60 jours)", en: "Reminder notice matched to each building's size (30 to 60 days)" },
     ],
   },
   {
