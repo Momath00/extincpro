@@ -2,13 +2,14 @@
 
 import { useT } from '@/lib/i18n'
 
-type ModuleType = 'incendie' | 'extincteur' | 'eclairage' | 'cuisine'
+type ModuleType = 'incendie' | 'extincteur' | 'eclairage' | 'cuisine' | 'gicleur'
 
 const STYLES: Record<ModuleType, { bg: string; color: string; dot: string; icon: string }> = {
   incendie: { bg: '#eef2ff', color: '#4338ca', dot: '#6366f1', icon: 'ti-clipboard-check' },
   extincteur: { bg: '#fff2e8', color: '#9a4a13', dot: '#f97316', icon: 'ti-fire-extinguisher' },
   eclairage: { bg: '#ecfeff', color: '#0e7490', dot: '#06b6d4', icon: 'ti-bulb' },
   cuisine: { bg: '#faf5ff', color: '#7e22ce', dot: '#a855f7', icon: 'ti-tools-kitchen-2' },
+  gicleur: { bg: '#eff6ff', color: '#1d4ed8', dot: '#3b82f6', icon: 'ti-droplets' },
 }
 
 /** Puce indiquant le module courant (système d'alarme / extincteur / éclairage
@@ -30,6 +31,8 @@ export default function ModuleBadge({ type, eclairageLie, cuisineLie }: { type: 
               : t('extincteur'))
       : type === 'cuisine'
         ? t('cuisine_badge')
+        : type === 'gicleur'
+          ? t('gicleur_badge')
         : t('eclairage_urgence_badge')
 
   return (

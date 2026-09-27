@@ -41,6 +41,14 @@ class UtilisateurSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["est_actif", "mdp_temporaire", "date_creation"]
 
+    def validate_role(self, value):
+        # Un superviseur peut modifier les membres de son équipe (voir la page
+        # Équipe), mais jamais leur donner le rôle super-admin de la plateforme.
+        request = self.context.get("request")
+        if value == Utilisateur.Role.SUPER_ADMIN and not (request and request.user.est_super_admin()):
+            raise serializers.ValidationError("Rôle non autorisé.")
+        return value
+
     def get_organisation(self, obj):
         if obj.organisation_id is None:
             return None

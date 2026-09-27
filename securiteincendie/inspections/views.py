@@ -24,12 +24,14 @@ from .excel_utils import (
     excel_workbook,
 )
 from .pagination import PaginationSiDemandee, RapportPagination
+from .photos import PhotosRapportMixin, html_annexe_photos
 from .models import (
     AppelService,
     Batiment,
     BoyauItem,
     Certificat,
     CertificatExtincteur,
+    CertificatGicleur,
     Client,
     Dispositif,
     EclairageUrgenceItem,
@@ -42,6 +44,7 @@ from .models import (
     RapportCuisine,
     RapportEclairageUrgence,
     RapportExtincteur,
+    RapportGicleur,
     SectionDispositif,
     Tournee,
     TourneeBatiment,
@@ -224,6 +227,74 @@ def _creer_rapport_cuisine_lie(rapport_extincteur, utilisateur, request_data):
     rapport_cuisine.historiser(
         utilisateur, "Rapport créé automatiquement avec le rapport extincteur"
     )
+
+
+# ── Rapports créés pour la même visite (cases « Avec … » à la création) ────
+# Chaque case n'est prise en compte que si le module correspondant est actif
+# pour l'organisation (le frontend ne l'affiche d'ailleurs pas sinon) : une
+# compagnie qui n'a que le module extincteurs ne crée jamais autre chose.
+
+def _copier_visite(source, rapport, utilisateur, libelle_source):
+    rapport.techniciens.set(source.techniciens.all())
+    rapport.historiser(utilisateur, f"Rapport créé automatiquement avec le rapport {libelle_source}")
+
+
+def _module_demande(utilisateur, request_data, cle, code_module):
+    organisation = getattr(utilisateur, "organisation", None)
+    return bool(request_data.get(cle) and organisation and organisation.a_le_module(code_module))
+
+
+def _creer_rapport_alarme_lie(source, utilisateur, request_data, libelle_source):
+    """`avec_systeme_alarme` → rapport du réseau d'alarme incendie (propre certificat)."""
+    if not _module_demande(utilisateur, request_data, "avec_systeme_alarme", "rapport_incendie"):
+        return None
+    rapport = Rapport.objects.create(
+        batiment=source.batiment, cree_par=utilisateur,
+        citoyen=getattr(source, "citoyen", None), date_inspection=source.date_inspection,
+    )
+    FicheE1.objects.create(rapport=rapport)
+    FicheE2.objects.create(rapport=rapport)
+    FicheLegende.objects.create(rapport=rapport)
+    _copier_visite(source, rapport, utilisateur, libelle_source)
+    return rapport
+
+
+def _creer_rapport_extincteur_lie(source, utilisateur, request_data, libelle_source):
+    """`avec_extincteur` → rapport extincteurs (propre certificat) ; l'éclairage
+    d'urgence demandé en même temps lui est rattaché (même certificat)."""
+    if not _module_demande(utilisateur, request_data, "avec_extincteur", "rapport_extincteur"):
+        return None
+    rapport = RapportExtincteur.objects.create(
+        batiment=source.batiment, cree_par=utilisateur,
+        citoyen=getattr(source, "citoyen", None), date_inspection=source.date_inspection,
+    )
+    _copier_visite(source, rapport, utilisateur, libelle_source)
+    _creer_rapport_eclairage_lie(rapport, utilisateur, request_data)
+    return rapport
+
+
+def _creer_rapport_eclairage_seul(source, utilisateur, request_data, libelle_source):
+    """`avec_eclairage_urgence` sans rapport extincteurs → rapport d'éclairage seul."""
+    if not _module_demande(utilisateur, request_data, "avec_eclairage_urgence", "rapport_eclairage_urgence"):
+        return None
+    rapport = RapportEclairageUrgence.objects.create(
+        batiment=source.batiment, cree_par=utilisateur, date_inspection=source.date_inspection,
+    )
+    _copier_visite(source, rapport, utilisateur, libelle_source)
+    return rapport
+
+
+def _creer_rapport_gicleur_lie(source, utilisateur, request_data, libelle_source):
+    """`avec_gicleur` → rapport gicleur (checklist complète, propre certificat)."""
+    if not _module_demande(utilisateur, request_data, "avec_gicleur", "rapport_gicleur"):
+        return None
+    rapport = RapportGicleur.objects.create(
+        batiment=source.batiment, cree_par=utilisateur,
+        citoyen=getattr(source, "citoyen", None), date_inspection=source.date_inspection,
+    )
+    rapport.creer_structure_par_defaut()
+    _copier_visite(source, rapport, utilisateur, libelle_source)
+    return rapport
 
 
 def _citoyen_du_rapport(rapport):
@@ -428,6 +499,8 @@ I18N = {
     "conformes_sur": {"fr": "conformes", "en": "compliant"},
     "informations_systeme": {"fr": "Informations du système", "en": "System information"},
     "commentaires_label": {"fr": "Commentaires", "en": "Comments"},
+    "photos_anomalies": {"fr": "Photos des anomalies", "en": "Deficiency photos"},
+    "suite": {"fr": "suite", "en": "continued"},
     "footer_rapport_cuisine": {
         "fr": "Ce rapport présente le détail de la vérification du système d'extinction de cuisine à la date indiquée.",
         "en": "This report presents the details of the kitchen fire suppression system verification on the date indicated.",
@@ -1073,6 +1146,7 @@ def _html_rapport_incendie_complet(rapport) -> str:
 <div class="sec-title">E3 — Détail par section</div>
 <div style="font-size:7.5pt;color:#000;margin-bottom:8px;font-style:italic;">A = Installation correcte &nbsp;|&nbsp; B = Nécessite entretien &nbsp;|&nbsp; C = Alarme confirmée &nbsp;|&nbsp; D = Statut (D=Défectueux, I=Inspecté, NI=Non inspecté) &nbsp;|&nbsp; E = Zone/Circuit &nbsp;&nbsp;(A/B/C : 1 = Oui, 0 = Non)</div>
 {sections_html}
+{html_annexe_photos(rapport, t("photos_anomalies"), t("suite"))}
 {pied_de_page(organisation_nom, t("footer_rapport_incendie"))}
 </div>
 </body>
@@ -1116,7 +1190,8 @@ class EstModuleRapportIncendieActif(permissions.BasePermission):
         return bool(organisation and organisation.a_le_module("rapport_incendie"))
 
 
-class RapportViewSet(viewsets.ModelViewSet):
+class RapportViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
+    champ_rapport_photo = "rapport_incendie"
     permission_classes = [permissions.IsAuthenticated, EstModuleRapportIncendieActif]
     pagination_class = RapportPagination
 
@@ -1233,10 +1308,14 @@ class RapportViewSet(viewsets.ModelViewSet):
         FicheLegende.objects.create(rapport=rapport)
         rapport.historiser(self.request.user, "Rapport créé")
 
-        # Le réseau d'alarme incendie est un système indépendant des
-        # extincteurs/éclairage d'urgence/cuisine — il ne crée plus
-        # automatiquement de rapport lié (voir RapportExtincteurViewSet pour
-        # le regroupement extincteur + éclairage + cuisine, qui lui reste).
+        # Aucun rapport lié automatique : seules les cases cochées à la
+        # création (et dont le module est actif) créent d'autres rapports
+        # pour la même visite.
+        libelle = "de système d'alarme"
+        if _creer_rapport_extincteur_lie(rapport, self.request.user, self.request.data, libelle) is None:
+            _creer_rapport_eclairage_seul(rapport, self.request.user, self.request.data, libelle)
+        _creer_rapport_gicleur_lie(rapport, self.request.user, self.request.data, libelle)
+
         _envoyer_confirmation_planification_si_applicable(rapport, "Réseau d'alarme incendie")
 
     def perform_update(self, serializer):
@@ -1945,6 +2024,7 @@ def _html_rapport_extincteur_complet(rapport) -> str:
   </tr></thead>
   <tbody>{boyau_rows}</tbody>
 </table>
+{html_annexe_photos(rapport, t("photos_anomalies"), t("suite"))}
 {pied_de_page(organisation_nom, t("footer_rapport_extincteur"))}
 </div>
 </body>
@@ -1960,7 +2040,8 @@ class EstModuleRapportExtincteurActif(permissions.BasePermission):
         return bool(organisation and organisation.a_le_module("rapport_extincteur"))
 
 
-class RapportExtincteurViewSet(viewsets.ModelViewSet):
+class RapportExtincteurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
+    champ_rapport_photo = "rapport_extincteur"
     permission_classes = [permissions.IsAuthenticated, EstModuleRapportExtincteurActif]
     pagination_class = RapportPagination
 
@@ -2088,6 +2169,8 @@ class RapportExtincteurViewSet(viewsets.ModelViewSet):
         # donné (voir _creer_rapport_eclairage_lie / _creer_rapport_cuisine_lie).
         _creer_rapport_eclairage_lie(rapport, self.request.user, self.request.data)
         _creer_rapport_cuisine_lie(rapport, self.request.user, self.request.data)
+        _creer_rapport_alarme_lie(rapport, self.request.user, self.request.data, "extincteurs")
+        _creer_rapport_gicleur_lie(rapport, self.request.user, self.request.data, "extincteurs")
 
         _envoyer_confirmation_planification_si_applicable(rapport, "Extincteurs portatifs")
 
@@ -2460,6 +2543,7 @@ def _html_rapport_eclairage_complet(rapport) -> str:
   </tr></thead>
   <tbody>{item_rows}</tbody>
 </table>
+{html_annexe_photos(rapport, t("photos_anomalies"), t("suite"))}
 {pied_de_page(organisation_nom, t("footer_rapport_eclairage"))}
 </div>
 </body>
@@ -2474,7 +2558,8 @@ class EstModuleRapportEclairageUrgenceActif(permissions.BasePermission):
         return bool(organisation and organisation.a_le_module("rapport_eclairage_urgence"))
 
 
-class RapportEclairageUrgenceViewSet(viewsets.ModelViewSet):
+class RapportEclairageUrgenceViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
+    champ_rapport_photo = "rapport_eclairage"
     permission_classes = [permissions.IsAuthenticated, EstModuleRapportEclairageUrgenceActif]
     pagination_class = RapportPagination
 
@@ -2997,6 +3082,7 @@ def _html_rapport_cuisine_complet(rapport) -> str:
 <div style="background:#f8fafc;border-radius:8px;padding:6px 4px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 12px;font-size:8pt;">{verif_rows}</div>
 <div class="sec-title">{t("commentaires_label")}</div>
 <p style="font-size:9pt;color:#334155;line-height:1.5;margin-bottom:9px;">{rapport.commentaires or '—'}</p>
+{html_annexe_photos(rapport, t("photos_anomalies"), t("suite"))}
 {pied_de_page(organisation_nom, t("footer_rapport_cuisine"))}
 </div>
 </body>
@@ -3011,7 +3097,8 @@ class EstModuleRapportCuisineActif(permissions.BasePermission):
         return bool(organisation and organisation.a_le_module("rapport_cuisine"))
 
 
-class RapportCuisineViewSet(viewsets.ModelViewSet):
+class RapportCuisineViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
+    champ_rapport_photo = "rapport_cuisine"
     permission_classes = [permissions.IsAuthenticated, EstModuleRapportCuisineActif]
     pagination_class = RapportPagination
 
@@ -3259,6 +3346,36 @@ def _certificats_extincteur(organisation):
     return resultats
 
 
+def _certificats_gicleur(organisation):
+    certs = CertificatGicleur.objects.select_related(
+        "rapport", "rapport__batiment", "rapport__batiment__client", "emis_par"
+    ).filter(rapport__batiment__client__organisation=organisation)
+    resultats = []
+    for c in certs:
+        r = c.rapport
+        bat = r.batiment
+        resultats.append({
+            "cle": f"gicleur-{c.id}",
+            "type": "gicleur",
+            "type_display": "Gicleurs",
+            "numero": c.numero,
+            "date_emission": c.date_emission,
+            "certificat_envoye": c.certificat_envoye,
+            "mode_envoi": c.mode_envoi,
+            "date_envoi": c.date_envoi,
+            "envoye_a": c.envoye_a,
+            "conforme": r.est_conforme,
+            "adresse": bat.adresse_complete,
+            "client_nom": bat.client.nom,
+            "client_id": bat.client_id,
+            "rapport_id": r.id,
+            "statut_rapport": r.statut,
+            "url_rapport": f"/superviseur/rapports-gicleurs/{r.id}",
+            "url_certificat_pdf": f"/api/rapports-gicleurs/{r.id}/certificat-pdf/",
+        })
+    return resultats
+
+
 def _lister_certificats(request):
     """Agrège les certificats de tous les modules (incendie, extincteur —
     qui couvre aussi l'éclairage d'urgence via le certificat unifié) en une
@@ -3272,6 +3389,8 @@ def _lister_certificats(request):
         resultats += _certificats_incendie(organisation)
     if type_filtre in (None, "", "extincteur"):
         resultats += _certificats_extincteur(organisation)
+    if type_filtre in (None, "", "gicleur"):
+        resultats += _certificats_gicleur(organisation)
 
     recherche = (request.query_params.get("recherche") or "").strip().lower()
     if recherche:
@@ -3345,6 +3464,7 @@ def _evenements_calendrier(organisation, annee: int, mois: int) -> list[dict]:
         ("extincteur", RapportExtincteur.objects.select_related("batiment", "batiment__client").prefetch_related("techniciens"), "/superviseur/rapports-extincteurs", "rapports-extincteurs"),
         ("eclairage", RapportEclairageUrgence.objects.select_related("batiment", "batiment__client").prefetch_related("techniciens"), "/superviseur/rapports-eclairage-urgence", "rapports-eclairage-urgence"),
         ("cuisine", RapportCuisine.objects.select_related("batiment", "batiment__client").prefetch_related("techniciens"), "/superviseur/rapports-cuisine", "rapports-cuisine"),
+        ("gicleur", RapportGicleur.objects.select_related("batiment", "batiment__client").prefetch_related("techniciens"), "/superviseur/rapports-gicleurs", "rapports-gicleurs"),
     ]
 
     def _element(type_cle, r, url_base, api_base, champ_date, categorie):
@@ -3390,6 +3510,7 @@ def _rapports_en_retard(organisation) -> list[dict]:
         ("extincteur", RapportExtincteur.objects.select_related("batiment", "batiment__client"), "/superviseur/rapports-extincteurs", "titre_rapport_extincteur"),
         ("eclairage", RapportEclairageUrgence.objects.select_related("batiment", "batiment__client"), "/superviseur/rapports-eclairage-urgence", "titre_rapport_eclairage"),
         ("cuisine", RapportCuisine.objects.select_related("batiment", "batiment__client"), "/superviseur/rapports-cuisine", "systeme_cuisine"),
+        ("gicleur", RapportGicleur.objects.select_related("batiment", "batiment__client"), "/superviseur/rapports-gicleurs", "systeme_gicleurs"),
     ]
     aujourdhui = date.today()
     resultats = []
@@ -3470,6 +3591,7 @@ class ReassignerCalendrierView(APIView):
         "extincteur": RapportExtincteur,
         "eclairage": RapportEclairageUrgence,
         "cuisine": RapportCuisine,
+        "gicleur": RapportGicleur,
     }
 
     def patch(self, request, type_rapport, pk):
@@ -3497,6 +3619,7 @@ def _rapports_technicien(user, date_min, date_max) -> list[dict]:
         ("extincteur", RapportExtincteur, "/technicien/rapports-extincteurs"),
         ("eclairage", RapportEclairageUrgence, "/technicien/rapports-eclairage-urgence"),
         ("cuisine", RapportCuisine, "/technicien/rapports-cuisine"),
+        ("gicleur", RapportGicleur, "/technicien/rapports-gicleurs"),
     ]
     resultats = []
     for type_cle, modele, url_base in configs:
@@ -3558,7 +3681,11 @@ class CertificatsCompteursView(APIView):
 
     def get(self, request):
         organisation = request.user.organisation
-        resultats = _certificats_incendie(organisation) + _certificats_extincteur(organisation)
+        resultats = (
+            _certificats_incendie(organisation)
+            + _certificats_extincteur(organisation)
+            + _certificats_gicleur(organisation)
+        )
         return Response({
             "total": len(resultats),
             "envoyes": sum(1 for r in resultats if r["certificat_envoye"]),

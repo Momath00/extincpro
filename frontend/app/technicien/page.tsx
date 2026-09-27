@@ -14,11 +14,12 @@ const STYLES_TYPE: Record<string, { bg: string; color: string; icon: string }> =
   extincteur: { bg: '#fff2e8', color: '#9a4a13', icon: 'ti-fire-extinguisher' },
   eclairage: { bg: '#ecfeff', color: '#0e7490', icon: 'ti-bulb' },
   cuisine: { bg: '#faf5ff', color: '#7e22ce', icon: 'ti-tools-kitchen-2' },
+  gicleur: { bg: '#eff6ff', color: '#1d4ed8', icon: 'ti-droplets' },
 }
 
 type VisitePrevue = {
   cle: string
-  type: 'incendie' | 'extincteur' | 'eclairage' | 'cuisine'
+  type: 'incendie' | 'extincteur' | 'eclairage' | 'cuisine' | 'gicleur'
   id: number
   statut: string
   date_inspection: string
@@ -44,6 +45,7 @@ export default function TechnicienDashboard() {
     return type === 'incendie' ? t('titre_rapport_incendie')
       : type === 'extincteur' ? t('titre_rapport_extincteur')
       : type === 'eclairage' ? t('titre_rapport_eclairage')
+      : type === 'gicleur' ? t('systeme_gicleurs')
       : t('systeme_cuisine')
   }
 

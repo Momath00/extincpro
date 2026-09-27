@@ -6,8 +6,8 @@ import { useLangue, useT } from "@/lib/i18n";
 
 const modules = [
   {
-    name: { fr: "Module Inspection sécurité incendie", en: "Fire Safety Inspection Module" },
-    desc: { fr: "Inspection générale de sécurité incendie de vos bâtiments.", en: "General fire safety inspection of your buildings." },
+    name: { fr: "Module Système d'alarme", en: "Fire Alarm System Module" },
+    desc: { fr: "Inspection et vérification du système d'alarme incendie de vos bâtiments.", en: "Inspection and verification of your buildings' fire alarm system." },
     prix: 160,
     highlight: true,
     features: [
@@ -40,6 +40,24 @@ const modules = [
       { fr: "Accès mobile terrain", en: "Mobile field access" },
     ],
   },
+  {
+    name: { fr: "Module Gicleurs", en: "Sprinkler Module" },
+    desc: {
+      fr: "Inspection annuelle de vos systèmes de gicleurs selon la norme NFPA 13, avec certificat de conformité dédié.",
+      en: "Annual inspection of your sprinkler systems per NFPA 13, with a dedicated certificate of compliance.",
+    },
+    prix: 150,
+    highlight: false,
+    features: [
+      { fr: "Checklist NFPA 13 complète (soupapes, essais d'écoulement, avertisseurs…)", en: "Complete NFPA 13 checklist (valves, flow tests, alarms…)" },
+      { fr: "Systèmes sous eau, sous air, déluge et préaction", en: "Wet-pipe, dry-pipe, deluge, and pre-action systems" },
+      { fr: "Certificat de conformité propre au système de gicleurs", en: "Dedicated sprinkler system certificate" },
+      { fr: "Photos des anomalies annexées au rapport", en: "Deficiency photos attached to the report" },
+      { fr: "Rappels automatiques de la prochaine inspection", en: "Automatic next-inspection reminders" },
+      { fr: "Portail client inclus", en: "Client portal included" },
+      { fr: "Accès mobile terrain", en: "Mobile field access" },
+    ],
+  },
 ];
 
 const faq = [
@@ -60,8 +78,8 @@ const faq = [
   {
     q: { fr: "Puis-je activer plusieurs modules ?", en: "Can I activate several modules?" },
     a: {
-      fr: "Oui. La plupart de nos clients combinent plusieurs modules (inspection incendie, extincteurs & éclairage d'urgence) sous un seul abonnement annuel et un seul accès.",
-      en: "Yes. Most of our clients combine several modules (fire inspection, extinguishers & emergency lighting) under a single annual subscription and a single login.",
+      fr: "Oui. La plupart de nos clients combinent plusieurs modules (inspection incendie, extincteurs & éclairage d'urgence, gicleurs) sous un seul abonnement annuel et un seul accès.",
+      en: "Yes. Most of our clients combine several modules (fire inspection, extinguishers & emergency lighting, sprinklers) under a single annual subscription and a single login.",
     },
   },
 ];

@@ -22,6 +22,7 @@ export default function SuperviseurDashboard() {
     extincteur: { href: '/superviseur/rapports-extincteurs', icon: 'ti-fire-extinguisher', accent: '#f97316', bg: '#fff2e8', color: '#9a4a13', rowBg: '#fffaf5' },
     eclairage: { href: '/superviseur/rapports-eclairage-urgence', icon: 'ti-bulb', accent: '#06b6d4', bg: '#ecfeff', color: '#0e7490', rowBg: '#f0fdfe' },
     cuisine: { href: '/superviseur/rapports-cuisine', icon: 'ti-tools-kitchen-2', accent: '#a855f7', bg: '#faf5ff', color: '#7e22ce', rowBg: '#fdfaff' },
+    gicleur: { href: '/superviseur/rapports-gicleurs', icon: 'ti-droplets', accent: '#3b82f6', bg: '#eff6ff', color: '#1d4ed8', rowBg: '#f5f9ff' },
   }
   const [rapports, setRapports] = useState<any[]>([])
   const [rappelsEnRetard, setRappelsEnRetard] = useState<any[]>([])
@@ -49,13 +50,14 @@ export default function SuperviseurDashboard() {
       fetch(`${API_URL}/api/utilisateurs/?role=technicien`, { headers }),
       fetch(`${API_URL}/api/utilisateurs/?role=citoyen`, { headers }),
       fetch(`${API_URL}/api/calendrier/rappels-en-retard/`, { headers }),
+      fetch(`${API_URL}/api/rapports-gicleurs/`, { headers }),
     ])
-      .then(async ([incendieRes, extincteurRes, eclairageRes, clientsRes, techRes, citRes, retardRes]) => {
+      .then(async ([incendieRes, extincteurRes, eclairageRes, clientsRes, techRes, citRes, retardRes, gicleurRes]) => {
         if (extincteurRes.status === 401) { router.push('/login'); return }
 
-        const [incendieList, extincteurList, eclairageList, clientsList, techList, citList] = await Promise.all([
+        const [incendieList, extincteurList, eclairageList, clientsList, techList, citList, gicleurList] = await Promise.all([
           parseListe(incendieRes), parseListe(extincteurRes), parseListe(eclairageRes),
-          parseListe(clientsRes), parseListe(techRes), parseListe(citRes),
+          parseListe(clientsRes), parseListe(techRes), parseListe(citRes), parseListe(gicleurRes),
         ])
         const retardData = retardRes.ok ? await retardRes.json() : null
 
@@ -63,6 +65,7 @@ export default function SuperviseurDashboard() {
           ...incendieList.map((r: any) => ({ ...r, _module: 'incendie' })),
           ...extincteurList.map((r: any) => ({ ...r, _module: 'extincteur' })),
           ...eclairageList.map((r: any) => ({ ...r, _module: 'eclairage' })),
+          ...gicleurList.map((r: any) => ({ ...r, _module: 'gicleur' })),
         ]
 
         setRapports(rapportsTagged)

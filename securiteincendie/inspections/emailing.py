@@ -156,6 +156,44 @@ def envoyer_email_certificat_extincteur_disponible(rapport) -> None:
     )
 
 
+def envoyer_email_certificat_gicleur_disponible(rapport) -> None:
+    """Avertit le citoyen que le certificat du système de gicleurs est
+    disponible — envoyé quand le superviseur l'envoie."""
+    citoyen = rapport.citoyen
+    langue = langue_utilisateur(citoyen)
+    cert = rapport.certificat
+    bat = rapport.batiment
+    organisation = bat.client.organisation
+    adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
+    frontend_url = getattr(settings, "FRONTEND_URL", "").rstrip("/")
+    lien = f"{frontend_url}/citoyen/rapports-gicleurs/{rapport.id}" if frontend_url else ""
+
+    html_body = f"""
+{_bandeau_organisation(organisation, langue)}
+<h2 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#102a43;">{et('certificat_dispo_titre', langue)}</h2>
+<p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.6;">
+  {et('bonjour', langue)} <strong style="color:#102a43;">{citoyen.get_full_name() or citoyen.username}</strong>,<br>
+  {et('certificat_gicleur_intro', langue)}
+  <strong style="color:#102a43;">{adresse}</strong> {et('rapport_dispo_intro_suite', langue)}
+</p>
+<table role="presentation" cellpadding="0" cellspacing="0"
+  style="width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:24px;">
+  <tr>
+    <td style="padding:14px 20px;">
+      <span style="display:block;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:2px;">{et('certificat_label_email', langue)}</span>
+      <span style="font-size:14px;font-weight:700;color:#102a43;">{cert.numero}</span>
+    </td>
+  </tr>
+</table>
+{f'<p style="margin:0;text-align:center;"><a href="{lien}" style="display:inline-block;background:#e11324;color:#fff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">{et("voir_mon_rapport_btn", langue)}</a></p>' if lien else ''}"""
+
+    envoyer_email(
+        citoyen.email,
+        f"{organisation.nom} — {et('certificat_gicleur_sujet_court', langue)}",
+        html_template(html_body),
+    )
+
+
 def envoyer_email_documents_directs(batiment, elements: list[dict]) -> None:
     """Mode « direct » (clients sans espace dédié) : UN SEUL courriel regroupant
     tous les documents prêts pour ce bâtiment — chaque élément de `elements`
@@ -227,6 +265,10 @@ def _documents_prets_directs(batiment) -> list[dict]:
         if hasattr(rapport_ext, "certificat") and not rapport_ext.certificat.certificat_envoye:
             elements.append(_element_extincteur(rapport_ext))
 
+    for rapport_gic in batiment.rapports_gicleurs.filter(statut="ferme"):
+        if hasattr(rapport_gic, "certificat") and not rapport_gic.certificat.certificat_envoye:
+            elements.append(_element_gicleur(rapport_gic))
+
     return elements
 
 
@@ -292,6 +334,25 @@ def _element_extincteur(rapport_ext) -> dict:
     }
 
 
+def _element_gicleur(rapport) -> dict:
+    """Équivalent de `_element_incendie` pour un rapport gicleur — rapport
+    complet + certificat propre (CERT-GIC-…)."""
+    from .pdf import generer_pdf_certificat_gicleur, generer_pdf_rapport_gicleur_complet
+
+    cert = rapport.certificat
+    return {
+        "label": "Système de gicleurs",
+        "numero": cert.numero,
+        "conforme": rapport.est_conforme,
+        "nb_rapports": 1,
+        "attachments": [
+            (f"rapport-gicleurs-{cert.numero}.pdf", generer_pdf_rapport_gicleur_complet(rapport), "application/pdf"),
+            (f"certificat-gicleurs-{cert.numero}.pdf", generer_pdf_certificat_gicleur(rapport), "application/pdf"),
+        ],
+        "_obj": rapport,
+    }
+
+
 def envoyer_certificats_directs_batiment(batiment, utilisateur) -> tuple[bool, str]:
     """Regroupe TOUS les documents prêts de ce bâtiment (voir
     `_documents_prets_directs`) et les envoie en un seul courriel —
@@ -349,7 +410,8 @@ def renvoyer_document_direct(rapport, type_rapport: str, utilisateur) -> tuple[b
     if not client.contact_email:
         return False, "Ce client n'a pas d'adresse courriel de contact — impossible d'envoyer en mode direct."
 
-    element = _element_incendie(rapport) if type_rapport == "incendie" else _element_extincteur(rapport)
+    constructeurs = {"incendie": _element_incendie, "extincteur": _element_extincteur, "gicleur": _element_gicleur}
+    element = constructeurs[type_rapport](rapport)
     envoyer_email_documents_directs(batiment, [element])
 
     cert = rapport.certificat

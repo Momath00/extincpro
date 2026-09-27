@@ -9,6 +9,7 @@ import OngletLegende from '@/components/rapports/OngletLegende'
 import OngletE3 from '@/components/rapports/OngletE3'
 import { useT, useLangue } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
+import SectionPhotos from '@/components/rapports/SectionPhotos'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -197,6 +198,9 @@ export default function TechnicienRapportDetailPage() {
       {onglet === 'e2' && <OngletE2 rapport={rapport} readOnly={readOnly} onSaved={charger} />}
       {onglet === 'legende' && <OngletLegende rapport={rapport} readOnly={readOnly} onSaved={charger} />}
       {onglet === 'e3' && <OngletE3 rapport={rapport} readOnly={readOnly} onRefresh={charger} />}
+      {['e1', 'e2', 'legende', 'e3'].includes(onglet) && (
+        <div className="mt-6"><SectionPhotos photosUrl={`${API_URL}/api/rapports/${rapport.id}/photos/`} readOnly={readOnly} /></div>
+      )}
 
       {onglet === 'historique' && (
         <div className="bg-white rounded-md border border-gray-100 p-5">

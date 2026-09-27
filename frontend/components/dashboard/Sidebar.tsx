@@ -39,6 +39,7 @@ const NAV_GROUPS = [
           { href: '/superviseur/rapports-extincteurs', label: 'nav_extincteur', icon: 'ti-fire-extinguisher', module: 'rapport_extincteur' },
           { href: '/superviseur/rapports-eclairage-urgence', label: 'nav_eclairage_urgence', icon: 'ti-bulb', module: 'rapport_eclairage_urgence' },
           { href: '/superviseur/rapports-cuisine', label: 'nav_systeme_cuisine', icon: 'ti-tools-kitchen-2', module: 'rapport_cuisine' },
+          { href: '/superviseur/rapports-gicleurs', label: 'nav_gicleurs', icon: 'ti-droplets', module: 'rapport_gicleur' },
         ],
       },
       { href: '/superviseur/certificats', label: 'nav_certificats', icon: 'ti-certificate' },

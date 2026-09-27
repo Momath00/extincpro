@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useT } from '@/lib/i18n'
+import SearchableSelect from '@/components/SearchableSelect'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -14,6 +15,7 @@ const STYLES: Record<string, { bg: string; color: string; dot: string; icon: str
   extincteur: { bg: '#fff2e8', color: '#9a4a13', dot: '#f97316', icon: 'ti-fire-extinguisher' },
   eclairage: { bg: '#ecfeff', color: '#0e7490', dot: '#06b6d4', icon: 'ti-bulb' },
   cuisine: { bg: '#faf5ff', color: '#7e22ce', dot: '#a855f7', icon: 'ti-tools-kitchen-2' },
+  gicleur: { bg: '#eff6ff', color: '#1d4ed8', dot: '#3b82f6', icon: 'ti-droplets' },
 }
 
 // Couleur de catégorie — indépendante du module, pour distinguer une visite
@@ -28,7 +30,7 @@ const COULEUR_CATEGORIE: Record<'planifie' | 'rappel' | 'en_retard', string> = {
 
 type Evenement = {
   cle: string
-  type: 'incendie' | 'extincteur' | 'eclairage' | 'cuisine'
+  type: 'incendie' | 'extincteur' | 'eclairage' | 'cuisine' | 'gicleur'
   categorie: 'rappel' | 'planifie' | 'en_retard'
   date: string
   adresse: string
@@ -47,6 +49,7 @@ function labelType(type: string, t: (c: string) => string) {
   return type === 'incendie' ? t('titre_rapport_incendie')
     : type === 'extincteur' ? t('titre_rapport_extincteur')
     : type === 'eclairage' ? t('titre_rapport_eclairage')
+    : type === 'gicleur' ? t('systeme_gicleurs')
     : t('systeme_cuisine')
 }
 
@@ -344,31 +347,38 @@ function ModalePlanifier({
 
           <div>
             <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('etape_client')}</label>
-            <select value={clientId} onChange={e => setClientId(e.target.value)} required
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]">
-              <option value="">{t('selectionner')}</option>
-              {clients.map((c: any) => <option key={c.id} value={c.id}>{c.nom}</option>)}
-            </select>
+            <SearchableSelect
+              options={clients.map((c: any) => ({ id: c.id, label: c.nom, sublabel: c.contact_nom || undefined }))}
+              value={clientId}
+              onChange={setClientId}
+              placeholder={t('combo_rechercher_client')}
+              vide={t('combo_choisir_client')}
+            />
           </div>
 
           <div>
             <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('etape_batiment')}</label>
-            <select value={batimentId} onChange={e => setBatimentId(e.target.value)} required disabled={!clientId}
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324] disabled:bg-gray-50">
-              <option value="">{t('selectionner')}</option>
-              {batiments.map((b: any) => <option key={b.id} value={b.id}>{b.adresse_complete}</option>)}
-            </select>
+<SearchableSelect
+              options={batiments.map((b: any) => ({ id: b.id, label: b.adresse_complete, sublabel: b.code_postal || undefined }))}
+              value={batimentId}
+              onChange={setBatimentId}
+              disabled={!clientId}
+              placeholder={t('combo_rechercher_batiment')}
+              vide={clientId ? t('combo_choisir_batiment') : t('choisissez_client_dabord')}
+            />
           </div>
 
           <div>
             <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>
               {t('etape_citoyen')} <span className="text-gray-300 normal-case font-normal">{t('optionnel')}</span>
             </label>
-            <select value={citoyenId} onChange={e => setCitoyenId(e.target.value)}
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]">
-              <option value="">{t('aucun_tiret')}</option>
-              {citoyens.map((c: any) => <option key={c.id} value={c.id}>{c.username} — {c.email}</option>)}
-            </select>
+            <SearchableSelect
+              options={[{ id: '', label: t('aucun_tiret') }, ...citoyens.map((c: any) => ({ id: c.id, label: c.username, sublabel: c.email }))]}
+              value={citoyenId}
+              onChange={setCitoyenId}
+              placeholder={t('combo_rechercher_contact')}
+              vide={t('aucun_tiret')}
+            />
             <p className="text-[11px] text-gray-300 mt-1">{t('citoyen_pourra_consulter')}</p>
           </div>
 

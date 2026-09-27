@@ -10,7 +10,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
 
-export default function NouveauRapportExtincteurPage() {
+export default function NouveauRapportGicleurPage() {
   const router = useRouter()
   const t = useT()
   const [clients, setClients] = useState<any[]>([])
@@ -23,14 +23,12 @@ export default function NouveauRapportExtincteurPage() {
   const [citoyenId, setCitoyenId] = useState('')
   const [technicienIds, setTechnicienIds] = useState<number[]>([])
   const [dateInspection, setDateInspection] = useState('')
-  const [avecSystemeCuisine, setAvecSystemeCuisine] = useState(false)
-  const [moduleCuisineActif, setModuleCuisineActif] = useState(false)
+  const [avecExtincteur, setAvecExtincteur] = useState(false)
   const [avecEclairageUrgence, setAvecEclairageUrgence] = useState(false)
-  const [moduleEclairageActif, setModuleEclairageActif] = useState(false)
   const [avecSystemeAlarme, setAvecSystemeAlarme] = useState(false)
   const [moduleIncendieActif, setModuleIncendieActif] = useState(false)
-  const [avecGicleur, setAvecGicleur] = useState(false)
-  const [moduleGicleurActif, setModuleGicleurActif] = useState(false)
+  const [moduleExtincteurActif, setModuleExtincteurActif] = useState(false)
+  const [moduleEclairageActif, setModuleEclairageActif] = useState(false)
 
   const [loadingBatiments, setLoadingBatiments] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -60,10 +58,9 @@ export default function NouveauRapportExtincteurPage() {
       if (meRes.ok) {
         const me = await meRes.json()
         const modulesActifs: string[] = me?.organisation?.modules_actifs || []
-        setModuleCuisineActif(modulesActifs.includes('rapport_cuisine'))
-        setModuleEclairageActif(modulesActifs.includes('rapport_eclairage_urgence'))
+        setModuleExtincteurActif(modulesActifs.includes('rapport_extincteur'))
         setModuleIncendieActif(modulesActifs.includes('rapport_incendie'))
-        setModuleGicleurActif(modulesActifs.includes('rapport_gicleur'))
+        setModuleEclairageActif(modulesActifs.includes('rapport_eclairage_urgence'))
       }
     })
   }, [])
@@ -94,7 +91,7 @@ export default function NouveauRapportExtincteurPage() {
     setError('')
     try {
       const t = token()
-      const res = await fetch(`${API_URL}/api/rapports-extincteurs/`, {
+      const res = await fetch(`${API_URL}/api/rapports-gicleurs/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
         body: JSON.stringify({
@@ -102,15 +99,14 @@ export default function NouveauRapportExtincteurPage() {
           citoyen: citoyenId ? Number(citoyenId) : null,
           techniciens: technicienIds,
           date_inspection: dateInspection || null,
-          avec_systeme_cuisine: avecSystemeCuisine,
+          avec_extincteur: avecExtincteur,
           avec_eclairage_urgence: avecEclairageUrgence,
           avec_systeme_alarme: avecSystemeAlarme,
-          avec_gicleur: avecGicleur,
         }),
       })
       const data = await res.json() as any
       if (!res.ok) throw new Error(data.error || (Object.values(data) as any[])?.[0]?.[0] || 'Erreur lors de la création.')
-      router.push(`/superviseur/rapports-extincteurs/${data.id}`)
+      router.push(`/superviseur/rapports-gicleurs/${data.id}`)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -120,12 +116,12 @@ export default function NouveauRapportExtincteurPage() {
 
   return (
     <div className="max-w-2xl">
-      <Link href="/superviseur/rapports-extincteurs" className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1 mb-4">
+      <Link href="/superviseur/rapports-gicleurs" className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1 mb-4">
         <i className="ti ti-arrow-left" /> {t('retour_aux_rapports')}
       </Link>
-      <h1 className="text-2xl font-bold mb-1" style={{ color: NAVY }}>{t('titre_rapport_extincteur')}</h1>
+      <h1 className="text-2xl font-bold mb-1" style={{ color: NAVY }}>{t('nouveau_rapport_gicleur')}</h1>
       <p className="text-gray-400 text-sm mb-8">
-        {t('nouveau_extincteur_sous_titre')}
+        {t('nouveau_gicleur_sous_titre')}
       </p>
 
       {error && (
@@ -237,46 +233,6 @@ export default function NouveauRapportExtincteurPage() {
         </div>
 
 
-        {moduleEclairageActif && (
-          <button
-            type="button"
-            onClick={() => setAvecEclairageUrgence(v => !v)}
-            className="flex items-start gap-3 p-3 rounded-md border-2 text-left transition-colors"
-            style={{ borderColor: avecEclairageUrgence ? ORANGE : '#0a0b0d', background: avecEclairageUrgence ? '#fff2e8' : '#fff' }}
-          >
-            <span
-              className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border-2 mt-0.5"
-              style={{ borderColor: avecEclairageUrgence ? ORANGE : '#0a0b0d', background: avecEclairageUrgence ? ORANGE : 'transparent' }}
-            >
-              {avecEclairageUrgence && <i className="ti ti-check text-white text-xs" />}
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold" style={{ color: NAVY }}>{t('avec_eclairage_urgence_label')}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{t('avec_eclairage_urgence_desc')}</p>
-            </div>
-          </button>
-        )}
-
-        {moduleCuisineActif && (
-          <button
-            type="button"
-            onClick={() => setAvecSystemeCuisine(v => !v)}
-            className="flex items-start gap-3 p-3 rounded-md border-2 text-left transition-colors"
-            style={{ borderColor: avecSystemeCuisine ? ORANGE : '#0a0b0d', background: avecSystemeCuisine ? '#fff2e8' : '#fff' }}
-          >
-            <span
-              className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border-2 mt-0.5"
-              style={{ borderColor: avecSystemeCuisine ? ORANGE : '#0a0b0d', background: avecSystemeCuisine ? ORANGE : 'transparent' }}
-            >
-              {avecSystemeCuisine && <i className="ti ti-check text-white text-xs" />}
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold" style={{ color: NAVY }}>{t('avec_systeme_cuisine_label')}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{t('avec_systeme_cuisine_desc')}</p>
-            </div>
-          </button>
-        )}
-
         {moduleIncendieActif && (
           <button
             type="button"
@@ -297,22 +253,42 @@ export default function NouveauRapportExtincteurPage() {
           </button>
         )}
 
-        {moduleGicleurActif && (
+        {moduleExtincteurActif && (
           <button
             type="button"
-            onClick={() => setAvecGicleur(v => !v)}
+            onClick={() => setAvecExtincteur(v => !v)}
             className="flex items-start gap-3 p-3 rounded-md border-2 text-left transition-colors"
-            style={{ borderColor: avecGicleur ? ORANGE : '#0a0b0d', background: avecGicleur ? '#fff2e8' : '#fff' }}
+            style={{ borderColor: avecExtincteur ? ORANGE : '#0a0b0d', background: avecExtincteur ? '#fff2e8' : '#fff' }}
           >
             <span
               className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border-2 mt-0.5"
-              style={{ borderColor: avecGicleur ? ORANGE : '#0a0b0d', background: avecGicleur ? ORANGE : 'transparent' }}
+              style={{ borderColor: avecExtincteur ? ORANGE : '#0a0b0d', background: avecExtincteur ? ORANGE : 'transparent' }}
             >
-              {avecGicleur && <i className="ti ti-check text-white text-xs" />}
+              {avecExtincteur && <i className="ti ti-check text-white text-xs" />}
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-semibold" style={{ color: NAVY }}>{t('lie_avec_gicleur')}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{t('lie_avec_gicleur_desc')}</p>
+              <p className="text-sm font-semibold" style={{ color: NAVY }}>{t('gic_avec_extincteur')}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{t('gic_avec_extincteur_desc')}</p>
+            </div>
+          </button>
+        )}
+
+        {moduleEclairageActif && (
+          <button
+            type="button"
+            onClick={() => setAvecEclairageUrgence(v => !v)}
+            className="flex items-start gap-3 p-3 rounded-md border-2 text-left transition-colors"
+            style={{ borderColor: avecEclairageUrgence ? ORANGE : '#0a0b0d', background: avecEclairageUrgence ? '#fff2e8' : '#fff' }}
+          >
+            <span
+              className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border-2 mt-0.5"
+              style={{ borderColor: avecEclairageUrgence ? ORANGE : '#0a0b0d', background: avecEclairageUrgence ? ORANGE : 'transparent' }}
+            >
+              {avecEclairageUrgence && <i className="ti ti-check text-white text-xs" />}
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold" style={{ color: NAVY }}>{t('gic_avec_eclairage')}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{avecExtincteur ? t('gic_avec_eclairage_desc') : t('gic_avec_eclairage_seul_desc')}</p>
             </div>
           </button>
         )}

@@ -8,6 +8,7 @@ from .models import (
     BoyauItem,
     Certificat,
     CertificatExtincteur,
+    CertificatGicleur,
     Client,
     Dispositif,
     EclairageUrgenceItem,
@@ -16,16 +17,29 @@ from .models import (
     FicheE1,
     FicheE2,
     FicheLegende,
+    GicleurAmelioration,
+    GicleurCommentaireSection,
+    GicleurEssaiEcoulement,
+    GicleurIdentificationSysteme,
+    GicleurInstallationSpeciale,
+    GicleurPointBas,
+    GicleurReponseChecklist,
+    GicleurReponseNegative,
+    GicleurSoupapeCommande,
+    GicleurValveEtageSupervise,
     HistoriqueAppelService,
     HistoriqueRapport,
     HistoriqueRapportCuisine,
     HistoriqueRapportEclairageUrgence,
     HistoriqueRapportExtincteur,
+    HistoriqueRapportGicleur,
     HotteCuisine,
+    PhotoAnomalie,
     Rapport,
     RapportCuisine,
     RapportEclairageUrgence,
     RapportExtincteur,
+    RapportGicleur,
     ResumeSommaire,
     SectionDispositif,
     Tournee,
@@ -690,3 +704,200 @@ class TourneeCreateSerializer(serializers.ModelSerializer):
             if batiment is not None:
                 tournee.ajouter_batiment(batiment)
         return tournee
+
+# ── Rapport gicleur ──────────────────────────────────────────────────────────
+
+class GicleurReponseChecklistSerializer(serializers.ModelSerializer):
+    label_en = serializers.SerializerMethodField()
+
+    def get_label_en(self, obj):
+        from .gicleur_checklist import LABELS_EN
+        return LABELS_EN.get(obj.code_item, obj.label)
+
+    class Meta:
+        model = GicleurReponseChecklist
+        fields = [
+            "id", "rapport", "section", "ordre", "code_item", "label", "label_en",
+            "type_reponse", "reponse", "valeur_texte",
+        ]
+        read_only_fields = ["rapport", "section", "ordre", "code_item", "label", "type_reponse"]
+
+
+class GicleurEssaiEcoulementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GicleurEssaiEcoulement
+        fields = [
+            "id", "rapport", "ordre", "pression_systeme", "localisation_drain", "dimension_tuyau",
+            "pression_statique", "pression_residuelle", "pression_apres",
+            "etat_marche_arret", "heure_marche_arret",
+        ]
+        read_only_fields = ["rapport", "ordre"]
+
+
+class GicleurIdentificationSystemeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GicleurIdentificationSysteme
+        fields = [
+            "id", "rapport", "numero", "systeme", "zone_protegee", "marque", "modele",
+            "annee", "diametre", "lieu_robinet_essai", "pompe_surpression",
+            "compresseur_air", "plaque_signaletique", "identification_complete",
+        ]
+        read_only_fields = ["rapport", "numero"]
+
+
+class GicleurSoupapeCommandeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GicleurSoupapeCommande
+        fields = [
+            "id", "rapport", "ordre", "categorie", "nombre", "type_texte",
+            "ouvertes", "protegees", "identifiees", "condition", "localisation",
+        ]
+        read_only_fields = ["rapport", "ordre", "categorie"]
+
+
+class GicleurValveEtageSuperviseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GicleurValveEtageSupervise
+        fields = ["id", "rapport", "ordre", "texte"]
+        read_only_fields = ["rapport"]
+
+
+class GicleurInstallationSpecialeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GicleurInstallationSpeciale
+        fields = ["id", "rapport", "ordre", "degre_temperature", "localisation"]
+        read_only_fields = ["rapport", "ordre"]
+
+
+class GicleurPointBasSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GicleurPointBas
+        fields = ["id", "rapport", "position", "description", "vidange"]
+        read_only_fields = ["rapport", "position"]
+
+
+class GicleurReponseNegativeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GicleurReponseNegative
+        fields = ["id", "rapport", "ordre", "texte"]
+        read_only_fields = ["rapport"]
+
+
+class GicleurAmeliorationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GicleurAmelioration
+        fields = ["id", "rapport", "ordre", "texte"]
+        read_only_fields = ["rapport"]
+
+
+class GicleurCommentaireSectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GicleurCommentaireSection
+        fields = ["section", "texte"]
+
+
+class PhotoAnomalieSerializer(serializers.ModelSerializer):
+    ajoutee_par_nom = serializers.SerializerMethodField()
+
+    def get_ajoutee_par_nom(self, obj):
+        u = obj.ajoutee_par
+        return (u.get_full_name() or u.username) if u else ""
+
+    class Meta:
+        model = PhotoAnomalie
+        fields = ["id", "emplacement", "description", "ordre", "date_ajout", "ajoutee_par_nom"]
+        read_only_fields = ["ordre", "date_ajout"]
+
+
+class CertificatGicleurSerializer(serializers.ModelSerializer):
+    conforme = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = CertificatGicleur
+        fields = [
+            "id", "numero", "date_emission", "emis_par", "certificat_envoye",
+            "mode_envoi", "date_envoi", "envoye_a", "conforme",
+        ]
+
+
+class HistoriqueRapportGicleurSerializer(serializers.ModelSerializer):
+    utilisateur = UtilisateurSerializer(read_only=True)
+
+    class Meta:
+        model = HistoriqueRapportGicleur
+        fields = ["id", "utilisateur", "description", "date_heure"]
+
+
+class RapportGicleurListSerializer(serializers.ModelSerializer):
+    """Version allégée — pour les listes."""
+
+    batiment = BatimentSerializer(read_only=True)
+    techniciens = UtilisateurSerializer(many=True, read_only=True)
+    citoyen = UtilisateurSerializer(read_only=True)
+    statut_display = serializers.CharField(source="get_statut_display", read_only=True)
+    certificat = serializers.SerializerMethodField()
+
+    def get_certificat(self, obj):
+        cert = getattr(obj, "certificat", None)
+        if cert is None:
+            return None
+        return {"numero": cert.numero, "certificat_envoye": cert.certificat_envoye}
+
+    class Meta:
+        model = RapportGicleur
+        fields = [
+            "id", "batiment", "techniciens", "citoyen", "numero_job", "statut", "statut_display",
+            "date_inspection", "date_derniere_sauvegarde", "date_fermeture", "prochaine_inspection",
+            "date_creation", "identification_systeme", "local_gicleur", "type_systeme",
+            "frequence_inspection", "compagnie_installatrice", "certificat",
+        ]
+
+
+class RapportGicleurDetailSerializer(RapportGicleurListSerializer):
+    cree_par = UtilisateurSerializer(read_only=True)
+    reponses_checklist = GicleurReponseChecklistSerializer(many=True, read_only=True)
+    identifications_systemes = GicleurIdentificationSystemeSerializer(many=True, read_only=True)
+    soupapes_commande = GicleurSoupapeCommandeSerializer(many=True, read_only=True)
+    essais_ecoulement = GicleurEssaiEcoulementSerializer(many=True, read_only=True)
+    installations_speciales = GicleurInstallationSpecialeSerializer(many=True, read_only=True)
+    points_bas = GicleurPointBasSerializer(many=True, read_only=True)
+    reponses_negatives = GicleurReponseNegativeSerializer(many=True, read_only=True)
+    ameliorations = GicleurAmeliorationSerializer(many=True, read_only=True)
+    valves_etage_supervise = GicleurValveEtageSuperviseSerializer(many=True, read_only=True)
+    commentaires_sections = GicleurCommentaireSectionSerializer(many=True, read_only=True)
+    photos = PhotoAnomalieSerializer(many=True, read_only=True)
+    historique = HistoriqueRapportGicleurSerializer(many=True, read_only=True)
+    certificat = CertificatGicleurSerializer(read_only=True)
+    est_conforme = serializers.BooleanField(read_only=True)
+
+    class Meta(RapportGicleurListSerializer.Meta):
+        fields = RapportGicleurListSerializer.Meta.fields + [
+            "cree_par", "recommandations", "ajustements_effectues", "est_conforme",
+            "reponses_checklist", "identifications_systemes", "soupapes_commande",
+            "essais_ecoulement", "installations_speciales", "points_bas",
+            "reponses_negatives", "ameliorations", "valves_etage_supervise",
+            "commentaires_sections", "photos", "historique",
+        ]
+
+
+class RapportGicleurCreateSerializer(serializers.ModelSerializer):
+    """Utilisé par le superviseur — création et modification de l'en-tête."""
+
+    techniciens = serializers.PrimaryKeyRelatedField(
+        many=True, required=False,
+        queryset=Utilisateur.objects.filter(role=Utilisateur.Role.TECHNICIEN),
+    )
+    citoyen = serializers.PrimaryKeyRelatedField(
+        required=False, allow_null=True,
+        queryset=Utilisateur.objects.filter(role=Utilisateur.Role.CITOYEN),
+    )
+
+    class Meta:
+        model = RapportGicleur
+        fields = [
+            "id", "batiment", "techniciens", "citoyen", "numero_job", "date_inspection",
+            "prochaine_inspection", "identification_systeme", "local_gicleur",
+            "type_systeme", "frequence_inspection", "compagnie_installatrice",
+            "recommandations", "ajustements_effectues",
+        ]
+        read_only_fields = ["id"]

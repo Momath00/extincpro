@@ -3,20 +3,18 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import TableExtincteurs from '@/components/rapports-extincteurs/TableExtincteurs'
-import TableBoyaux from '@/components/rapports-extincteurs/TableBoyaux'
+import FormulaireGicleur from '@/components/rapports-gicleurs/FormulaireGicleur'
+import SectionPhotos from '@/components/rapports/SectionPhotos'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 import ModuleBadge from '@/components/dashboard/ModuleBadge'
 import EnvoiDirectBanner from '@/components/dashboard/EnvoiDirectBanner'
-import { downloadHtml, downloadFichier } from '@/lib/download'
+import { downloadHtml } from '@/lib/download'
 import { useT } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
-import SectionPhotos from '@/components/rapports/SectionPhotos'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
-const ROUGE = '#7f1d1d'
 
 function SpinnerBouton({ color = '#fff' }: { color?: string }) {
   return (
@@ -62,7 +60,7 @@ function CertificatTab({
           </div>
           <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-1">{t('certificat_verification')}</p>
           <p className="text-white text-2xl font-bold tracking-wide">{cert.numero}</p>
-          <p className="text-white/50 text-xs mt-2">{t('extincteurs_portatifs')}</p>
+          <p className="text-white/50 text-xs mt-2">{t('systeme_gicleurs')}</p>
         </div>
 
         <div className="p-6">
@@ -126,7 +124,7 @@ function CertificatTab({
               </button>
             )}
             <button
-              onClick={() => downloadHtml(`${API_URL}/api/rapports-extincteurs/${rapport.id}/certificat-pdf/`)}
+              onClick={() => downloadHtml(`${API_URL}/api/rapports-gicleurs/${rapport.id}/certificat-pdf/`)}
               className="flex-1 text-sm font-bold px-4 py-3 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
               style={{ background: '#e0e7ff', color: '#3730a3' }}
             >
@@ -139,15 +137,15 @@ function CertificatTab({
   )
 }
 
-type OngletType = 'extincteurs' | 'certificat' | 'historique'
+type OngletType = 'formulaire' | 'certificat' | 'historique'
 
-export default function SuperviseurRapportExtincteurDetailPage() {
+export default function SuperviseurRapportGicleurDetailPage() {
   const router = useRouter()
   const params = useParams()
   const t = useT()
   const [rapport, setRapport] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [onglet, setOnglet] = useState<OngletType>('extincteurs')
+  const [onglet, setOnglet] = useState<OngletType>('formulaire')
   const [actionLoading, setActionLoading] = useState(false)
   const [telechargement, setTelechargement] = useState<string | null>(null)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
@@ -161,9 +159,9 @@ export default function SuperviseurRapportExtincteurDetailPage() {
     const token = localStorage.getItem('access_token')
     if (!token) { router.push('/login'); return }
     try {
-      const { data, fromCache, cachedAt, status } = await fetchWithCache(`${API_URL}/api/rapports-extincteurs/${params.id}/`, token)
+      const { data, fromCache, cachedAt, status } = await fetchWithCache(`${API_URL}/api/rapports-gicleurs/${params.id}/`, token)
       if (status === 401) { router.push('/login'); return }
-      if (status === 404) { router.push('/superviseur/rapports-extincteurs'); return }
+      if (status === 404) { router.push('/superviseur/rapports-gicleurs'); return }
       if (data) {
         setRapport(data)
         setHorsLigne(fromCache)
@@ -185,7 +183,7 @@ export default function SuperviseurRapportExtincteurDetailPage() {
   async function fermerRapport() {
     setActionLoading(true)
     const token = localStorage.getItem('access_token')
-    const res = await fetch(`${API_URL}/api/rapports-extincteurs/${rapport.id}/fermer/`, {
+    const res = await fetch(`${API_URL}/api/rapports-gicleurs/${rapport.id}/fermer/`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -204,7 +202,7 @@ export default function SuperviseurRapportExtincteurDetailPage() {
   async function rouvrirRapport() {
     setActionLoading(true)
     const token = localStorage.getItem('access_token')
-    const res = await fetch(`${API_URL}/api/rapports-extincteurs/${rapport.id}/rouvrir/`, {
+    const res = await fetch(`${API_URL}/api/rapports-gicleurs/${rapport.id}/rouvrir/`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -212,7 +210,7 @@ export default function SuperviseurRapportExtincteurDetailPage() {
     setConfirmRouvrir(false)
     if (res.ok) {
       showToast(t('rapport_ouvert_succes'), 'success')
-      setOnglet('extincteurs')
+      setOnglet('formulaire')
       charger()
     } else {
       const d = await res.json().catch(() => ({}))
@@ -223,7 +221,7 @@ export default function SuperviseurRapportExtincteurDetailPage() {
   async function envoyerCertificat() {
     setActionLoading(true)
     const token = localStorage.getItem('access_token')
-    const res = await fetch(`${API_URL}/api/rapports-extincteurs/${rapport.id}/envoyer-certificat/`, {
+    const res = await fetch(`${API_URL}/api/rapports-gicleurs/${rapport.id}/envoyer-certificat/`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -249,7 +247,7 @@ export default function SuperviseurRapportExtincteurDetailPage() {
   const estFerme = rapport.statut === 'ferme'
 
   const onglets: { key: OngletType; label: string; shortLabel: string }[] = [
-    { key: 'extincteurs', label: `${t('col_extincteurs')} (${rapport.extincteurs?.length || 0})`, shortLabel: `${t('col_extincteurs')} (${rapport.extincteurs?.length || 0})` },
+    { key: 'formulaire', label: t('gic_onglet_inspection'), shortLabel: t('gic_onglet_inspection') },
     ...(estFerme ? [{ key: 'certificat' as OngletType, label: `🏆 ${t('certificat')}`, shortLabel: '🏆' }] : []),
     { key: 'historique', label: `${t('historique')} (${rapport.historique?.length || 0})`, shortLabel: `${t('historique')} (${rapport.historique?.length || 0})` },
   ]
@@ -268,11 +266,11 @@ export default function SuperviseurRapportExtincteurDetailPage() {
       )}
 
       <div className="flex items-center justify-between mb-4 gap-3">
-        <Link href="/superviseur/rapports-extincteurs"
+        <Link href="/superviseur/rapports-gicleurs"
           className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1">
           <i className="ti ti-arrow-left" /> {t('retour_aux_rapports')}
         </Link>
-        <ModuleBadge type="extincteur" eclairageLie={!!rapport.rapport_eclairage_lie} cuisineLie={!!rapport.rapport_cuisine_lie} />
+        <ModuleBadge type="gicleur" />
       </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-5">
@@ -348,7 +346,7 @@ export default function SuperviseurRapportExtincteurDetailPage() {
               <button
                 onClick={async () => {
                   setTelechargement('rapport')
-                  const ok = await downloadHtml(`${API_URL}/api/rapports-extincteurs/${rapport.id}/telecharger/`)
+                  const ok = await downloadHtml(`${API_URL}/api/rapports-gicleurs/${rapport.id}/telecharger/`)
                   if (!ok) showToast(t('erreur_telechargement_rapport'), 'error')
                   setTelechargement(null)
                 }}
@@ -358,24 +356,11 @@ export default function SuperviseurRapportExtincteurDetailPage() {
               >
                 {telechargement === 'rapport' ? <SpinnerBouton color="#3730a3" /> : <i className="ti ti-file-download" />} {t('telecharger_rapport')}
               </button>
-              <button
-                onClick={async () => {
-                  setTelechargement('excel')
-                  const ok = await downloadFichier(`${API_URL}/api/rapports-extincteurs/${rapport.id}/excel/`, `Extincteur - ${rapport.batiment?.adresse_complete || rapport.id}.xlsx`)
-                  if (!ok) showToast(t('erreur_telechargement_excel'), 'error')
-                  setTelechargement(null)
-                }}
-                disabled={telechargement !== null}
-                className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-                style={{ background: '#16a34a' }}
-              >
-                {telechargement === 'excel' ? <SpinnerBouton /> : <i className="ti ti-file-spreadsheet" />} {t('excel')}
-              </button>
               {rapport.certificat && (
                 <button
                   onClick={async () => {
                     setTelechargement('certificat')
-                    const ok = await downloadHtml(`${API_URL}/api/rapports-extincteurs/${rapport.id}/certificat-pdf/`)
+                    const ok = await downloadHtml(`${API_URL}/api/rapports-gicleurs/${rapport.id}/certificat-pdf/`)
                     if (!ok) showToast(t('erreur_telechargement_certificat'), 'error')
                     setTelechargement(null)
                   }}
@@ -395,36 +380,6 @@ export default function SuperviseurRapportExtincteurDetailPage() {
         <EnvoiDirectBanner batimentId={rapport.batiment.id} onEnvoye={charger} />
       )}
 
-      {rapport.rapport_eclairage_lie && (
-        <Link
-          href={`/superviseur/rapports-eclairage-urgence/${rapport.rapport_eclairage_lie.id}`}
-          className="mb-4 flex items-center gap-3 px-4 py-3 rounded-md border text-sm hover:shadow-sm transition-shadow"
-          style={{ background: '#fff2e8', borderColor: '#fde3cc' }}
-        >
-          <i className="ti ti-bulb flex-shrink-0" style={{ color: ORANGE }} />
-          <span className="flex-1" style={{ color: NAVY }}>
-            {t('rapport_eclairage_lie_texte')}{' '}
-            <strong>{rapport.rapport_eclairage_lie.statut === 'ferme' ? t('ferme') : t('ouvert')}</strong>
-          </span>
-          <i className="ti ti-chevron-right flex-shrink-0" style={{ color: ORANGE }} />
-        </Link>
-      )}
-
-      {rapport.rapport_cuisine_lie && (
-        <Link
-          href={`/superviseur/rapports-cuisine/${rapport.rapport_cuisine_lie.id}`}
-          className="mb-4 flex items-center gap-3 px-4 py-3 rounded-md border text-sm hover:shadow-sm transition-shadow"
-          style={{ background: '#fff2e8', borderColor: '#fde3cc' }}
-        >
-          <i className="ti ti-tools-kitchen-2 flex-shrink-0" style={{ color: ORANGE }} />
-          <span className="flex-1" style={{ color: NAVY }}>
-            {t('rapport_cuisine_lie_texte')}{' '}
-            <strong>{rapport.rapport_cuisine_lie.statut === 'ferme' ? t('ferme') : t('ouvert')}</strong>
-          </span>
-          <i className="ti ti-chevron-right flex-shrink-0" style={{ color: ORANGE }} />
-        </Link>
-      )}
-
       {estFerme && (
         <div className="mb-4 flex items-center gap-3 px-4 py-3 rounded-md border text-sm"
           style={{ background: '#fffbeb', borderColor: '#fde68a' }}>
@@ -439,7 +394,7 @@ export default function SuperviseurRapportExtincteurDetailPage() {
         <ModalModifierRapport
           rapport={rapport}
           mode={modalMode}
-          apiBase="/api/rapports-extincteurs/"
+          apiBase="/api/rapports-gicleurs/"
           onClose={() => setModalMode(null)}
           onSaved={() => { charger(); showToast(t('modification_succes'), 'success') }}
         />
@@ -502,11 +457,11 @@ export default function SuperviseurRapportExtincteurDetailPage() {
         ))}
       </div>
 
-      {onglet === 'extincteurs' && (
-        <div className="flex flex-col gap-8">
-          <TableExtincteurs rapport={rapport} readOnly={false} onRefresh={charger} />
-          <TableBoyaux rapport={rapport} readOnly={false} onRefresh={charger} />
-          <SectionPhotos photosUrl={`${API_URL}/api/rapports-extincteurs/${rapport.id}/photos/`} readOnly={false} />
+      {onglet === 'formulaire' && (
+        <div className="flex flex-col gap-5">
+          <FormulaireGicleur rapport={rapport} readOnly={false} onErreur={msg => showToast(msg, 'error')} />
+          <SectionPhotos photosUrl={`${API_URL}/api/rapports-gicleurs/${rapport.id}/photos/`} readOnly={false}
+            suggestionsEmplacement={[rapport.local_gicleur, ...(rapport.soupapes_commande || []).map((s: any) => s.localisation)]} />
         </div>
       )}
 
@@ -520,18 +475,16 @@ export default function SuperviseurRapportExtincteurDetailPage() {
             <p className="text-gray-300 text-sm text-center py-10">{t('aucune_activite')}</p>
           ) : (
             <div className="flex flex-col">
-              {rapport.historique.map((h: any, i: number) => {
-                const suppression = typeof h.description === 'string' && h.description.includes('supprimé')
-                return (
+              {rapport.historique.map((h: any, i: number) => (
                 <div key={h.id} className="flex gap-3">
                   <div className="flex flex-col items-center">
-                    <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" style={{ background: suppression ? ROUGE : ORANGE }} />
+                    <span className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" style={{ background: ORANGE }} />
                     {i < rapport.historique.length - 1 && (
                       <span className="w-px flex-1" style={{ background: '#eef1f5' }} />
                     )}
                   </div>
-                  <div className={`pb-4${suppression ? ' bg-red-50 border border-red-200 rounded-md px-2.5 py-1.5 -mt-1' : ''}`}>
-                    <p className="text-sm" style={{ color: suppression ? ROUGE : NAVY }}>
+                  <div className="pb-4">
+                    <p className="text-sm" style={{ color: NAVY }}>
                       <span className="font-semibold">{h.utilisateur?.username || 'Système'}</span> — {h.description}
                     </p>
                     <p className="text-xs text-gray-400">
@@ -539,8 +492,7 @@ export default function SuperviseurRapportExtincteurDetailPage() {
                     </p>
                   </div>
                 </div>
-                )
-              })}
+              ))}
             </div>
           )}
         </div>

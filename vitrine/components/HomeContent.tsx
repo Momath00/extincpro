@@ -36,6 +36,13 @@ const systems = [
       en: "Kitchen fire suppression system verification — installation diagram, hoods, and protected appliances.",
     },
   },
+  {
+    title: { fr: "Système de gicleurs", en: "Sprinkler system" },
+    desc: {
+      fr: "Inspection annuelle des gicleurs selon NFPA 13 — soupapes, essais d'écoulement, avertisseurs, certificat dédié.",
+      en: "Annual sprinkler inspection per NFPA 13 — valves, flow tests, alarms, dedicated certificate.",
+    },
+  },
 ];
 
 const calendrierPoints = [
@@ -242,7 +249,7 @@ export function HomeContent() {
             description={t("systemes_desc")}
             align="center"
           />
-          <div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {systems.map((sys) => (
               <div key={sys.title.fr} className="rounded-xl border border-line bg-paper-2 p-6 text-center">
                 <h3 className="text-base font-semibold text-ink">{sys.title[langue]}</h3>

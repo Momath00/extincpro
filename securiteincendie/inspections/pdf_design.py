@@ -13,6 +13,11 @@ ICONE_CALENDRIER = "<rect x='3' y='5' width='18' height='16' rx='2'/><path d='M1
 ICONE_PIN = "<path d='M12 2a7 7 0 00-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 00-7-7z'/><circle cx='12' cy='9' r='2.5'/>"
 ICONE_ALARME = "<path d='M12 3a5 5 0 00-5 5c0 4.5-2 5.5-2 7.5h14c0-2-2-3-2-7.5a5 5 0 00-5-5z'/><path d='M10 19.5a2 2 0 004 0'/>"
 ICONE_DOCUMENT = "<path d='M6 2h9l5 5v15H6z'/><path d='M14 2v5h5'/><path d='M9 13h6M9 17h6'/>"
+ICONE_GICLEUR = (
+    "<path d='M12 2v5'/><path d='M8 7h8l-1 3H9z'/>"
+    "<path d='M12 10c2.5 3 3.5 5 3.5 6.8A3.5 3.5 0 1112 16.8'/>"
+    "<path d='M12 10c-2.5 3-3.5 5-3.5 6.8'/>"
+)
 
 
 def icone(path_svg: str, taille: int = 15, couleur: str = "#e11324") -> str:
