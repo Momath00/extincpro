@@ -590,6 +590,7 @@ def _v(valeur):
 
 
 def html_certificat_gicleur(rapport) -> str:
+    from .certificats import avec_qr, code_integrite_simple, url_verification_jeton
     from .pdf_design import CSS_DOCUMENT, ICONE_BOUCLIER, ICONE_CALENDRIER, ICONE_GICLEUR, ICONE_PERSONNE, ICONE_PIN, case, entete, icone, icone_badge, pied_de_page
 
     cert = rapport.certificat
@@ -674,7 +675,7 @@ def html_certificat_gicleur(rapport) -> str:
 <p style="text-align:center;font-weight:700;font-size:8.5pt;color:#0a0b0d;margin-top:14px;line-height:1.4;">
   {t("inspection_gicleurs")}
 </p>
-<div class="sig-row">
+{avec_qr(f'''<div class="sig-row">
   <div class="sig-block" style="display:flex;align-items:center;gap:10px;">
     <span class="sig-icon">{icone(ICONE_PERSONNE, 14, '#e11324')}</span>
     <div>
@@ -691,7 +692,7 @@ def html_certificat_gicleur(rapport) -> str:
       <div style="font-size:8pt;color:#555;">{t("prochaine_inspection")} : {_date_fr(rapport.prochaine_inspection)}</div>
     </div>
   </div>
-</div>
+</div>''', rapport.batiment.client.organisation, url_verification_jeton(cert.jeton), code_integrite_simple(cert))}
 {pied_de_page(organisation_nom, t("footer_certificat_gicleur"))}
 </div>
 </body>

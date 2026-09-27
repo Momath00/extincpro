@@ -8,6 +8,8 @@ import SchemaHottes from '@/components/rapports-cuisine/SchemaHottes'
 import ChecklistCuisine from '@/components/rapports-cuisine/ChecklistCuisine'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 import ModuleBadge from '@/components/dashboard/ModuleBadge'
+import EnvoiDirectBanner from '@/components/dashboard/EnvoiDirectBanner'
+import PanneauCertificat from '@/components/certificats/PanneauCertificat'
 import { downloadHtml } from '@/lib/download'
 import { useT } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
@@ -17,7 +19,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#dc2626'
 
-type OngletType = 'systeme' | 'historique'
+type OngletType = 'systeme' | 'certificat' | 'historique'
 
 export default function SuperviseurRapportCuisineDetailPage() {
   const router = useRouter()
@@ -109,6 +111,7 @@ export default function SuperviseurRapportCuisineDetailPage() {
 
   const onglets: { key: OngletType; label: string; shortLabel: string }[] = [
     { key: 'systeme', label: t('onglet_systeme_cuisine'), shortLabel: t('onglet_systeme_cuisine') },
+    { key: 'certificat', label: t('certificat'), shortLabel: t('certificat') },
     { key: 'historique', label: `${t('historique')} (${rapport.historique?.length || 0})`, shortLabel: `${t('historique')} (${rapport.historique?.length || 0})` },
   ]
 
@@ -213,6 +216,10 @@ export default function SuperviseurRapportCuisineDetailPage() {
         </Link>
       )}
 
+      {rapport.batiment?.id && (
+        <EnvoiDirectBanner key={rapport.statut} batimentId={rapport.batiment.id} onEnvoye={charger} />
+      )}
+
       {estFerme && (
         <div className="mb-4 flex items-center gap-3 px-4 py-3 rounded-md border text-sm"
           style={{ background: '#fffbeb', borderColor: '#fde68a' }}>
@@ -279,6 +286,10 @@ export default function SuperviseurRapportCuisineDetailPage() {
           <ChecklistCuisine rapport={rapport} readOnly={false} onRefresh={charger} />
           <SectionPhotos photosUrl={`${API_URL}/api/rapports-cuisine/${rapport.id}/photos/`} readOnly={false} />
         </div>
+      )}
+
+      {onglet === 'certificat' && (
+        <PanneauCertificat type="cuisine" rapportId={rapport.id} cle={rapport.statut} />
       )}
 
       {onglet === 'historique' && (

@@ -21,9 +21,32 @@ def _html_vers_pdf(html: str) -> bytes:
         try:
             page = browser.new_page()
             page.set_content(html, wait_until="load")
-            return page.pdf(format="Letter", print_background=True, margin=_MARGE)
+            return _proteger_pdf(page.pdf(format="Letter", print_background=True, margin=_MARGE))
         finally:
             browser.close()
+
+
+def _proteger_pdf(contenu: bytes) -> bytes:
+    """Verrouille le PDF remis au client (AES-256) : il s'ouvre et s'imprime
+    librement, mais ne peut pas être modifié ni ses pages extraites — le mot
+    de passe propriétaire est aléatoire et jamais conservé. La vraie preuve
+    d'authenticité reste le QR code / code d'intégrité (voir certificats.py)."""
+    import io
+    import secrets
+
+    from pypdf import PdfReader, PdfWriter
+    from pypdf.constants import UserAccessPermissions
+
+    writer = PdfWriter(clone_from=PdfReader(io.BytesIO(contenu)))
+    writer.encrypt(
+        user_password="",
+        owner_password=secrets.token_urlsafe(24),
+        permissions_flag=UserAccessPermissions.PRINT | UserAccessPermissions.PRINT_TO_REPRESENTATION,
+        algorithm="AES-256",
+    )
+    sortie = io.BytesIO()
+    writer.write(sortie)
+    return sortie.getvalue()
 
 
 def generer_pdf_certificat(rapport) -> bytes:
@@ -39,6 +62,11 @@ def generer_pdf_rapport_complet(rapport) -> bytes:
 def generer_pdf_certificat_extincteur(rapport) -> bytes:
     from .views import _html_certificat_extincteur
     return _html_vers_pdf(_html_certificat_extincteur(rapport))
+
+
+def generer_pdf_certificat_visite(cert) -> bytes:
+    from .certificats import html_certificat
+    return _html_vers_pdf(html_certificat(cert))
 
 
 def generer_pdf_rapport_extincteur_complet(rapport) -> bytes:
@@ -65,17 +93,3 @@ def generer_pdf_rapport_gicleur_complet(rapport) -> bytes:
     from .views_gicleur import html_rapport_gicleur_complet
     return _html_vers_pdf(html_rapport_gicleur_complet(rapport))
 
-
-def conformite_extincteur(rapport) -> bool:
-    """Conformité unifiée du certificat extincteurs : non conforme dès qu'un
-    extincteur, une unité d'éclairage d'urgence OU le système cuisine liés
-    sont défectueux/non conforme — même règle que `_html_certificat_extincteur`."""
-    items = list(rapport.extincteurs.all())
-    rapport_eclairage = getattr(rapport, "rapport_eclairage_lie", None)
-    eclairages = list(rapport_eclairage.eclairages_urgence.all()) if rapport_eclairage else []
-    rapport_cuisine = getattr(rapport, "rapport_cuisine_lie", None)
-    return (
-        not any(it.etat == "D" for it in items)
-        and not any(it.etat == "D" for it in eclairages)
-        and (rapport_cuisine is None or rapport_cuisine.est_conforme)
-    )

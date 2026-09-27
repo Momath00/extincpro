@@ -30,6 +30,9 @@ type Certificat = {
   statut_rapport: string
   url_rapport: string
   url_certificat_pdf: string
+  certificat_id?: number
+  statut_certificat?: 'brouillon' | 'emis'
+  type_document?: 'certificat' | 'avis'
 }
 
 type TriChamp = 'date_emission' | 'numero' | 'client_nom' | 'adresse'
@@ -117,7 +120,12 @@ export default function CertificatsPage() {
     setRenvoiPhase('envoi')
     const token = localStorage.getItem('access_token')
     const base = c.type === 'incendie' ? 'rapports' : c.type === 'gicleur' ? 'rapports-gicleurs' : 'rapports-extincteurs'
-    const res = await fetch(`${API_URL}/api/${base}/${c.rapport_id}/renvoyer-certificat/`, {
+    // Extincteurs / éclairage / cuisine : le certificat peut être ancré sur
+    // n'importe lequel de ces rapports — renvoi par le certificat lui-même.
+    const url = c.certificat_id
+      ? `${API_URL}/api/certificats-visite/${c.certificat_id}/renvoyer/`
+      : `${API_URL}/api/${base}/${c.rapport_id}/renvoyer-certificat/`
+    const res = await fetch(url, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -307,6 +315,12 @@ export default function CertificatsPage() {
                     <tr key={c.cle} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3">
                         <span className="font-bold" style={{ color: NAVY }}>{c.numero}</span>
+                        {c.statut_certificat === 'brouillon' && (
+                          <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#fef3c7', color: '#b45309' }}>{t('cp_brouillon')}</span>
+                        )}
+                        {c.type_document === 'avis' && (
+                          <span className="ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#fee2e2', color: ORANGE }}>{t('cp_avis')}</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-semibold whitespace-nowrap"

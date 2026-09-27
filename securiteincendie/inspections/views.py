@@ -1,6 +1,7 @@
 from collections import Counter
 from datetime import date
 
+from django.utils.html import escape
 from django.db.models import F, Q
 from django.http import HttpResponse
 from rest_framework import permissions, status, viewsets
@@ -387,7 +388,13 @@ def _envoyer_avis_changement_date_si_applicable(
 def _est_conforme_extincteur(rapport_extincteur):
     """Non conforme dès qu'un extincteur, une unité d'éclairage d'urgence
     liée OU le système de cuisine lié est défectueux/non conforme — même
-    logique que le certificat unifié."""
+    logique que le certificat unifié. Quand un certificat existe, c'est SA
+    conformité qui fait foi (lignes ajustées à la main comprises)."""
+    cert = getattr(rapport_extincteur, "certificat", None)
+    if cert is not None:
+        from .certificats import conformite_certificat
+
+        return conformite_certificat(cert)
     rapport_eclairage = getattr(rapport_extincteur, "rapport_eclairage_lie", None)
     eclairages = list(rapport_eclairage.eclairages_urgence.all()) if rapport_eclairage else []
     rapport_cuisine = getattr(rapport_extincteur, "rapport_cuisine_lie", None)
@@ -809,6 +816,7 @@ class BatimentViewSet(viewsets.ModelViewSet):
             "contact_email": client.contact_email if mode_direct else None,
             "count": len(elements),
             "nb_rapports": sum(el["nb_rapports"] for el in elements),
+            "nb_certificats": sum(el.get("nb_certificats", 1) for el in elements),
             "labels": [el["label"] for el in elements],
         })
 
@@ -828,6 +836,7 @@ def _html_certificat_incendie(rapport) -> str:
     même chrome (ligne rouge, bandeau noir, pied de page bouclier) que le
     certificat extincteurs, avec son propre contenu (inventaire des
     dispositifs + conformité E1)."""
+    from .certificats import avec_qr, code_integrite_simple, url_verification_jeton
     from .pdf_design import CSS_DOCUMENT, ICONE_CALENDRIER, ICONE_PERSONNE, ICONE_PIN, entete, icone, pied_de_page
 
     cert = rapport.certificat
@@ -921,7 +930,7 @@ def _html_certificat_incendie(rapport) -> str:
 </table>
 <div class="sec-title">Conformité — Mise à l'essai</div>
 <div class="conf-box">{conf_html or '<p style="color:#9ca3af;font-style:italic;font-size:9pt;">Données E1 non disponibles.</p>'}</div>
-<div class="sig-row">
+{avec_qr(f'''<div class="sig-row">
   <div class="sig-block" style="display:flex;align-items:center;gap:10px;">
     <span class="sig-icon">{icone(ICONE_PERSONNE, 14, '#e11324')}</span>
     <div>
@@ -938,7 +947,7 @@ def _html_certificat_incendie(rapport) -> str:
       <div style="font-size:8pt;color:#555;">{t("certificat_no")} {cert.numero}</div>
     </div>
   </div>
-</div>
+</div>''', bat.client.organisation, url_verification_jeton(cert.jeton), code_integrite_simple(cert))}
 {pied_de_page(organisation_nom, t("footer_certificat_incendie"))}
 </div>
 </body>
@@ -1731,161 +1740,11 @@ class DispositifViewSet(viewsets.ModelViewSet):
 
 
 def _html_certificat_extincteur(rapport) -> str:
-    """HTML du certificat de vérification extincteurs portatifs — couvre
-    l'éclairage d'urgence lié le cas échéant (un seul certificat pour les
-    deux équipements)."""
-    from .pdf_design import CSS_DOCUMENT, ICONE_BOUCLIER, ICONE_CALENDRIER, ICONE_CUISINE, ICONE_EXTINCTEUR, ICONE_PERSONNE, ICONE_PIN, ICONE_SORTIE, case, entete, icone, icone_badge, pied_de_page
+    """HTML du certificat couvrant ce rapport extincteur — figé s'il est émis,
+    sinon aperçu brouillon (voir certificats.py)."""
+    from .certificats import html_certificat
 
-    cert = rapport.certificat
-    bat = rapport.batiment
-    adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
-    if bat.code_postal:
-        adresse += f"  {bat.code_postal}"
-
-    langue = bat.client.organisation.langue
-    t = lambda cle: _t(langue, cle)
-
-    date_insp = _date_fr(rapport.date_inspection)
-    date_cert = _date_fr(cert.date_emission)
-    techniciens = list(rapport.techniciens.all())
-    items = list(rapport.extincteurs.all())
-    tech_noms = ", ".join(t2.get_full_name() or t2.username for t2 in techniciens) or "—"
-
-    # ── Certificat unifié : une visite couvre extincteurs + éclairage
-    # d'urgence + système de cuisine (s'il est lié) en même temps — un seul
-    # certificat reflète donc l'état des trois équipements. Non conforme
-    # dès qu'un extincteur, une unité d'éclairage OU le système cuisine est
-    # défectueux/non conforme.
-    rapport_eclairage = getattr(rapport, "rapport_eclairage_lie", None)
-    eclairages = list(rapport_eclairage.eclairages_urgence.all()) if rapport_eclairage else []
-    rapport_cuisine = getattr(rapport, "rapport_cuisine_lie", None)
-    est_conforme = _est_conforme_extincteur(rapport)
-    conformite_bg = "#dcfce7" if est_conforme else "#fee2e2"
-    conformite_color = "#16a34a" if est_conforme else "#e11324"
-
-    def _badge_equipement(conforme, non_conforme, so):
-        if so:
-            return f"<span style='display:inline-block;font-size:7.5pt;font-weight:800;letter-spacing:0.5px;color:#9ca3af;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:100px;padding:3px 10px;'>{t('so')}</span>"
-        if non_conforme:
-            return f"<span style='display:inline-block;font-size:7.5pt;font-weight:800;letter-spacing:0.5px;color:#e11324;background:#fee2e2;border:1px solid #fecaca;border-radius:100px;padding:3px 10px;'>{t('non_conforme_badge')}</span>"
-        if conforme:
-            return f"<span style='display:inline-block;font-size:7.5pt;font-weight:800;letter-spacing:0.5px;color:#16a34a;background:#dcfce7;border:1px solid #bbf7d0;border-radius:100px;padding:3px 10px;'>{t('conforme_badge')}</span>"
-        return "<span class='muted' style='font-size:8pt;'>—</span>"
-
-    def _ligne_equipement(nom, icone_svg, applicable, items_liste, conforme_override=None):
-        if conforme_override is not None:
-            # Équipement dont la conformité est un simple booléen (rapport
-            # cuisine) plutôt qu'une liste d'items avec un état individuel.
-            so = not applicable
-            defectueux = applicable and not conforme_override
-            conforme = applicable and conforme_override
-        else:
-            so = not applicable or not items_liste
-            defectueux = applicable and any(it.etat == "D" for it in items_liste)
-            conforme = applicable and bool(items_liste) and not defectueux
-        return (
-            f"<tr><td class='bold'><span style='display:inline-flex;align-items:center;gap:8px;'>"
-            f"{icone_badge(icone_svg)}<span>{nom}</span></span></td>"
-            f"<td class='center'>{case(conforme, '#16a34a')}</td>"
-            f"<td class='center'>{case(defectueux, '#e11324')}</td>"
-            f"<td class='center'>{case(so, '#9ca3af')}</td>"
-            f"<td class='center'>{_badge_equipement(conforme, defectueux, so)}</td></tr>"
-        )
-
-    # Éclairage d'urgence et système de cuisine n'existent que sur les
-    # bâtiments qui en sont dotés (voir avec_eclairage_urgence /
-    # avec_systeme_cuisine) : quand l'un n'est pas lié, sa ligne ne doit pas
-    # apparaître du tout au certificat — pas même en S.O.
-    ligne_cuisine = (
-        _ligne_equipement(
-            t("systeme_cuisine"), ICONE_CUISINE, True, [],
-            conforme_override=rapport_cuisine.est_conforme,
-        )
-        if rapport_cuisine is not None else ""
-    )
-    ligne_eclairage = (
-        _ligne_equipement(t("eclairage_urgence_label"), ICONE_SORTIE, True, eclairages)
-        if rapport_eclairage is not None else ""
-    )
-    equipement_rows = (
-        ligne_cuisine
-        + _ligne_equipement(t("extincteur_label"), ICONE_EXTINCTEUR, True, items)
-        + ligne_eclairage
-    )
-
-    logo_content = organisation_logo_content(bat.client.organisation, 46)
-    organisation_nom = bat.client.organisation.nom
-    emetteur = cert.emis_par.get_full_name() or cert.emis_par.username if cert.emis_par else "—"
-
-    entete_html = entete(
-        logo_content, organisation_nom, f"{t('inspection_certification')} — {t('extincteurs_portatifs')}",
-        t("certificat_no"), cert.numero, t("date_inspection"), date_insp, t("technicien_s"), tech_noms,
-    )
-
-    return f"""<!DOCTYPE html>
-<html lang="{langue}">
-<head>
-<meta charset="UTF-8">
-<title>{t("certificat_no")} {cert.numero}</title>
-<style>{CSS_DOCUMENT}</style>
-</head>
-<body>
-<div class="no-print" style="text-align:right;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
-  <button onclick="window.print()" style="background:#0a0b0d;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">{t("imprimer_pdf")}</button>
-</div>
-<div style="padding:20px 24px;">
-{entete_html}
-<div class="title-banner">
-  <h2>{t("certificat_verification")}</h2>
-  <div style="width:140px;height:1.5px;background:linear-gradient(90deg, transparent, #e11324, transparent);margin:6px auto;"></div>
-  <p>{t("extincteurs_portatifs")}</p>
-</div>
-<div style="text-align:center;margin-bottom:14px;">
-  <span style="display:inline-block;background:{conformite_bg};border:1.5px solid {conformite_color};color:{conformite_color};font-size:11pt;font-weight:900;letter-spacing:2px;padding:5px 22px;border-radius:100px;">{t("conforme_badge") if est_conforme else t("non_conforme_badge")}</span>
-</div>
-<div style="text-align:left;margin-bottom:6px;">
-  <div class="card-title">{t("client")}</div>
-  <div class="card-main" style="font-size:11pt;">{bat.client.nom}</div>
-</div>
-<div style="text-align:center;margin-bottom:6px;">
-  <div class="card-title">{t("adresse_inspectee")}</div>
-</div>
-<div class="info-card" style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:18px;">
-  <span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:#f1f5f9;flex-shrink:0;">{icone(ICONE_PIN, 16, '#6b7280')}</span>
-  <div class="card-main" style="font-size:20pt; font-weight:900;">{adresse}</div>
-</div>
-<div style="background:#0a0b0d;color:#fff;text-align:center;padding:7px 10px;border-radius:4px;margin-bottom:8px;">
-  <span style="display:inline-flex;align-items:center;gap:6px;font-size:8pt;font-weight:800;letter-spacing:0.3px;">{icone(ICONE_BOUCLIER, 13, '#fff')}{t("conformite_bandeau")}</span>
-</div>
-<table class="equip-table">
-  <thead><tr><th>{t("equipement")}</th><th class="center">{t("conforme_col")}</th><th class="center">{t("non_conforme_col")}</th><th class="center">{t("so")}</th><th class="center">{t("statut_col")}</th></tr></thead>
-  <tbody>{equipement_rows}</tbody>
-</table>
-<p style="text-align:center;font-weight:700;font-size:8.5pt;color:#0a0b0d;margin-top:14px;line-height:1.4;">
-  {t("inspection_entretien")}
-</p>
-<div class="sig-row">
-  <div class="sig-block" style="display:flex;align-items:center;gap:10px;">
-    <span class="sig-icon">{icone(ICONE_PERSONNE, 14, '#e11324')}</span>
-    <div>
-      <div class="sig-label">{t("superviseur_responsable")}</div>
-      <div class="sig-name">{emetteur}</div>
-      <div style="font-size:8pt;color:#555;">{organisation_nom}</div>
-    </div>
-  </div>
-  <div class="sig-block" style="display:flex;align-items:center;gap:10px;">
-    <span class="sig-icon">{icone(ICONE_CALENDRIER, 14, '#e11324')}</span>
-    <div>
-      <div class="sig-label">{t("date_emission")}</div>
-      <div class="sig-name">{date_cert}</div>
-      <div style="font-size:8pt;color:#555;">{t("certificat_no")} {cert.numero}</div>
-    </div>
-  </div>
-</div>
-{pied_de_page(organisation_nom, t("footer_certificat_extincteur"))}
-</div>
-</body>
-</html>"""
+    return html_certificat(rapport.certificat)
 
 
 def _html_rapport_extincteur_complet(rapport) -> str:
@@ -2203,6 +2062,8 @@ class RapportExtincteurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
             )
         if not hasattr(rapport, "certificat"):
             return Response({"error": "Aucun certificat trouvé pour ce rapport."}, status=status.HTTP_404_NOT_FOUND)
+        if rapport.certificat.statut != "emis":
+            return Response({"error": "Le certificat doit d'abord être émis."}, status=status.HTTP_400_BAD_REQUEST)
 
         client = rapport.batiment.client
         if client.mode_livraison == Client.ModeLivraison.DIRECT:
@@ -2320,6 +2181,8 @@ class RapportExtincteurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
             return Response({"error": "Le rapport doit être fermé."}, status=status.HTTP_400_BAD_REQUEST)
         if not hasattr(rapport, "certificat"):
             return Response({"error": "Aucun certificat pour ce rapport."}, status=status.HTTP_404_NOT_FOUND)
+        if rapport.certificat.statut != "emis" and not (request.user.est_superviseur() or request.user.est_technicien()):
+            return Response({"error": "Le certificat n'a pas encore été émis."}, status=status.HTTP_404_NOT_FOUND)
 
         html = _html_certificat_extincteur(rapport)
         return HttpResponse(html, content_type="text/html; charset=utf-8")
@@ -2477,12 +2340,13 @@ def _html_rapport_eclairage_complet(rapport) -> str:
 
     logo_content = organisation_logo_content(bat.client.organisation, 46)
     organisation_nom = bat.client.organisation.nom
-    rapport_extincteur = getattr(rapport, "rapport_extincteur", None)
-    cert = getattr(rapport_extincteur, "certificat", None) if rapport_extincteur else None
+    from .certificats import certificat_couvrant
+
+    cert = certificat_couvrant(rapport)
 
     entete_html = entete(
         logo_content, organisation_nom, t("footer_rapport_eclairage"),
-        t("certificat_no"), (cert.numero if cert else "—"),
+        t("certificat_no"), (cert.numero_affiche if cert else "—"),
         t("date_inspection"), date_insp, t("technicien_s"), tech_noms,
     )
 
@@ -2739,33 +2603,28 @@ class EclairageUrgenceItemViewSet(viewsets.ModelViewSet):
 
 # ── Système d'extinction de cuisine (hotte, norme ULC ORD 1254.6 / ULC 300) ──
 
-_HOTTE_BOX = {"x0": 34, "x1": 456, "topY": 92, "botY": 132}
+_HOTTE_BOX = {"x0": 34, "x1": 456, "topY": 92, "botY": 167}
 
 
 def _icone_appareil_svg(code, color="#334155", size=15):
     """Icône monoligne d'un appareil — mêmes tracés que AppareilIcon côté
     frontend (frontend/components/rapports-cuisine/SchemaHottes.tsx), pour
-    que le rapport imprimé corresponde exactement à l'éditeur.
-
-    'G' et 'R' sont les anciens codes plaque/cuisinière (avant l'introduction
-    des variantes P/R2/R4/R6) — repris ici en repli visuel (P / R4) pour que
-    les hottes déjà enregistrées avec ces codes s'imprimment toujours
-    correctement."""
+    que le rapport imprimé corresponde exactement à l'éditeur."""
     attrs = f'width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"'
     formes = {
         "F": '<rect x="5" y="4" width="14" height="16"/><rect x="9" y="6.5" width="6" height="7"/><path d="M12 20v-6.5"/><path d="M9.7 15.7L12 13.5l2.3 2.2"/>',
         "B": '<path d="M5 10h11l-1.2 8a2 2 0 0 1-2 1.7H8.2a2 2 0 0 1-2-1.7L5 10Z"/><path d="M9 13h5"/><circle cx="18.5" cy="7.5" r="2.5"/><path d="M18.5 6v1.5l1 1"/>',
         "P": '<rect x="2" y="8" width="20" height="8"/>',
-        "G": '<rect x="2" y="8" width="20" height="8"/>',
         "R2": '<rect x="7" y="3" width="10" height="18" rx="1.5"/><circle cx="12" cy="8" r="2"/><circle cx="12" cy="16" r="2"/>',
         "R4": '<rect x="4" y="4" width="16" height="16" rx="1.5"/><circle cx="9" cy="9" r="1.8"/><circle cx="15" cy="9" r="1.8"/><circle cx="9" cy="15" r="1.8"/><circle cx="15" cy="15" r="1.8"/>',
-        "R": '<rect x="4" y="4" width="16" height="16" rx="1.5"/><circle cx="9" cy="9" r="1.8"/><circle cx="15" cy="9" r="1.8"/><circle cx="9" cy="15" r="1.8"/><circle cx="15" cy="15" r="1.8"/>',
         "R6": '<rect x="2" y="6" width="20" height="12" rx="1.5"/><circle cx="7" cy="10" r="1.4"/><circle cx="12" cy="10" r="1.4"/><circle cx="17" cy="10" r="1.4"/><circle cx="7" cy="14" r="1.4"/><circle cx="12" cy="14" r="1.4"/><circle cx="17" cy="14" r="1.4"/>',
-        "C": '<rect x="4" y="5" width="16" height="14"/><path d="M6 19l1.5-14M9.5 19l1.5-14M13 19l1.5-14M16.5 19l1.5-14"/>',
+        "GC": '<rect x="4" y="5" width="16" height="14"/><path d="M6 19l1.5-14M9.5 19l1.5-14M13 19l1.5-14M16.5 19l1.5-14"/>',
+        "GZ": '<rect x="4" y="5" width="16" height="14"/><path d="M6 9h12M6 12h12M6 15h12"/>',
         "S": '<rect x="4" y="9" width="16" height="9"/><path d="M6.5 9v-3M10 9v-3M13.5 9v-3M17 9v-3"/>',
         "SP": f'<rect x="4" y="4" width="16" height="16" rx="1.5"/><circle cx="12" cy="12" r="1.4" fill="{color}"/><path d="M12 6.5v2.2M12 15.3v2.2M5.5 12h2.2M16.3 12h2.2M8 8l1.5 1.5M14.5 14.5L16 16M8 16l1.5-1.5M14.5 9.5L16 8"/>',
         "BP": '<path d="M4 10c1.5 1 3 1.5 8 1.5s6.5-.5 8-1.5"/><path d="M4 10v3a4 4 0 0 0 4 4h8a4 4 0 0 0 4-4v-3"/>',
         "W": '<path d="M3 12a9 9 0 0 0 18 0"/><path d="M3 12h18M5 9l-2-1.5M19 9l2-1.5"/>',
+        "SH": '<path d="M12 1.5V21"/><path d="M7 4h10l-3.5 12.5h-3Z"/><path d="M8 7.5h8M9 11h6"/><path d="M6.5 21h11"/>',
     }
     contenu = formes.get(code, '<rect x="5" y="5" width="14" height="14" rx="2.5"/><path d="M9 9l6 6M15 9l-6 6"/>')
     return f"<svg {attrs}>{contenu}</svg>"
@@ -2780,14 +2639,13 @@ _CUISINIERE_DIMS = {
 _clip_seq_appareil = 0
 
 
-def _unite_appareil_svg(code_brut, qty, x, y):
+def _unite_appareil_svg(code, qty, x, y, taille=None):
     """Rendu réaliste d'un appareil avec sa quantité (batterie de friteuses,
     cuisinière à feux fixes, plaque/grille sur N sections) — même logique que
-    AppareilUnit côté frontend. 'G' et 'R' (anciens codes) sont ramenés vers
-    'P' et 'R4' pour que les hottes déjà enregistrées s'imprimment toujours
-    correctement."""
+    AppareilUnit côté frontend."""
     global _clip_seq_appareil
-    code = "P" if code_brut == "G" else "R4" if code_brut == "R" else code_brut
+    # Anciens codes 'G'/'R'/'C' (hottes enregistrées avant P/R4/GC).
+    code = {"G": "P", "R": "R4", "C": "GC"}.get(code, code)
     n = max(1, qty or 1)
     step = 15
     w = 22 + (n - 1) * step
@@ -2837,15 +2695,20 @@ def _unite_appareil_svg(code_brut, qty, x, y):
         return f'<rect x="{x - w / 2}" y="{y - h / 2}" width="{w}" height="{h}" rx="5" fill="#fff" stroke="{stroke}" stroke-width="1.4"/>{paniers}'
 
     if code == "P":
-        # Plaque — rectangle net, plus long que les autres appareils.
-        w_plaque = 46 + (n - 1) * step
+        # Plaque — largeur réelle en pouces (12/24/36/48/60), pas liée à la
+        # quantité. Une division tous les 12 po (segments de la plaque) —
+        # même logique que AppareilUnit côté frontend.
+        inch = taille or 24
+        w_plaque = inch * 2
+        segments = max(1, round(inch / 12))
         dividers = "".join(
-            f'<line x1="{x - w_plaque / 2 + (i + 1) * (w_plaque / n)}" y1="{y - h / 2 + 4}" x2="{x - w_plaque / 2 + (i + 1) * (w_plaque / n)}" y2="{y + h / 2 - 4}" stroke="{stroke}" stroke-width="1"/>'
-            for i in range(n - 1)
+            f'<line x1="{x - w_plaque / 2 + (i + 1) * (w_plaque / segments)}" y1="{y - h / 2 + 4}" x2="{x - w_plaque / 2 + (i + 1) * (w_plaque / segments)}" y2="{y + h / 2 - 4}" stroke="{stroke}" stroke-width="1"/>'
+            for i in range(segments - 1)
         )
-        return f'<rect x="{x - w_plaque / 2}" y="{y - h / 2}" width="{w_plaque}" height="{h}" fill="#fff" stroke="{stroke}" stroke-width="1.4"/>{dividers}'
+        taille_label = f'<text x="{x}" y="{y + 3}" text-anchor="middle" fill="{stroke}" font-size="9" font-weight="700">{inch}″</text>'
+        return f'<rect x="{x - w_plaque / 2}" y="{y - h / 2}" width="{w_plaque}" height="{h}" fill="#fff" stroke="{stroke}" stroke-width="1.4"/>{dividers}{taille_label}'
 
-    if code == "C":
+    if code == "GC":
         # Rectangle net (coins non arrondis) rempli de traits quasi verticaux
         # (léger biais), serrés, comme une grille de charbon vue de face.
         _clip_seq_appareil += 1
@@ -2866,6 +2729,15 @@ def _unite_appareil_svg(code_brut, qty, x, y):
             f'<g clip-path="url(#{clip_id})">{"".join(diag_lines)}</g>'
         )
 
+    if code == "GZ":
+        # Grille à gaz — même rectangle que la grille charbon, barreaux
+        # horizontaux (même rendu que AppareilUnit côté frontend).
+        barreaux = "".join(
+            f'<line x1="{x - w / 2 + 3}" y1="{y - h / 2 + dy}" x2="{x + w / 2 - 3}" y2="{y - h / 2 + dy}" stroke="{stroke}" stroke-width="1"/>'
+            for dy in range(4, h - 2, 5)
+        )
+        return f'<rect x="{x - w / 2}" y="{y - h / 2}" width="{w}" height="{h}" fill="#fff" stroke="{stroke}" stroke-width="1.4"/>{barreaux}'
+
     if code == "S":
         tick_count = max(3, round(w / 8))
         ticks = "".join(
@@ -2875,17 +2747,35 @@ def _unite_appareil_svg(code_brut, qty, x, y):
         return f'<rect x="{x - w / 2}" y="{y - h / 2}" width="{w}" height="{h}" fill="#fff" stroke="{stroke}" stroke-width="1.4"/>{ticks}'
 
     # Même boîte arrondie que friteuse/cuisinière/grille — la quantité est une
-    # pastille ×N plutôt que de répéter l'icône, pour rester lisible.
+    # pastille ×N plutôt qu'une icône répétée, pour rester lisible.
     w_badge = 34
     badge = (
         f'<circle cx="{x + w_badge / 2 - 3}" cy="{y + h / 2 - 3}" r="7" fill="#dc2626"/>'
         f'<text x="{x + w_badge / 2 - 3}" y="{y + h / 2 - 2.5}" text-anchor="middle" dominant-baseline="central" fill="#fff" font-size="9" font-weight="800">×{n}</text>'
         if n > 1 else ""
     )
-    icone_svg = _icone_appareil_svg(code, stroke, 17)
+    icone = _icone_appareil_svg(code, stroke, 17)
     return (
         f'<rect x="{x - w_badge / 2}" y="{y - h / 2}" width="{w_badge}" height="{h}" rx="6" fill="#fff" stroke="{stroke}" stroke-width="1.4"/>'
-        f'<g transform="translate({x - 8.5},{y - 8.5})">{icone_svg}</g>{badge}'
+        f'<g transform="translate({x - 8.5},{y - 8.5})">{icone}</g>{badge}'
+    )
+
+
+def _buse_salamandre_svg(a, y):
+    """Buse coudée à 90° à l'intérieur d'une salamandre — « |_> » (droite)
+    ou « <_| » (gauche). Même tracé que traceBuseSalamandre dans
+    SchemaHottes.tsx."""
+    sens = a.get("buse")
+    if a.get("code") != "S" or sens not in ("gauche", "droite"):
+        return ""
+    x = a.get("x", 0)
+    s = 1 if sens == "droite" else -1
+    shaft = f"M {x - 6 * s} {y - 5} L {x - 6 * s} {y + 5} L {x + 4 * s} {y + 5}"
+    tip = f"{x + 4 * s},{y + 2} {x + 4 * s},{y + 8} {x + 8 * s},{y + 5}"
+    couleur = "#dc2626" if a.get("buse_conforme") is False else "#16a34a"
+    return (
+        f'<path d="{shaft}" fill="none" stroke="{couleur}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'
+        f'<polygon points="{tip}" fill="{couleur}"/>'
     )
 
 
@@ -2897,88 +2787,168 @@ def _rendu_hotte_html(hotte):
     nombre d'appareils), appareils en rangée séparée avec leur quantité réelle."""
     b = _HOTTE_BOX
     appareils = hotte.appareils or []
+    # Placement manuel des buses uniquement — aucune génération automatique à
+    # partir de l'ancien compteur, le technicien les place lui-même. Chaque
+    # buse peut être droite (par défaut, verticale) ou oblique (gauche/droite,
+    # dessinée plus courte pour rester lisible) — même logique que
+    # frontend/components/rapports-cuisine/SchemaHottes.tsx.
+    y1_sous = b["botY"] + 6
+    y1_interieur = (b["topY"] + b["botY"]) / 2
+    y1_exterieur = 61
 
-    if hotte.buses:
-        buses_x = [pos.get("x", 0) for pos in hotte.buses]
-    else:
-        # Repli pour les hottes créées avant l'ajout du placement manuel des
-        # buses : réparties uniformément à partir de l'ancien compteur.
-        nb_buses = hotte.nombre_buses or 0
-        buses_x = []
-        if nb_buses > 0:
-            marge = 26
-            largeur = (b["x1"] - b["x0"]) - marge * 2
-            for i in range(nb_buses):
-                buses_x.append(b["x0"] + (b["x1"] - b["x0"]) / 2 if nb_buses == 1 else b["x0"] + marge + (largeur * i) / (nb_buses - 1))
+    def _buse_svg(pos):
+        x = pos.get("x", 0)
+        direction = pos.get("direction")
+        if pos.get("exterieur"):
+            y1 = y1_exterieur
+        elif pos.get("interieur"):
+            y1 = y1_interieur
+        else:
+            y1 = y1_sous
+        if direction == "gauche":
+            shaft = f'M {x} {y1} L {x - 7} {y1 + 10}'
+            tip = f'{x - 5},{y1 + 11} {x - 10},{y1 + 8} {x - 10},{y1 + 13}'
+        elif direction == "droite":
+            shaft = f'M {x} {y1} L {x + 7} {y1 + 10}'
+            tip = f'{x + 5},{y1 + 11} {x + 10},{y1 + 8} {x + 10},{y1 + 13}'
+        elif direction == "horizontale":
+            shaft = f'M {x} {y1} L {x + 12} {y1}'
+            tip = f'{x + 12},{y1 - 2} {x + 12},{y1 + 2} {x + 16},{y1}'
+        elif direction == "haut":
+            shaft = f'M {x} {y1} L {x} {y1 - 12}'
+            tip = f'{x - 2},{y1 - 12} {x + 2},{y1 - 12} {x},{y1 - 16}'
+        elif direction == "fusible":
+            # Lien-fusible — représenté « |--| » : deux repères verticaux
+            # reliés par un trait horizontal, sans flèche.
+            shaft = f'M {x - 8} {y1 - 4} L {x - 8} {y1 + 4} M {x - 8} {y1} L {x + 8} {y1} M {x + 8} {y1 - 4} L {x + 8} {y1 + 4}'
+            tip = ''
+        else:
+            shaft = f'M {x} {y1} L {x} {y1 + 12}'
+            tip = f'{x - 2},{y1 + 12} {x + 2},{y1 + 12} {x},{y1 + 16}'
+        # Verte par défaut (conforme) ; rouge si marquée non conforme par le
+        # technicien (mal placée, ne protège pas l'appareil visé, ou absence
+        # d'une buse attendue) — même règle que SchemaHottes.tsx.
+        if pos.get("conforme") is False:
+            couleur = "#dc2626"
+        elif direction == "fusible":
+            couleur = "#2563eb"
+        else:
+            couleur = "#16a34a"
+        tip_svg = f'<polygon points="{tip}" fill="{couleur}"/>' if tip else ''
+        return f'<path d="{shaft}" fill="none" stroke="{couleur}" stroke-width="4" stroke-linecap="round"/>{tip_svg}'
 
-    buses_svg = "".join(
-        f'<line x1="{x}" y1="{b["botY"] + 6}" x2="{x}" y2="169" stroke="#dc2626" stroke-width="1.8"/>'
-        f'<polygon points="{x - 4.5},169 {x + 4.5},169 {x},176" fill="#dc2626"/>'
-        for x in buses_x
+    buses_svg = "".join(_buse_svg(pos) for pos in (hotte.buses or []))
+
+    elevations_svg = "".join(
+        f'<rect x="{pos.get("x", 0) - 16}" y="{(b["topY"] + b["botY"]) / 2 - 17 if pos.get("interieur") else 44}" width="32" height="34" fill="#e2e8f0" stroke="#94a3b8" stroke-width="0.75"/>'
+        for pos in (hotte.elevations or [])
     )
 
-    icon_y = 195
+    icon_y = 245
+    # La salamandre (S) est montée en hauteur, toujours plus haute que les
+    # autres appareils — même règle que SchemaHottes.tsx.
     appareils_svg = "".join(
-        _unite_appareil_svg(a.get("code", ""), a.get("qty", 1), a.get("x", 0), icon_y)
-        + f'<text x="{a.get("x", 0)}" y="{icon_y + 24}" text-anchor="middle" fill="#64748b" font-size="9" font-weight="700">{a.get("code", "")}</text>'
+        _unite_appareil_svg(a.get("code", ""), a.get("qty", 1), a.get("x", 0), icon_y - 40 if a.get("code") == "S" else icon_y, a.get("taille"))
+        + _buse_salamandre_svg(a, icon_y - 40)
+        + f'<text x="{a.get("x", 0)}" y="{(icon_y - 40 if a.get("code") == "S" else icon_y) + 24}" text-anchor="middle" fill="#334155" font-size="9" font-weight="800">{escape(_libelle_appareil(a))}</text>'
         for a in appareils
     )
+    # Petits carrés « taille de hotte » (3′ à 18′), en haut à l'intérieur de
+    # la hotte — même rendu que SchemaHottes.tsx (Y_TAILLE, 20×20).
+    y_taille = b["topY"] + 12
+    tailles_svg = "".join(
+        f'<rect x="{t.get("x", 0) - 10}" y="{y_taille - 10}" width="20" height="20" fill="#fff" stroke="#334155" stroke-width="1.2"/>'
+        f'<text x="{t.get("x", 0)}" y="{y_taille + 3.5}" text-anchor="middle" fill="#0f172a" font-size="9.5" font-weight="800" style="font-family:Arial,Helvetica,sans-serif;">{int(t.get("pieds", 0))}′</text>'
+        for t in (hotte.tailles or [])
+    )
     dividers_svg = "".join(
-        f'<line x1="{d}" y1="{b["topY"]}" x2="{d}" y2="{b["botY"]}" stroke="#dc2626" stroke-width="1.4" stroke-dasharray="3 2"/>'
+        f'<line x1="{d}" y1="{b["topY"]}" x2="{d}" y2="{b["botY"]}" stroke="#334155" stroke-width="2.4"/>'
         for d in (hotte.dividers or [])
     )
-
-    svg = f"""<svg viewBox="0 0 512 220" style="width:100%;height:150px;overflow:visible;display:block;">
-  <rect x="{(b['x0'] + b['x1']) / 2 - 16}" y="44" width="32" height="34" fill="#e2e8f0" stroke="#94a3b8" stroke-width="0.75"/>
+    svg = f"""<svg viewBox="0 0 512 270" style="width:100%;height:249px;overflow:visible;display:block;">
   <polygon points="{b['x0']},{b['topY']} {b['x1']},{b['topY']} {b['x1'] + 20},{b['topY'] - 14} {b['x0'] + 20},{b['topY'] - 14}" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="0.5"/>
   <polygon points="{b['x1']},{b['topY']} {b['x1'] + 20},{b['topY'] - 14} {b['x1'] + 20},{b['botY'] - 14} {b['x1']},{b['botY']}" fill="#cbd5e1" stroke="#94a3b8" stroke-width="0.5"/>
   <rect x="{b['x0']}" y="{b['topY']}" width="{b['x1'] - b['x0']}" height="{b['botY'] - b['topY']}" fill="#e2e8f0" stroke="#94a3b8" stroke-width="0.75"/>
-  <text x="{(b['x0'] + b['x1']) / 2}" y="{(b['topY'] + b['botY']) / 2 + 4}" text-anchor="middle" fill="#334155" font-size="10.5" font-weight="800" letter-spacing="1" style="text-transform:uppercase;font-family:Arial,Helvetica,sans-serif;">{hotte.label}</text>
   {dividers_svg}
+  {elevations_svg}
+  {tailles_svg}
   {buses_svg}
   {appareils_svg}
 </svg>"""
     return f"<div style='background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:8px 8px 24px;'>{svg}</div>"
 
 
-def _lignes_caracteristiques_cuisine(rapport):
-    """Tableau « Caractéristiques du système » — mêmes champs que le
-    formulaire papier, réutilisé par le certificat/rapport cuisine autonomes
-    et par la section fusionnée du rapport extincteur (rapport lié)."""
+_STYLE_INFO_GRILLE = (
+    "<style>"
+    ".info-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-bottom:4px;}"
+    ".info-tile{background:#f8fafc;border:1px solid #e5e7eb;border-left:3px solid #dc2626;border-radius:5px;padding:5px 8px;break-inside:avoid;}"
+    ".info-tile .l{font-size:7.5pt;font-weight:900;text-transform:uppercase;letter-spacing:0.6px;color:#0a0b0d;}"
+    ".info-tile .v{font-size:9pt;font-weight:700;color:#0a0b0d;margin-top:2px;}"
+    "</style>"
+)
+
+
+def _grille_infos_cuisine(rapport, client_nom):
+    """Section « Informations du système » du rapport cuisine — grille de
+    tuiles (étiquette discrète + valeur en gras), 4 par ligne."""
+    def _d(date):
+        return date.strftime("%d/%m/%Y") if date else "—"
+
     liens = " / ".join(
-        f"{n}×{lbl}" for n, lbl in (
+        f"{n}×{t}" for n, t in (
             (rapport.liens_fusibles_360f, "360°F"),
             (rapport.liens_fusibles_450f, "450°F"),
             (rapport.liens_fusibles_500f, "500°F"),
         ) if n
     ) or "—"
-    return (
-        f"<tr><td style='color:#64748b;width:26%;'>Fabricant</td><td style='font-weight:700;'>{rapport.fabricant or '—'}</td>"
-        f"<td style='color:#64748b;width:26%;'>Modèle</td><td style='font-weight:700;'>{rapport.modele or '—'}</td></tr>"
-        f"<tr><td style='color:#64748b;'>N° de série</td><td style='font-weight:700;'>{rapport.numero_serie or '—'}</td>"
-        f"<td style='color:#64748b;'>Date d'installation</td><td style='font-weight:700;'>{rapport.date_installation or '—'}</td></tr>"
-        f"<tr><td style='color:#64748b;'>Type d'agent</td><td style='font-weight:700;'>{rapport.get_type_agent_display() if rapport.type_agent else '—'}</td>"
-        f"<td style='color:#64748b;'>Alimentation des appareils</td><td style='font-weight:700;'>{rapport.alimentation or '—'}</td></tr>"
-        f"<tr><td style='color:#64748b;'>Dispositif de coupure</td><td style='font-weight:700;'>{rapport.get_dispositif_coupure_display() if rapport.dispositif_coupure else '—'}</td>"
-        f"<td style='color:#64748b;'>Raccordements auxiliaires</td><td style='font-weight:700;'>{rapport.raccordement or '—'}</td></tr>"
-        f"<tr><td style='color:#64748b;'>Nombre de buses</td><td style='font-weight:700;'>{rapport.nombre_buses if rapport.nombre_buses is not None else '—'}</td>"
-        f"<td style='color:#64748b;'>Liens fusibles (qté × °F)</td><td style='font-weight:700;'>{liens}</td></tr>"
-        f"<tr><td style='color:#64748b;'>Buses / liens fusibles</td><td style='font-weight:700;' colspan='3'>{rapport.buses_liens_fusibles or '—'}</td></tr>"
-        f"<tr><td style='color:#64748b;'>Dernier essai hydrostatique</td><td style='font-weight:700;'>{rapport.date_dernier_essai_hydrostatique or '—'}</td>"
-        f"<td style='color:#64748b;'>Dernière recharge</td><td style='font-weight:700;'>{rapport.date_derniere_recharge or '—'}</td></tr>"
-        f"<tr><td style='color:#64748b;'>Prochaine inspection</td><td style='font-weight:700;' colspan='3'>{rapport.prochaine_inspection or '—'}</td></tr>"
+    tuiles = [
+        ("Client", client_nom, False),
+        ("Courtier", rapport.courtier, False),
+        ("Fabricant", rapport.fabricant, False),
+        ("Modèle", rapport.modele, False),
+        ("Type d'agent", rapport.get_type_agent_display() if rapport.type_agent else "", False),
+        ("Alimentation des appareils", rapport.alimentation, False),
+        ("Dispositif de coupure", rapport.get_dispositif_coupure_display() if rapport.dispositif_coupure else "", False),
+        ("Raccordements auxiliaires", rapport.raccordement, False),
+        ("Nombre de buses", "" if rapport.nombre_buses is None else str(rapport.nombre_buses), False),
+        ("Liens fusibles (qté × °F)", liens, False),
+        ("Buses / liens fusibles", rapport.buses_liens_fusibles, True),
+        ("Date d'installation", _d(rapport.date_installation), False),
+        ("Dernier essai hydrostatique", str(rapport.date_dernier_essai_hydrostatique.year) if rapport.date_dernier_essai_hydrostatique else "", False),
+        ("Dernière recharge", _d(rapport.date_derniere_recharge), False),
+        ("Prochaine inspection", _d(rapport.prochaine_inspection), False),
+    ]
+    tuiles_html = "".join(
+        f"<div class='info-tile'{' style=\"grid-column:span 2;\"' if large else ''}>"
+        f"<div class='l'>{escape(label)}</div><div class='v'>{escape(valeur or '—')}</div></div>"
+        for label, valeur, large in tuiles
     )
+    return f"{_STYLE_INFO_GRILLE}<div class='info-grid'>{tuiles_html}</div>"
+
+
+def _libelle_appareil(a):
+    """Texte sous l'appareil : la désignation saisie pour un « Autre » (O),
+    sinon le code."""
+    if a.get("code") == "O" and (a.get("nom") or "").strip():
+        return a["nom"].strip()
+    return a.get("code", "")
 
 
 def _legende_appareils_html(hottes):
-    """Légende limitée aux types réellement utilisés sur ce système — même
-    logique que l'éditeur interactif (SchemaHottes.tsx)."""
-    codes_utilises = {a.get("code") for h in hottes for a in (h.appareils or [])}
+    appareils = [a for h in hottes for a in (h.appareils or [])]
+    codes_utilises = {a.get("code") for a in appareils} - {"O"}
     labels = dict(HotteCuisine.CodeAppareil.choices)
-    return "".join(
-        f"<span style='margin-right:9px;'><strong style='color:#64748b;'>{code}</strong> {labels.get(code, code)}</span>"
+    entrees = [
+        f"<span style='margin-right:9px;font-weight:700;color:#000;'><strong style='color:#000;'>{code}</strong> {labels.get(code, code)}</span>"
         for code in sorted(codes_utilises) if code
-    )
+    ]
+    # « Autre » : une entrée par désignation saisie (ou « Autre » sans nom).
+    noms_autres = sorted({(a.get("nom") or "").strip() for a in appareils if a.get("code") == "O"})
+    entrees += [
+        f"<span style='margin-right:9px;font-weight:700;color:#000;'><strong style='color:#000;'>{escape(nom) if nom else 'O'}</strong> Autre</span>"
+        for nom in noms_autres
+    ]
+    return "".join(entrees)
 
 
 def _html_rapport_cuisine_complet(rapport) -> str:
@@ -3000,18 +2970,19 @@ def _html_rapport_cuisine_complet(rapport) -> str:
     legende_appareils = _legende_appareils_html(hottes)
     verif_rows = "".join(
         f"<div style='display:flex;align-items:center;gap:6px;padding:3px 8px;'>"
-        f"{case(getattr(rapport, champ) is True, '#16a34a')}<span>{label}</span></div>"
+        f"{case(getattr(rapport, champ) is not False, '#16a34a')}<span>{label}</span></div>"
         for champ, label in CHECKLIST_CUISINE
     )
 
     logo_content = organisation_logo_content(bat.client.organisation, 46)
     organisation_nom = bat.client.organisation.nom
-    rapport_extincteur = getattr(rapport, "rapport_extincteur", None)
-    cert = getattr(rapport_extincteur, "certificat", None) if rapport_extincteur else None
+    from .certificats import certificat_couvrant
+
+    cert = certificat_couvrant(rapport)
 
     entete_html = entete(
         logo_content, organisation_nom, t("systeme_cuisine"),
-        t("certificat_no"), (cert.numero if cert else "—"),
+        t("certificat_no"), (cert.numero_affiche if cert else "—"),
         t("date_inspection"), date_insp, t("technicien_s"), tech_noms,
     )
 
@@ -3041,10 +3012,10 @@ def _html_rapport_cuisine_complet(rapport) -> str:
   <div class="card-main" style="font-size:14pt;">{adresse}</div>
 </div>
 <div class="sec-title">{t("informations_systeme")}</div>
-<table><tbody>{_lignes_caracteristiques_cuisine(rapport)}</tbody></table>
+{_grille_infos_cuisine(rapport, bat.client.nom)}
 <div class="sec-title">{t("schema_installation")}</div>
 <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:6px;">{hottes_html}</div>
-<div style="font-size:7.5pt;color:#94a3b8;margin:-2px 0 9px;">{legende_appareils}</div>
+<div style="font-size:7.5pt;color:#000;margin:-2px 0 9px;">{legende_appareils}</div>
 <div class="sec-title" style="display:flex;align-items:center;justify-content:space-between;">
   <span>{t("liste_verifications")}</span>
   <span style="color:#16a34a;">{rapport.nb_verifications_conformes} / {len(CHECKLIST_CUISINE)} {t("conformes_sur")}</span>
@@ -3276,36 +3247,47 @@ def _certificats_incendie(organisation):
 
 
 def _certificats_extincteur(organisation):
+    """Certificats extincteurs / éclairage d'urgence / cuisine — un par
+    visite ou par système selon les paramètres de l'organisation (voir
+    certificats.py). `type` reste « extincteur » pour les filtres existants."""
+    from .certificats import conformite_certificat, rapports_couverts
+
     certs = CertificatExtincteur.objects.select_related(
-        "rapport", "rapport__batiment", "rapport__batiment__client", "emis_par"
-    ).filter(rapport__batiment__client__organisation=organisation)
+        "rapport", "rapport_cuisine", "rapport_eclairage", "batiment", "batiment__client", "emis_par"
+    ).filter(batiment__client__organisation=organisation)
+    libelles = {"extincteurs": "Extincteur", "eclairage": "éclairage", "cuisine": "cuisine"}
+    urls = {
+        "extincteurs": "/superviseur/rapports-extincteurs/",
+        "cuisine": "/superviseur/rapports-cuisine/",
+        "eclairage": "/superviseur/rapports-eclairage-urgence/",
+    }
     resultats = []
     for c in certs:
-        r = c.rapport
-        bat = r.batiment
-        type_display = "Extincteur"
-        if getattr(r, "rapport_eclairage_lie", None):
-            type_display += " & éclairage"
-        if getattr(r, "rapport_cuisine_lie", None):
-            type_display += " & cuisine"
+        ancre = c.rapport_ancre
+        bat = c.batiment
+        systemes = [s for s in ("extincteurs", "eclairage", "cuisine") if s in rapports_couverts(c)]
+        type_display = " & ".join(libelles[s] for s in systemes)
         resultats.append({
             "cle": f"extincteur-{c.id}",
             "type": "extincteur",
-            "type_display": type_display,
-            "numero": c.numero,
+            "type_display": type_display[:1].upper() + type_display[1:],
+            "certificat_id": c.id,
+            "numero": c.numero_affiche,
+            "statut_certificat": c.statut,
+            "type_document": c.type_document,
             "date_emission": c.date_emission,
             "certificat_envoye": c.certificat_envoye,
             "mode_envoi": c.mode_envoi,
             "date_envoi": c.date_envoi,
             "envoye_a": c.envoye_a,
-            "conforme": _est_conforme_extincteur(r),
+            "conforme": conformite_certificat(c),
             "adresse": bat.adresse_complete,
             "client_nom": bat.client.nom,
             "client_id": bat.client_id,
-            "rapport_id": r.id,
-            "statut_rapport": r.statut,
-            "url_rapport": f"/superviseur/rapports-extincteurs/{r.id}",
-            "url_certificat_pdf": f"/api/rapports-extincteurs/{r.id}/certificat-pdf/",
+            "rapport_id": ancre.id,
+            "statut_rapport": ancre.statut,
+            "url_rapport": f"{urls[c.systeme_ancre]}{ancre.id}",
+            "url_certificat_pdf": f"/api/certificats-visite/{c.id}/pdf/",
         })
     return resultats
 
