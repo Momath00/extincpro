@@ -40,7 +40,7 @@ export const DICT: Dict = {
     en: "The fire safety platform connecting the field, compliance, and your clients",
   },
   hero_texte: {
-    fr: "centralise l'inspection incendie, les rapports et la conformité de vos systèmes de sécurité incendie — extincteurs, éclairage d'urgence et système de cuisine — du technicien sur le terrain jusqu'à la direction.",
+    fr: "centralise l'inspection incendie, les rapports et la conformité de vos systèmes de sécurité incendie — extincteurs, éclairage d'urgence, système de cuisine et gicleurs — du technicien sur le terrain jusqu'à la direction.",
     en: "centralizes fire inspections, reports, and compliance for your fire safety systems — extinguishers, emergency lighting, and kitchen suppression — from the field technician to management.",
   },
   hero_essai_btn: { fr: "Essai gratuit — 1 mois", en: "Free trial — 1 month" },
@@ -161,7 +161,7 @@ export const DICT: Dict = {
     en: "A complete software, from inspection to compliance",
   },
   services_hero_texte: {
-    fr: "couvre l'ensemble du cycle d'inspection de vos systèmes de sécurité incendie — extincteurs, éclairage d'urgence et système de cuisine : inspection, rapport, correction, conformité et communication client, dans une seule application.",
+    fr: "couvre l'ensemble du cycle d'inspection de vos systèmes de sécurité incendie — extincteurs, éclairage d'urgence, système de cuisine et gicleurs : inspection, rapport, correction, conformité et communication client, dans une seule application.",
     en: "covers the entire inspection cycle for your fire safety systems — extinguishers, emergency lighting, and kitchen suppression: inspection, reporting, correction, compliance, and client communication, in a single application.",
   },
   services_systemes_titre: { fr: "Quatre systèmes, un seul logiciel", en: "Four systems, one software" },
@@ -181,8 +181,8 @@ export const DICT: Dict = {
     en: "One module per system, one annual subscription",
   },
   tarifs_hero_texte: {
-    fr: "se souscrit module par module — inspection sécurité incendie, extincteurs, éclairage d'urgence — selon ce que votre entreprise inspecte réellement. Chaque module est facturé annuellement, avec 1 mois d'essai gratuit, sans carte de crédit.",
-    en: "is subscribed to module by module — fire safety inspection, extinguishers, emergency lighting — based on what your company actually inspects. Each module is billed annually, with a 1-month free trial, no credit card required.",
+    fr: "se souscrit module par module — système d'alarme, extincteurs, éclairage d'urgence, gicleurs — selon ce que votre entreprise inspecte réellement. Chaque module est facturé annuellement, avec 1 mois d'essai gratuit, sans carte de crédit.",
+    en: "is subscribed to module by module — fire alarm system, extinguishers, emergency lighting, sprinklers — based on what your company actually inspects. Each module is billed annually, with a 1-month free trial, no credit card required.",
   },
   un_mois_essai_gratuit: { fr: "1 mois d'essai gratuit", en: "1-month free trial" },
   par_mois: { fr: "/ mois", en: "/ month" },

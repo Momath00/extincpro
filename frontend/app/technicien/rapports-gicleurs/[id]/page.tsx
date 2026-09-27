@@ -3,27 +3,33 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import TableExtincteurs from '@/components/rapports-extincteurs/TableExtincteurs'
-import TableBoyaux from '@/components/rapports-extincteurs/TableBoyaux'
+import FormulaireGicleur from '@/components/rapports-gicleurs/FormulaireGicleur'
+import SectionPhotos from '@/components/rapports/SectionPhotos'
+import ModuleBadge from '@/components/dashboard/ModuleBadge'
 import { useT } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
-import SectionPhotos from '@/components/rapports/SectionPhotos'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
 
-type OngletPrincipal = 'extincteurs' | 'historique'
+type OngletPrincipal = 'formulaire' | 'historique'
 
-export default function TechnicienRapportExtincteurDetailPage() {
+export default function TechnicienRapportGicleurDetailPage() {
   const router = useRouter()
   const params = useParams()
   const t = useT()
   const [rapport, setRapport] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [onglet, setOnglet] = useState<OngletPrincipal>('extincteurs')
+  const [onglet, setOnglet] = useState<OngletPrincipal>('formulaire')
   const [horsLigne, setHorsLigne] = useState(false)
   const [horsLigneDepuis, setHorsLigneDepuis] = useState<number | null>(null)
+  const [erreur, setErreur] = useState<string | null>(null)
+
+  function afficherErreur(msg: string) {
+    setErreur(msg)
+    setTimeout(() => setErreur(null), 4000)
+  }
 
   const STATUT_BADGE: Record<string, { label: string; bg: string; color: string }> = {
     ouvert: { label: t('ouvert'), bg: '#fff2e8', color: '#9a4a13' },
@@ -34,9 +40,9 @@ export default function TechnicienRapportExtincteurDetailPage() {
     const token = localStorage.getItem('access_token')
     if (!token) { router.push('/login'); return }
     try {
-      const { data, fromCache, cachedAt, status } = await fetchWithCache(`${API_URL}/api/rapports-extincteurs/${params.id}/`, token)
+      const { data, fromCache, cachedAt, status } = await fetchWithCache(`${API_URL}/api/rapports-gicleurs/${params.id}/`, token)
       if (status === 401) { router.push('/login'); return }
-      if (status === 404) { router.push('/technicien/rapports-extincteurs'); return }
+      if (status === 404) { router.push('/technicien/rapports-gicleurs'); return }
       if (data) {
         setRapport(data)
         setHorsLigne(fromCache)
@@ -64,9 +70,19 @@ export default function TechnicienRapportExtincteurDetailPage() {
 
   return (
     <div>
-      <Link href="/technicien/rapports-extincteurs" className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1 mb-4">
-        <i className="ti ti-arrow-left" /> {t('retour_aux_rapports')}
-      </Link>
+      {erreur && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 bg-white rounded-xl shadow-xl border border-red-100 px-5 py-3.5">
+          <i className="ti ti-x text-red-500" />
+          <p className="text-sm font-semibold" style={{ color: NAVY }}>{erreur}</p>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mb-4 gap-3">
+        <Link href="/technicien/rapports-gicleurs" className="text-xs text-gray-400 hover:text-[#0a0b0d] flex items-center gap-1">
+          <i className="ti ti-arrow-left" /> {t('retour_aux_rapports')}
+        </Link>
+        <ModuleBadge type="gicleur" />
+      </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-5">
         <div>
@@ -95,36 +111,6 @@ export default function TechnicienRapportExtincteurDetailPage() {
         </div>
       </div>
 
-      {rapport.rapport_eclairage_lie && (
-        <Link
-          href={`/technicien/rapports-eclairage-urgence/${rapport.rapport_eclairage_lie.id}`}
-          className="mb-4 flex items-center gap-3 px-4 py-3 rounded-md border text-sm hover:shadow-sm transition-shadow"
-          style={{ background: '#fff2e8', borderColor: '#fde3cc' }}
-        >
-          <i className="ti ti-bulb flex-shrink-0" style={{ color: ORANGE }} />
-          <span className="flex-1" style={{ color: NAVY }}>
-            {t('rapport_eclairage_lie_texte')}{' '}
-            <strong>{rapport.rapport_eclairage_lie.statut === 'ferme' ? t('ferme') : t('ouvert')}</strong>
-          </span>
-          <i className="ti ti-chevron-right flex-shrink-0" style={{ color: ORANGE }} />
-        </Link>
-      )}
-
-      {rapport.rapport_cuisine_lie && (
-        <Link
-          href={`/technicien/rapports-cuisine/${rapport.rapport_cuisine_lie.id}`}
-          className="mb-4 flex items-center gap-3 px-4 py-3 rounded-md border text-sm hover:shadow-sm transition-shadow"
-          style={{ background: '#fff2e8', borderColor: '#fde3cc' }}
-        >
-          <i className="ti ti-tools-kitchen-2 flex-shrink-0" style={{ color: ORANGE }} />
-          <span className="flex-1" style={{ color: NAVY }}>
-            {t('rapport_cuisine_lie_texte')}{' '}
-            <strong>{rapport.rapport_cuisine_lie.statut === 'ferme' ? t('ferme') : t('ouvert')}</strong>
-          </span>
-          <i className="ti ti-chevron-right flex-shrink-0" style={{ color: ORANGE }} />
-        </Link>
-      )}
-
       {readOnly && (
         <div className="mb-5 flex items-center gap-3 px-4 py-3 rounded-md border text-sm font-semibold"
           style={{ background: '#f8fafc', borderColor: '#e2e8f0', color: '#475569' }}>
@@ -141,7 +127,7 @@ export default function TechnicienRapportExtincteurDetailPage() {
 
       <div className="flex gap-0.5 sm:gap-1 mb-6 border-b border-gray-100 overflow-x-auto">
         {([
-          { key: 'extincteurs', label: `${t('col_extincteurs')} (${rapport.extincteurs?.length || 0})`, shortLabel: `${t('col_extincteurs')} (${rapport.extincteurs?.length || 0})` },
+          { key: 'formulaire', label: t('gic_onglet_inspection'), shortLabel: t('gic_onglet_inspection') },
           { key: 'historique', label: `${t('historique')} (${rapport.historique?.length || 0})`, shortLabel: `${t('historique')} (${rapport.historique?.length || 0})` },
         ] as { key: OngletPrincipal; label: string; shortLabel: string }[]).map(o => (
           <button
@@ -159,11 +145,11 @@ export default function TechnicienRapportExtincteurDetailPage() {
         ))}
       </div>
 
-      {onglet === 'extincteurs' && (
-        <div className="flex flex-col gap-8">
-          <TableExtincteurs rapport={rapport} readOnly={readOnly} onRefresh={charger} />
-          <TableBoyaux rapport={rapport} readOnly={readOnly} onRefresh={charger} />
-          <SectionPhotos photosUrl={`${API_URL}/api/rapports-extincteurs/${rapport.id}/photos/`} readOnly={readOnly} />
+      {onglet === 'formulaire' && (
+        <div className="flex flex-col gap-5">
+          <FormulaireGicleur rapport={rapport} readOnly={readOnly} onErreur={afficherErreur} />
+          <SectionPhotos photosUrl={`${API_URL}/api/rapports-gicleurs/${rapport.id}/photos/`} readOnly={readOnly}
+            suggestionsEmplacement={[rapport.local_gicleur, ...(rapport.soupapes_commande || []).map((s: any) => s.localisation)]} />
         </div>
       )}
 

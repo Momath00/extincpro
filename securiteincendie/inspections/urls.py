@@ -30,6 +30,18 @@ from .views import (
     TourneeViewSet,
     VisitesPlanifieesView,
 )
+from .views_gicleur import (
+    GicleurAmeliorationViewSet,
+    GicleurEssaiEcoulementViewSet,
+    GicleurIdentificationSystemeViewSet,
+    GicleurInstallationSpecialeViewSet,
+    GicleurPointBasViewSet,
+    GicleurReponseChecklistViewSet,
+    GicleurReponseNegativeViewSet,
+    GicleurSoupapeCommandeViewSet,
+    GicleurValveEtageSuperviseViewSet,
+    RapportGicleurViewSet,
+)
 
 router = DefaultRouter()
 router.register(r"clients", ClientViewSet, basename="client")
@@ -44,6 +56,16 @@ router.register(r"rapports-eclairage-urgence", RapportEclairageUrgenceViewSet, b
 router.register(r"eclairages-urgence", EclairageUrgenceItemViewSet, basename="eclairage-urgence")
 router.register(r"rapports-cuisine", RapportCuisineViewSet, basename="rapport-cuisine")
 router.register(r"hottes-cuisine", HotteCuisineViewSet, basename="hotte-cuisine")
+router.register(r"rapports-gicleurs", RapportGicleurViewSet, basename="rapport-gicleur")
+router.register(r"gicleur-checklist", GicleurReponseChecklistViewSet, basename="gicleur-checklist")
+router.register(r"gicleur-soupapes", GicleurSoupapeCommandeViewSet, basename="gicleur-soupape")
+router.register(r"gicleur-identifications", GicleurIdentificationSystemeViewSet, basename="gicleur-identification")
+router.register(r"gicleur-essais", GicleurEssaiEcoulementViewSet, basename="gicleur-essai")
+router.register(r"gicleur-installations", GicleurInstallationSpecialeViewSet, basename="gicleur-installation")
+router.register(r"gicleur-points-bas", GicleurPointBasViewSet, basename="gicleur-point-bas")
+router.register(r"gicleur-reponses-negatives", GicleurReponseNegativeViewSet, basename="gicleur-reponse-negative")
+router.register(r"gicleur-ameliorations", GicleurAmeliorationViewSet, basename="gicleur-amelioration")
+router.register(r"gicleur-valves-etage", GicleurValveEtageSuperviseViewSet, basename="gicleur-valve-etage")
 router.register(r"appels-service", AppelServiceViewSet, basename="appel-service")
 router.register(r"tournees", TourneeViewSet, basename="tournee")
 

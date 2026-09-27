@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import InviteModal from '@/components/dashboard/InviteModal'
+import EditMembreModal from '@/components/dashboard/EditMembreModal'
 import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -21,6 +22,7 @@ export default function EquipePage() {
   const [filtre, setFiltre] = useState<'tous' | 'technicien' | 'citoyen' | 'superviseur'>('tous')
   const [loading, setLoading] = useState(true)
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [membreEnEdition, setMembreEnEdition] = useState<any>(null)
 
   function charger() {
     const token = localStorage.getItem('access_token')
@@ -157,6 +159,13 @@ export default function EquipePage() {
                 )}
               </div>
               <button
+                onClick={() => setMembreEnEdition(m)}
+                className="text-gray-400 hover:text-[#e11324] transition-colors flex-shrink-0"
+                title={t('modifier_ce_membre')}
+              >
+                <i className="ti ti-pencil text-base" />
+              </button>
+              <button
                 onClick={() => toggleActif(m.id)}
                 className="flex items-center gap-1.5 text-xs font-medium flex-shrink-0"
                 style={{ color: m.est_actif ? '#0d6b4f' : '#9ca3af' }}
@@ -171,6 +180,9 @@ export default function EquipePage() {
       </div>
 
       {inviteOpen && <InviteModal onClose={() => setInviteOpen(false)} onInvited={charger} />}
+      {membreEnEdition && (
+        <EditMembreModal membre={membreEnEdition} onClose={() => setMembreEnEdition(null)} onSaved={charger} />
+      )}
     </div>
   )
 }

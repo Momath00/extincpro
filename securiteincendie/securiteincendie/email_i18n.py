@@ -122,6 +122,14 @@ EMAIL_DICT: dict[str, dict[str, str]] = {
         "fr": "Votre certificat d'extincteurs est disponible",
         "en": "Your fire extinguisher certificate is available",
     },
+    "certificat_gicleur_sujet_court": {
+        "fr": "Votre certificat du système de gicleurs est disponible",
+        "en": "Your sprinkler system certificate is available",
+    },
+    "certificat_gicleur_intro": {
+        "fr": "le rapport d'inspection du système de gicleurs au",
+        "en": "the sprinkler system inspection report for",
+    },
     # ── Mode direct (envoi PDF sans espace client) ──────────────────────
     "direct_titre": {"fr": "Vos documents sont prêts", "en": "Your documents are ready"},
     "direct_a_realise_inspection": {"fr": "a réalisé l'inspection au", "en": "performed the inspection at"},

@@ -9,6 +9,7 @@ import ModuleBadge from '@/components/dashboard/ModuleBadge'
 import { downloadHtml } from '@/lib/download'
 import { useT } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
+import SectionPhotos from '@/components/rapports/SectionPhotos'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -269,7 +270,12 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
         ))}
       </div>
 
-      {onglet === 'eclairages' && <TableEclairageUrgence rapport={rapport} readOnly={false} onRefresh={charger} />}
+      {onglet === 'eclairages' && (
+        <div className="flex flex-col gap-6">
+          <TableEclairageUrgence rapport={rapport} readOnly={false} onRefresh={charger} />
+          <SectionPhotos photosUrl={`${API_URL}/api/rapports-eclairage-urgence/${rapport.id}/photos/`} readOnly={false} />
+        </div>
+      )}
 
       {onglet === 'historique' && (
         <div className="bg-white rounded-md border border-gray-100 p-5">

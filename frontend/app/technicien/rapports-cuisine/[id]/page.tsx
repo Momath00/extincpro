@@ -9,6 +9,7 @@ import ChecklistCuisine from '@/components/rapports-cuisine/ChecklistCuisine'
 import { downloadHtml } from '@/lib/download'
 import { useT } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
+import SectionPhotos from '@/components/rapports/SectionPhotos'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -206,6 +207,7 @@ export default function TechnicienRapportCuisineDetailPage() {
           <InfoSystemeForm rapport={rapport} readOnly={readOnly} onRefresh={charger} />
           <SchemaHottes rapport={rapport} readOnly={readOnly} onRefresh={charger} />
           <ChecklistCuisine rapport={rapport} readOnly={readOnly} onRefresh={charger} />
+          <SectionPhotos photosUrl={`${API_URL}/api/rapports-cuisine/${rapport.id}/photos/`} readOnly={readOnly} />
         </div>
       )}
 

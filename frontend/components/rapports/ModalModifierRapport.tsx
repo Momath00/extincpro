@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useT } from '@/lib/i18n'
+import SearchableSelect from '@/components/SearchableSelect'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -180,16 +181,13 @@ export default function ModalModifierRapport({
             <p className="text-xs text-gray-400 mb-4">
               {t('citoyen_pourra_consulter')}
             </p>
-            <select
+            <SearchableSelect
+              options={[{ id: '', label: t('aucun_tiret') }, ...citoyens.map((c: any) => ({ id: c.id, label: c.username, sublabel: c.email }))]}
               value={selectedCitoyenId}
-              onChange={e => setSelectedCitoyenId(e.target.value)}
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
-            >
-              <option value="">{t('aucun_tiret')}</option>
-              {citoyens.map((c: any) => (
-                <option key={c.id} value={c.id}>{c.username} — {c.email}</option>
-              ))}
-            </select>
+              onChange={setSelectedCitoyenId}
+              placeholder={t('combo_rechercher_contact')}
+              vide={t('aucun_tiret')}
+            />
           </>
         )}
 

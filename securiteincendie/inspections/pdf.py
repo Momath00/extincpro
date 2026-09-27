@@ -56,6 +56,16 @@ def generer_pdf_rapport_eclairage_complet(rapport) -> bytes:
     return _html_vers_pdf(_html_rapport_eclairage_complet(rapport))
 
 
+def generer_pdf_certificat_gicleur(rapport) -> bytes:
+    from .views_gicleur import html_certificat_gicleur
+    return _html_vers_pdf(html_certificat_gicleur(rapport))
+
+
+def generer_pdf_rapport_gicleur_complet(rapport) -> bytes:
+    from .views_gicleur import html_rapport_gicleur_complet
+    return _html_vers_pdf(html_rapport_gicleur_complet(rapport))
+
+
 def conformite_extincteur(rapport) -> bool:
     """Conformité unifiée du certificat extincteurs : non conforme dès qu'un
     extincteur, une unité d'éclairage d'urgence OU le système cuisine liés

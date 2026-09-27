@@ -27,7 +27,7 @@ def envoyer_rappels_inspections() -> int:
     from accounts.models import Utilisateur
 
     from .emailing import envoyer_rappel_inspection
-    from .models import Rapport, RapportCuisine, RapportEclairageUrgence, RapportExtincteur
+    from .models import Rapport, RapportCuisine, RapportEclairageUrgence, RapportExtincteur, RapportGicleur
     from .views import destinataire_client_du_rapport
 
     aujourdhui = date.today()
@@ -38,6 +38,7 @@ def envoyer_rappels_inspections() -> int:
         (RapportExtincteur, "Extincteurs portatifs"),
         (RapportEclairageUrgence, "Éclairage d'urgence"),
         (RapportCuisine, "Système de cuisine"),
+        (RapportGicleur, "Système de gicleurs"),
     ]
 
     total = 0

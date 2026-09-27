@@ -14,7 +14,7 @@ const PAGE_SIZE = 25
 
 type Certificat = {
   cle: string
-  type: 'incendie' | 'extincteur'
+  type: 'incendie' | 'extincteur' | 'gicleur'
   type_display: string
   numero: string
   date_emission: string
@@ -40,6 +40,7 @@ export default function CertificatsPage() {
   const TYPE_BADGE: Record<string, { label: string; bg: string; color: string; icon: string }> = {
     incendie: { label: t('incendie'), bg: '#eef2ff', color: '#4338ca', icon: 'ti-clipboard-check' },
     extincteur: { label: t('extincteur_eclairage'), bg: '#fff2e8', color: '#9a4a13', icon: 'ti-fire-extinguisher' },
+    gicleur: { label: t('gicleur_badge'), bg: '#eff6ff', color: '#1d4ed8', icon: 'ti-droplets' },
   }
   const [certificats, setCertificats] = useState<Certificat[]>([])
   const [count, setCount] = useState(0)
@@ -48,7 +49,7 @@ export default function CertificatsPage() {
   const [page, setPage] = useState(1)
   const [recherche, setRecherche] = useState('')
   const [rechercheDebouncee, setRechercheDebouncee] = useState('')
-  const [typeFiltre, setTypeFiltre] = useState<'tous' | 'incendie' | 'extincteur'>('tous')
+  const [typeFiltre, setTypeFiltre] = useState<'tous' | 'incendie' | 'extincteur' | 'gicleur'>('tous')
   const [statutFiltre, setStatutFiltre] = useState<'tous' | 'envoye' | 'non_envoye'>('tous')
   const [conformiteFiltre, setConformiteFiltre] = useState<'tous' | 'oui' | 'non'>('tous')
   const [tri, setTri] = useState<{ champ: TriChamp; direction: 'asc' | 'desc' }>({ champ: 'date_emission', direction: 'desc' })
@@ -115,7 +116,7 @@ export default function CertificatsPage() {
     setMenuOuvert(null)
     setRenvoiPhase('envoi')
     const token = localStorage.getItem('access_token')
-    const base = c.type === 'incendie' ? 'rapports' : 'rapports-extincteurs'
+    const base = c.type === 'incendie' ? 'rapports' : c.type === 'gicleur' ? 'rapports-gicleurs' : 'rapports-extincteurs'
     const res = await fetch(`${API_URL}/api/${base}/${c.rapport_id}/renvoyer-certificat/`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
@@ -230,6 +231,7 @@ export default function CertificatsPage() {
             { key: 'tous', label: t('tous_types') },
             { key: 'incendie', label: t('incendie') },
             { key: 'extincteur', label: t('extincteur') },
+            { key: 'gicleur', label: t('gicleur_badge') },
           ] as { key: typeof typeFiltre; label: string }[]).map(f => (
             <button key={f.key} onClick={() => setTypeFiltre(f.key)}
               className="px-3 py-1.5 rounded text-xs font-bold transition-colors whitespace-nowrap"

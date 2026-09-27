@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { clientColor } from '@/lib/clientColor'
+import SearchableSelect from '@/components/SearchableSelect'
 import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -23,6 +23,10 @@ export default function NouveauRapportPage() {
   const [citoyenId, setCitoyenId] = useState('')
   const [technicienIds, setTechnicienIds] = useState<number[]>([])
   const [dateInspection, setDateInspection] = useState('')
+  const [avecExtincteur, setAvecExtincteur] = useState(false)
+  const [avecEclairageUrgence, setAvecEclairageUrgence] = useState(false)
+  const [avecGicleur, setAvecGicleur] = useState(false)
+  const [modulesActifs, setModulesActifs] = useState<string[]>([])
 
   const [loadingBatiments, setLoadingBatiments] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -43,11 +47,16 @@ export default function NouveauRapportPage() {
       fetch(`${API_URL}/api/clients/`, { headers }),
       fetch(`${API_URL}/api/utilisateurs/?role=citoyen`, { headers }),
       fetch(`${API_URL}/api/utilisateurs/?role=technicien`, { headers }),
-    ]).then(async ([clientsRes, citRes, techRes]) => {
+      fetch(`${API_URL}/api/me/`, { headers }),
+    ]).then(async ([clientsRes, citRes, techRes, meRes]) => {
       const [clientsData, citData, techData] = await Promise.all([clientsRes.json(), citRes.json(), techRes.json()])
       setClients(Array.isArray(clientsData) ? clientsData : (clientsData.results || []))
       setCitoyens(Array.isArray(citData) ? citData : (citData.results || []))
       setTechniciens(Array.isArray(techData) ? techData : (techData.results || []))
+      if (meRes.ok) {
+        const me = await meRes.json()
+        setModulesActifs(me?.organisation?.modules_actifs || [])
+      }
     })
   }, [])
 
@@ -87,6 +96,9 @@ export default function NouveauRapportPage() {
           citoyen: citoyenId ? Number(citoyenId) : null,
           techniciens: technicienIds,
           date_inspection: dateInspection || null,
+          avec_extincteur: avecExtincteur,
+          avec_eclairage_urgence: avecEclairageUrgence,
+          avec_gicleur: avecGicleur,
         }),
       })
       const data = await res.json() as any
@@ -121,24 +133,17 @@ export default function NouveauRapportPage() {
           {clients.length === 0 ? (
             <p className="text-xs text-gray-400">{t('aucun_client')}<Link href="/superviseur/clients" className="underline" style={{ color: ORANGE }}>{t('creez_en_un_dabord')}</Link>.</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {clients.map((c: any) => {
-                const col = clientColor(c.id)
-                const selected = clientId === String(c.id)
-                return (
-                  <button
-                    type="button"
-                    key={c.id}
-                    onClick={() => setClientId(String(c.id))}
-                    className="flex items-center gap-3 p-3 rounded-md border-2 text-left transition-colors"
-                    style={{ borderColor: selected ? col.bg : '#e5e7eb', background: selected ? col.light : '#fff' }}
-                  >
-                    <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: col.bg }} />
-                    <span className="text-sm font-medium truncate" style={{ color: NAVY }}>{c.nom}</span>
-                  </button>
-                )
-              })}
-            </div>
+            <SearchableSelect
+              options={clients.map((c: any) => ({
+                id: c.id,
+                label: c.nom,
+                sublabel: `${c.nb_batiments ?? 0} ${t('batiments_minuscule')}${c.contact_nom ? ` · ${c.contact_nom}` : ''}`,
+              }))}
+              value={clientId}
+              onChange={setClientId}
+              placeholder={t('combo_rechercher_client')}
+              vide={t('combo_choisir_client')}
+            />
           )}
         </div>
 
@@ -154,17 +159,13 @@ export default function NouveauRapportPage() {
           ) : batiments.length === 0 ? (
             <p className="text-xs text-gray-400">{t('aucun_batiment_client')}<Link href="/superviseur/batiments" className="underline" style={{ color: ORANGE }}>{t('ajoutez_en_un')}</Link>.</p>
           ) : (
-            <select
+            <SearchableSelect
+              options={batiments.map((b: any) => ({ id: b.id, label: b.adresse_complete, sublabel: b.code_postal || undefined }))}
               value={batimentId}
-              onChange={e => setBatimentId(e.target.value)}
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
-              required
-            >
-              <option value="">{t('selectionner')}</option>
-              {batiments.map((b: any) => (
-                <option key={b.id} value={b.id}>{b.adresse_complete}</option>
-              ))}
-            </select>
+              onChange={setBatimentId}
+              placeholder={t('combo_rechercher_batiment')}
+              vide={t('combo_choisir_batiment')}
+            />
           )}
         </div>
 
@@ -173,16 +174,13 @@ export default function NouveauRapportPage() {
           <label className="text-xs font-bold uppercase tracking-widest mb-2 block" style={{ color: NAVY }}>
             {t('etape_citoyen')} <span className="text-gray-300 normal-case font-normal">{t('optionnel')}</span>
           </label>
-          <select
-            value={citoyenId}
-            onChange={e => setCitoyenId(e.target.value)}
-            className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
-          >
-            <option value="">{t('aucun_tiret')}</option>
-            {citoyens.map((c: any) => (
-              <option key={c.id} value={c.id}>{c.username} — {c.email}</option>
-            ))}
-          </select>
+          <SearchableSelect
+              options={[{ id: '', label: t('aucun_tiret') }, ...citoyens.map((c: any) => ({ id: c.id, label: c.username, sublabel: c.email }))]}
+              value={citoyenId}
+              onChange={setCitoyenId}
+              placeholder={t('combo_rechercher_contact')}
+              vide={t('aucun_tiret')}
+            />
         </div>
 
         {/* Étape 4 — Techniciens (plusieurs) */}
@@ -202,11 +200,11 @@ export default function NouveauRapportPage() {
                     key={tech.id}
                     onClick={() => toggleTechnicien(tech.id)}
                     className="flex items-center gap-3 p-3 rounded-md border-2 text-left transition-colors"
-                    style={{ borderColor: checked ? ORANGE : '#e5e7eb', background: checked ? '#fff2e8' : '#fff' }}
+                    style={{ borderColor: checked ? ORANGE : '#0a0b0d', background: checked ? '#fff2e8' : '#fff' }}
                   >
                     <span
                       className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border-2"
-                      style={{ borderColor: checked ? ORANGE : '#d1d5db', background: checked ? ORANGE : 'transparent' }}
+                      style={{ borderColor: checked ? ORANGE : '#0a0b0d', background: checked ? ORANGE : 'transparent' }}
                     >
                       {checked && <i className="ti ti-check text-white text-xs" />}
                     </span>
@@ -231,10 +229,70 @@ export default function NouveauRapportPage() {
             value={dateInspection}
             onChange={e => setDateInspection(e.target.value)}
             required
-            className="w-full sm:w-64 border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
+            className="w-full sm:w-64 border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
           />
           <p className="text-xs text-gray-400 mt-1.5">{t('note_date_obligatoire_filtre')}</p>
         </div>
+
+        {modulesActifs.includes('rapport_extincteur') && (
+          <button
+            type="button"
+            onClick={() => setAvecExtincteur(v => !v)}
+            className="flex items-start gap-3 p-3 rounded-md border-2 text-left transition-colors"
+            style={{ borderColor: avecExtincteur ? ORANGE : '#0a0b0d', background: avecExtincteur ? '#fff2e8' : '#fff' }}
+          >
+            <span
+              className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border-2 mt-0.5"
+              style={{ borderColor: avecExtincteur ? ORANGE : '#0a0b0d', background: avecExtincteur ? ORANGE : 'transparent' }}
+            >
+              {avecExtincteur && <i className="ti ti-check text-white text-xs" />}
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold" style={{ color: NAVY }}>{t('gic_avec_extincteur')}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{t('lie_avec_extincteur_desc')}</p>
+            </div>
+          </button>
+        )}
+
+        {modulesActifs.includes('rapport_eclairage_urgence') && (
+          <button
+            type="button"
+            onClick={() => setAvecEclairageUrgence(v => !v)}
+            className="flex items-start gap-3 p-3 rounded-md border-2 text-left transition-colors"
+            style={{ borderColor: avecEclairageUrgence ? ORANGE : '#0a0b0d', background: avecEclairageUrgence ? '#fff2e8' : '#fff' }}
+          >
+            <span
+              className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border-2 mt-0.5"
+              style={{ borderColor: avecEclairageUrgence ? ORANGE : '#0a0b0d', background: avecEclairageUrgence ? ORANGE : 'transparent' }}
+            >
+              {avecEclairageUrgence && <i className="ti ti-check text-white text-xs" />}
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold" style={{ color: NAVY }}>{t('gic_avec_eclairage')}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{avecExtincteur ? t('gic_avec_eclairage_desc') : t('gic_avec_eclairage_seul_desc')}</p>
+            </div>
+          </button>
+        )}
+
+        {modulesActifs.includes('rapport_gicleur') && (
+          <button
+            type="button"
+            onClick={() => setAvecGicleur(v => !v)}
+            className="flex items-start gap-3 p-3 rounded-md border-2 text-left transition-colors"
+            style={{ borderColor: avecGicleur ? ORANGE : '#0a0b0d', background: avecGicleur ? '#fff2e8' : '#fff' }}
+          >
+            <span
+              className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border-2 mt-0.5"
+              style={{ borderColor: avecGicleur ? ORANGE : '#0a0b0d', background: avecGicleur ? ORANGE : 'transparent' }}
+            >
+              {avecGicleur && <i className="ti ti-check text-white text-xs" />}
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold" style={{ color: NAVY }}>{t('lie_avec_gicleur')}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{t('lie_avec_gicleur_desc')}</p>
+            </div>
+          </button>
+        )}
 
         <button
           type="submit"

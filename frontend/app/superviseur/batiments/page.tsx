@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { clientColor } from '@/lib/clientColor'
 import Pagination from '@/components/dashboard/Pagination'
+import SearchableSelect from '@/components/SearchableSelect'
 import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -93,11 +94,13 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <div>
             <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('client')}</label>
-            <select value={clientId} onChange={e => setClientId(e.target.value)} required
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]">
-              <option value="">{t('selectionner')}</option>
-              {clients.map((c: any) => <option key={c.id} value={c.id}>{c.nom}</option>)}
-            </select>
+            <SearchableSelect
+              options={clients.map((c: any) => ({ id: c.id, label: c.nom, sublabel: c.contact_nom || undefined }))}
+              value={clientId}
+              onChange={setClientId}
+              placeholder={t('combo_rechercher_client')}
+              vide={t('combo_choisir_client')}
+            />
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -162,11 +165,13 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
 
           <div>
             <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('citoyen_proprietaire')} <span className="text-gray-300 normal-case font-normal">{t('optionnel')}</span></label>
-            <select value={proprietaireId} onChange={e => setProprietaireId(e.target.value)}
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]">
-              <option value="">{t('aucun_tiret')}</option>
-              {citoyens.map((c: any) => <option key={c.id} value={c.id}>{c.username} — {c.email}</option>)}
-            </select>
+            <SearchableSelect
+              options={[{ id: '', label: t('aucun_tiret') }, ...citoyens.map((c: any) => ({ id: c.id, label: c.username, sublabel: c.email }))]}
+              value={proprietaireId}
+              onChange={setProprietaireId}
+              placeholder={t('combo_rechercher_contact')}
+              vide={t('aucun_tiret')}
+            />
           </div>
 
           <button type="submit" disabled={loading}

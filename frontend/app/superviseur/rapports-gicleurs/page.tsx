@@ -1,0 +1,390 @@
+'use client'
+
+import { useState, useEffect, useRef, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
+import Pagination from '@/components/dashboard/Pagination'
+import { useLangue, useT } from '@/lib/i18n'
+import { TYPES_SYSTEME } from '@/components/rapports-gicleurs/FormulaireGicleur'
+
+const PAGE_SIZE = 25
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const NAVY = '#0a0b0d'
+const ORANGE = '#e11324'
+
+function RapportsGicleursListContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const t = useT()
+  const langue = useLangue()
+  const [rapports, setRapports] = useState<any[]>([])
+  const [count, setCount] = useState(0)
+  const [compteurs, setCompteurs] = useState({ tous: 0, ouvert: 0, ferme: 0 })
+  const [loading, setLoading] = useState(true)
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
+
+  const initialFiltre = (searchParams.get('f') as 'tous' | 'ouvert' | 'ferme') || 'tous'
+  const [filtre, setFiltre] = useState<'tous' | 'ouvert' | 'ferme'>(initialFiltre)
+  const [page, setPage] = useState(Number(searchParams.get('page')) || 1)
+  const [recherche, setRecherche] = useState('')
+  const [rechercheDebouncee, setRechercheDebouncee] = useState('')
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [modif, setModif] = useState<{ rapport: any; mode: 'technicien' | 'adresse' | 'citoyen' } | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+  const [supprimerId, setSupprimerId] = useState<number | null>(null)
+  const [suppression, setSuppression] = useState(false)
+
+  function onModifSaved() {
+    setToast(t('modification_succes'))
+    setTimeout(() => setToast(null), 3000)
+    charger(true)
+  }
+
+  async function supprimerRapport() {
+    if (!supprimerId) return
+    setSuppression(true)
+    const token = localStorage.getItem('access_token')
+    await fetch(`${API_URL}/api/rapports-gicleurs/${supprimerId}/`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    setSuppression(false)
+    setSupprimerId(null)
+    setToast(t('rapport_supprime'))
+    setTimeout(() => setToast(null), 3000)
+    charger(true)
+  }
+
+  function chargerCompteurs() {
+    const token = localStorage.getItem('access_token')
+    fetch(`${API_URL}/api/rapports-gicleurs/compteurs/`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => { if (data) setCompteurs(data) })
+      .catch(() => {})
+  }
+
+  function charger(silent = false) {
+    const token = localStorage.getItem('access_token')
+    if (!token) { router.push('/login'); return }
+    if (!silent) setLoading(true)
+    const params = new URLSearchParams({ page: String(page) })
+    if (filtre !== 'tous') params.set('statut', filtre)
+    if (rechercheDebouncee.trim()) params.set('q', rechercheDebouncee.trim())
+    fetch(`${API_URL}/api/rapports-gicleurs/?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => {
+        if (res.status === 401) { router.push('/login'); return null }
+        return res.json()
+      })
+      .then(data => {
+        if (data) {
+          setRapports(Array.isArray(data) ? data : (data.results || []))
+          setCount(Array.isArray(data) ? data.length : (data.count ?? 0))
+          setLastUpdate(new Date())
+        }
+        if (!silent) setLoading(false)
+      })
+      .catch(() => { if (!silent) setLoading(false) })
+    chargerCompteurs()
+  }
+
+  useEffect(() => {
+    charger()
+    timerRef.current = setInterval(() => charger(true), 30000)
+    return () => { if (timerRef.current) clearInterval(timerRef.current) }
+  }, [page, filtre, rechercheDebouncee])
+
+  useEffect(() => {
+    const f = searchParams.get('f') as 'tous' | 'ouvert' | 'ferme' | null
+    if (f && f !== filtre) setFiltre(f)
+  }, [searchParams])
+
+  // Recherche débattue à 300ms — évite un appel réseau à chaque frappe.
+  useEffect(() => {
+    const id = setTimeout(() => setRechercheDebouncee(recherche), 300)
+    return () => clearTimeout(id)
+  }, [recherche])
+
+  // Revenir à la page 1 dès que le filtre ou la recherche change — pas au
+  // tout premier rendu, pour respecter un ?page= déjà présent dans l'URL.
+  const premierRendu = useRef(true)
+  useEffect(() => {
+    if (premierRendu.current) { premierRendu.current = false; return }
+    setPage(1)
+  }, [filtre, rechercheDebouncee])
+
+  const filtered = rapports
+  const nbOuverts = compteurs.ouvert
+  const nbFermes = compteurs.ferme
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-2 rounded-full animate-spin"
+          style={{ borderColor: NAVY, borderTopColor: 'transparent' }} />
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      {modif && (
+        <ModalModifierRapport
+          rapport={modif.rapport}
+          mode={modif.mode}
+          apiBase="/api/rapports-gicleurs/"
+          onClose={() => setModif(null)}
+          onSaved={onModifSaved}
+        />
+      )}
+
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 bg-white rounded-xl shadow-xl border border-green-100 px-5 py-3.5">
+          <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 bg-green-50">
+            <i className="ti ti-check text-green-600 text-sm" />
+          </div>
+          <p className="text-sm font-semibold" style={{ color: NAVY }}>{toast}</p>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: NAVY }}>{t('titre_rapport_gicleur')}</h1>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-gray-500 text-sm">{compteurs.tous} {compteurs.tous !== 1 ? t('rapports_pluriel') : t('rapport_singulier')}</p>
+            <span className="text-gray-200">·</span>
+            <span className="text-xs text-gray-400">
+              {t('mis_a_jour')} {lastUpdate.toLocaleTimeString('fr-CA', { timeStyle: 'short' })}
+            </span>
+            <button onClick={() => charger()} className="text-gray-300 hover:text-gray-500 transition-colors" title={t('actualiser')}>
+              <i className="ti ti-refresh text-sm" />
+            </button>
+          </div>
+        </div>
+        <Link
+          href="/superviseur/rapports-gicleurs/nouveau"
+          className="text-center text-white px-4 py-2.5 rounded-md text-sm font-bold hover:opacity-90 transition-opacity flex items-center gap-1.5"
+          style={{ background: ORANGE }}
+        >
+          <i className="ti ti-plus" /> {t('nouveau_rapport')}
+        </Link>
+      </div>
+
+      {/* Filtres + Recherche */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+        <div className="flex gap-1 p-1 rounded-md border border-gray-100 bg-white w-full sm:w-auto">
+          {([
+            { key: 'tous', label: `${t('tous')} (${compteurs.tous})` },
+            { key: 'ouvert', label: `${t('ouverts')} (${nbOuverts})` },
+            { key: 'ferme', label: `${t('fermes_certificats')} (${nbFermes})` },
+          ] as { key: 'tous' | 'ouvert' | 'ferme'; label: string }[]).map(f => (
+            <button
+              key={f.key}
+              onClick={() => setFiltre(f.key)}
+              className="flex-1 sm:flex-none px-3 py-1.5 rounded text-xs font-bold transition-colors whitespace-nowrap"
+              style={{
+                background: filtre === f.key ? NAVY : 'transparent',
+                color: filtre === f.key ? '#fff' : '#6b7280',
+              }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative flex-1 sm:max-w-xs">
+          <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 text-sm" />
+          <input
+            type="text"
+            value={recherche}
+            onChange={e => setRecherche(e.target.value)}
+            placeholder={t('rechercher_placeholder')}
+            className="w-full pl-8 pr-8 py-2 text-sm border border-gray-100 rounded-md focus:outline-none focus:border-[#e11324] bg-white"
+          />
+          {recherche && (
+            <button onClick={() => setRecherche('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
+              <i className="ti ti-x text-xs" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Liste */}
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded-md border border-gray-100 p-12 text-center">
+          <i className="ti ti-droplets text-4xl text-gray-200" />
+          <p className="mt-3 text-sm text-gray-400">
+            {recherche ? t('aucun_resultat_recherche') : t('aucun_rapport')}
+          </p>
+          {!recherche && (
+            <Link href="/superviseur/rapports-gicleurs/nouveau"
+              className="mt-4 inline-block text-sm font-bold hover:underline"
+              style={{ color: ORANGE }}>
+              {t('creer_premier_rapport')}
+            </Link>
+          )}
+        </div>
+      ) : (
+        <div className="bg-white rounded-md border border-gray-100 overflow-hidden shadow-sm">
+          <div className="hidden md:grid grid-cols-[2fr_1.5fr_1.5fr_auto_auto] gap-4 px-5 py-3 border-b border-gray-100 bg-slate-50 text-xs font-black uppercase tracking-widest text-gray-500">
+            <span>{t('adresse')}</span>
+            <span>{t('client')}</span>
+            <span>{t('techniciens_col')}</span>
+            <span>{t('gic_type_systeme')}</span>
+            <span>{t('statut')}</span>
+          </div>
+
+          <div className="divide-y divide-gray-50">
+            {filtered.map(r => {
+              const ferme = r.statut === 'ferme'
+              return (
+                <Link
+                  key={r.id}
+                  href={`/superviseur/rapports-gicleurs/${r.id}`}
+                  className="flex flex-col md:grid md:grid-cols-[2fr_1.5fr_1.5fr_auto_auto] gap-2 md:gap-4 px-5 py-4 hover:bg-gray-50 transition-colors items-start md:items-center group"
+                >
+                  <div className="flex items-center gap-3 min-w-0 w-full md:w-auto">
+                    <div className="w-8 h-8 rounded-md flex-shrink-0 items-center justify-center hidden md:flex"
+                      style={{ background: ferme ? '#e9f6f2' : '#fff2e8' }}>
+                      <i className="ti ti-droplets text-sm"
+                        style={{ color: ferme ? '#0d6b4f' : '#9a4a13' }} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold truncate group-hover:text-[#e11324] transition-colors" style={{ color: NAVY }}>
+                        {r.batiment?.adresse_complete || '—'}
+                      </p>
+                      {r.date_inspection && (
+                        <p className="text-xs text-gray-400">
+                          {new Date(r.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'medium' })}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={e => { e.preventDefault(); e.stopPropagation(); setModif({ rapport: r, mode: 'adresse' }) }}
+                      title={t('corriger_adresse')}
+                      className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-[#e11324] hover:bg-orange-50 transition-colors"
+                    >
+                      <i className="ti ti-pencil text-xs" />
+                    </button>
+                  </div>
+
+                  {/* Client + citoyen */}
+                  <div className="hidden md:flex items-center gap-1.5 min-w-0">
+                    <div className="min-w-0">
+                      <p className="text-sm text-gray-500 truncate">{r.batiment?.client_nom || '—'}</p>
+                      <p className="text-xs text-gray-400 truncate">
+                        <i className="ti ti-user text-[10px] mr-0.5" />
+                        {r.citoyen?.username || t('aucun_citoyen')}
+                      </p>
+                    </div>
+                    <button
+                      onClick={e => { e.preventDefault(); e.stopPropagation(); setModif({ rapport: r, mode: 'citoyen' }) }}
+                      title={t('modifier_citoyen')}
+                      className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-[#e11324] hover:bg-orange-50 transition-colors"
+                    >
+                      <i className="ti ti-pencil text-xs" />
+                    </button>
+                  </div>
+
+                  <div className="hidden md:flex items-center flex-wrap gap-1">
+                    {r.techniciens?.length
+                      ? r.techniciens.slice(0, 2).map((t: any) => (
+                        <span key={t.id} className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100" style={{ color: NAVY }}>
+                          {t.username}
+                        </span>
+                      ))
+                      : <span className="text-xs text-gray-400 italic">{t('non_assigne')}</span>}
+                    {(r.techniciens?.length || 0) > 2 && (
+                      <span className="text-xs text-gray-400">+{r.techniciens.length - 2}</span>
+                    )}
+                    <button
+                      onClick={e => { e.preventDefault(); e.stopPropagation(); setModif({ rapport: r, mode: 'technicien' }) }}
+                      title={t('reassigner_techniciens')}
+                      className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-[#e11324] hover:bg-orange-50 transition-colors"
+                    >
+                      <i className="ti ti-pencil text-xs" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap md:hidden">
+                    <span className="text-xs text-gray-500">{r.batiment?.client_nom || '—'}</span>
+                    {r.techniciens?.length > 0 && (
+                      <>
+                        <span className="text-gray-200">·</span>
+                        <span className="text-xs text-gray-400">
+                          {r.techniciens.map((t: any) => t.username).join(', ')}
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  <span className="hidden md:inline text-xs text-gray-400">{TYPES_SYSTEME.find(o => o.value === r.type_systeme)?.[langue] || '—'}</span>
+
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-xs px-2.5 py-1 rounded-full font-semibold whitespace-nowrap"
+                      style={ferme
+                        ? { background: '#e9f6f2', color: '#0d6b4f' }
+                        : { background: '#fff2e8', color: '#9a4a13' }}>
+                      {ferme ? t('ferme') : t('ouvert')}
+                    </span>
+                    {ferme && r.certificat && (
+                      <span className="text-xs px-2.5 py-1 rounded-full font-semibold whitespace-nowrap flex items-center gap-1"
+                        style={{ background: '#fffbeb', color: '#92400e' }}>
+                        <i className="ti ti-certificate text-[10px]" />
+                        {r.certificat.certificat_envoye ? t('envoye') : t('non_envoye')}
+                      </span>
+                    )}
+                    <button
+                      onClick={e => { e.preventDefault(); e.stopPropagation(); setSupprimerId(r.id) }}
+                      title={t('supprimer_rapport_titre_action')}
+                      className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    >
+                      <i className="ti ti-trash text-xs" />
+                    </button>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      <Pagination page={page} pageSize={PAGE_SIZE} count={count} onPageChange={setPage} />
+
+      {supprimerId !== null && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSupprimerId(null)} />
+          <div className="relative bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl text-center">
+            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
+              <i className="ti ti-alert-triangle text-red-500 text-xl" />
+            </div>
+            <h3 className="text-sm font-bold mb-1" style={{ color: NAVY }}>{t('supprimer_rapport_titre')}</h3>
+            <p className="text-xs text-gray-400 mb-5">{t('action_irreversible')}</p>
+            <div className="flex gap-2">
+              <button onClick={() => setSupprimerId(null)} className="flex-1 py-2.5 rounded-md text-sm font-semibold border border-gray-200" style={{ color: NAVY }}>{t('annuler')}</button>
+              <button onClick={supprimerRapport} disabled={suppression} className="flex-1 py-2.5 rounded-md text-sm font-bold text-white bg-red-500 disabled:opacity-50">
+                {suppression ? t('suppression_en_cours') : t('supprimer')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function SuperviseurRapportsGicleursPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-2 rounded-full animate-spin"
+          style={{ borderColor: NAVY, borderTopColor: 'transparent' }} />
+      </div>
+    }>
+      <RapportsGicleursListContent />
+    </Suspense>
+  )
+}

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import TableEclairageUrgence from '@/components/rapports-eclairage-urgence/TableEclairageUrgence'
 import { useT } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
+import SectionPhotos from '@/components/rapports/SectionPhotos'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -141,7 +142,12 @@ export default function TechnicienRapportEclairageUrgenceDetailPage() {
         ))}
       </div>
 
-      {onglet === 'eclairages' && <TableEclairageUrgence rapport={rapport} readOnly={readOnly} onRefresh={charger} />}
+      {onglet === 'eclairages' && (
+        <div className="flex flex-col gap-6">
+          <TableEclairageUrgence rapport={rapport} readOnly={readOnly} onRefresh={charger} />
+          <SectionPhotos photosUrl={`${API_URL}/api/rapports-eclairage-urgence/${rapport.id}/photos/`} readOnly={readOnly} />
+        </div>
+      )}
 
       {onglet === 'historique' && (
         <div className="bg-white rounded-md border border-gray-100 p-5">
