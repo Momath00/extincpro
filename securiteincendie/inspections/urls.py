@@ -30,6 +30,7 @@ from .views import (
     TourneeViewSet,
     VisitesPlanifieesView,
 )
+from .views_certificats import CertificatVisiteViewSet, ParametresCertificatView, VerificationCertificatView
 from .views_gicleur import (
     GicleurAmeliorationViewSet,
     GicleurEssaiEcoulementViewSet,
@@ -68,6 +69,7 @@ router.register(r"gicleur-ameliorations", GicleurAmeliorationViewSet, basename="
 router.register(r"gicleur-valves-etage", GicleurValveEtageSuperviseViewSet, basename="gicleur-valve-etage")
 router.register(r"appels-service", AppelServiceViewSet, basename="appel-service")
 router.register(r"tournees", TourneeViewSet, basename="tournee")
+router.register(r"certificats-visite", CertificatVisiteViewSet, basename="certificat-visite")
 
 # Routes générées, à titre de référence :
 # GET/POST    /api/clients/                     → liste / créer un client (superviseur)
@@ -99,5 +101,7 @@ urlpatterns = [
     path("technicien/aujourdhui/", TechnicienAujourdhuiView.as_view(), name="technicien_aujourdhui"),
     path("technicien/prochaines-visites/", TechnicienProchainesVisitesView.as_view(), name="technicien_prochaines_visites"),
     path("certificats/excel/", CertificatsExcelView.as_view(), name="certificats_excel"),
+    path("parametres-certificat/", ParametresCertificatView.as_view(), name="parametres_certificat"),
+    path("verifier-certificat/<uuid:jeton>/", VerificationCertificatView.as_view(), name="verifier_certificat"),
     path("", include(router.urls)),
 ]

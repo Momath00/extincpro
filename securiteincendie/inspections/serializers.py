@@ -339,9 +339,14 @@ class BoyauItemSerializer(serializers.ModelSerializer):
 
 
 class CertificatExtincteurSerializer(serializers.ModelSerializer):
+    numero_affiche = serializers.CharField(read_only=True)
+
     class Meta:
         model = CertificatExtincteur
-        fields = ["id", "numero", "date_emission", "emis_par", "certificat_envoye"]
+        fields = [
+            "id", "numero", "numero_affiche", "revision", "statut", "type_document",
+            "date_emission", "emis_par", "certificat_envoye",
+        ]
 
 
 class HistoriqueRapportExtincteurSerializer(serializers.ModelSerializer):
@@ -370,7 +375,10 @@ class RapportExtincteurListSerializer(serializers.ModelSerializer):
     def get_certificat(self, obj):
         try:
             c = obj.certificat
-            return {"numero": c.numero, "certificat_envoye": c.certificat_envoye}
+            return {
+                "numero": c.numero_affiche, "certificat_envoye": c.certificat_envoye,
+                "statut": c.statut, "type_document": c.type_document,
+            }
         except Exception:
             return None
 
@@ -500,7 +508,7 @@ class RapportEclairageUrgenceCreateSerializer(serializers.ModelSerializer):
 class HotteCuisineSerializer(serializers.ModelSerializer):
     class Meta:
         model = HotteCuisine
-        fields = ["id", "rapport", "ordre", "label", "nombre_buses", "buses", "appareils", "dividers"]
+        fields = ["id", "rapport", "ordre", "label", "nombre_buses", "buses", "elevations", "appareils", "dividers", "tailles"]
         read_only_fields = ["rapport"]
 
 
@@ -520,6 +528,7 @@ class RapportCuisineListSerializer(serializers.ModelSerializer):
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
     rapport_extincteur_id = serializers.IntegerField(source="rapport_extincteur.id", read_only=True, default=None)
     est_conforme = serializers.BooleanField(read_only=True)
+    nb_verifications_conformes = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = RapportCuisine
@@ -527,6 +536,7 @@ class RapportCuisineListSerializer(serializers.ModelSerializer):
             "id", "batiment", "techniciens", "numero_job",
             "statut", "statut_display", "date_inspection", "date_derniere_sauvegarde",
             "date_fermeture", "rapport_extincteur_id", "est_conforme",
+            "nb_verifications_conformes", "conforme_recommandations",
         ]
 
 
@@ -575,6 +585,7 @@ class RapportCuisineCreateSerializer(serializers.ModelSerializer):
             "cylindres_supports_inspectes", "extincteur_portatif_type_k", "station_manuelle_degagee",
             "etiquettes_verification_apposees", "buses_protecteurs_nettoyes",
             "systeme_condition_normale", "liens_fusibles_nettoyes", "commentaires",
+            "conforme_recommandations",
         ]
         read_only_fields = ["id"]
 

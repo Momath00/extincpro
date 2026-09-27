@@ -8,6 +8,7 @@ import TableBoyaux from '@/components/rapports-extincteurs/TableBoyaux'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 import ModuleBadge from '@/components/dashboard/ModuleBadge'
 import EnvoiDirectBanner from '@/components/dashboard/EnvoiDirectBanner'
+import PanneauCertificat from '@/components/certificats/PanneauCertificat'
 import { downloadHtml, downloadFichier } from '@/lib/download'
 import { useT } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
@@ -54,6 +55,8 @@ function CertificatTab({
   }
 
   return (
+    <div className="flex flex-col gap-5">
+    <PanneauCertificat type="extincteurs" rapportId={rapport.id} cle={`${rapport.statut}-${cert.certificat_envoye}`} />
     <div className="max-w-lg">
       <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
         <div className="px-8 py-10 text-center" style={{ background: 'linear-gradient(135deg,#0a0b0d,#000000)' }}>
@@ -61,7 +64,7 @@ function CertificatTab({
             <i className="ti ti-certificate text-white text-3xl" />
           </div>
           <p className="text-white/60 text-xs font-bold uppercase tracking-widest mb-1">{t('certificat_verification')}</p>
-          <p className="text-white text-2xl font-bold tracking-wide">{cert.numero}</p>
+          <p className="text-white text-2xl font-bold tracking-wide">{cert.numero_affiche || cert.numero}</p>
           <p className="text-white/50 text-xs mt-2">{t('extincteurs_portatifs')}</p>
         </div>
 
@@ -114,7 +117,7 @@ function CertificatTab({
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
-            {peutEnvoyer && !modeDirect && !cert.certificat_envoye && (
+            {peutEnvoyer && !modeDirect && !cert.certificat_envoye && cert.statut === 'emis' && (
               <button
                 onClick={onEnvoyer}
                 disabled={actionLoading}
@@ -135,6 +138,7 @@ function CertificatTab({
           </div>
         </div>
       </div>
+    </div>
     </div>
   )
 }
@@ -320,7 +324,7 @@ export default function SuperviseurRapportExtincteurDetailPage() {
             </button>
           )}
 
-          {estFerme && rapport.certificat && !rapport.certificat.certificat_envoye &&
+          {estFerme && rapport.certificat && !rapport.certificat.certificat_envoye && rapport.certificat.statut === 'emis' &&
             rapport.batiment?.client_mode_livraison !== 'direct' && !!rapport.citoyen && (
             <button
               onClick={envoyerCertificat}

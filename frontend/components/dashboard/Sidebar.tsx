@@ -51,6 +51,10 @@ const NAV_GROUPS = [
     label: 'nav_equipe',
     items: [{ href: '/superviseur/equipe', label: 'nav_equipe', icon: 'ti-users' }],
   },
+  {
+    label: 'nav_parametres',
+    items: [{ href: '/superviseur/parametres/certificats', label: 'nav_parametres_certificats', icon: 'ti-settings' }],
+  },
 ]
 
 export default function Sidebar({ user, onClose }: { user: any; onClose?: () => void }) {

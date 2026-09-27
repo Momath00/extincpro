@@ -6,6 +6,8 @@ import Link from 'next/link'
 import TableEclairageUrgence from '@/components/rapports-eclairage-urgence/TableEclairageUrgence'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 import ModuleBadge from '@/components/dashboard/ModuleBadge'
+import EnvoiDirectBanner from '@/components/dashboard/EnvoiDirectBanner'
+import PanneauCertificat from '@/components/certificats/PanneauCertificat'
 import { downloadHtml } from '@/lib/download'
 import { useT } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
@@ -16,7 +18,7 @@ const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
 const ROUGE = '#7f1d1d'
 
-type OngletType = 'eclairages' | 'historique'
+type OngletType = 'eclairages' | 'certificat' | 'historique'
 
 export default function SuperviseurRapportEclairageUrgenceDetailPage() {
   const router = useRouter()
@@ -108,6 +110,7 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
 
   const onglets: { key: OngletType; label: string; shortLabel: string }[] = [
     { key: 'eclairages', label: `${t('titre_rapport_eclairage')} (${rapport.eclairages_urgence?.length || 0})`, shortLabel: `${t('titre_rapport_eclairage')} (${rapport.eclairages_urgence?.length || 0})` },
+    { key: 'certificat', label: t('certificat'), shortLabel: t('certificat') },
     { key: 'historique', label: `${t('historique')} (${rapport.historique?.length || 0})`, shortLabel: `${t('historique')} (${rapport.historique?.length || 0})` },
   ]
 
@@ -212,6 +215,10 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
         </Link>
       )}
 
+      {rapport.batiment?.id && (
+        <EnvoiDirectBanner key={rapport.statut} batimentId={rapport.batiment.id} onEnvoye={charger} />
+      )}
+
       {estFerme && (
         <div className="mb-4 flex items-center gap-3 px-4 py-3 rounded-md border text-sm"
           style={{ background: '#fffbeb', borderColor: '#fde68a' }}>
@@ -276,6 +283,10 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
           <TableEclairageUrgence rapport={rapport} readOnly={false} onRefresh={charger} />
           <SectionPhotos photosUrl={`${API_URL}/api/rapports-eclairage-urgence/${rapport.id}/photos/`} readOnly={false} />
         </div>
+      )}
+
+      {onglet === 'certificat' && (
+        <PanneauCertificat type="eclairage" rapportId={rapport.id} cle={rapport.statut} />
       )}
 
       {onglet === 'historique' && (

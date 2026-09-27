@@ -1,5 +1,8 @@
+import uuid
+
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class Client(models.Model):
@@ -240,6 +243,10 @@ class Certificat(models.Model):
     """Généré automatiquement quand un rapport est fermé — remis au citoyen."""
 
     rapport = models.OneToOneField(Rapport, on_delete=models.CASCADE, related_name="certificat")
+    jeton = models.UUIDField(
+        default=uuid.uuid4, unique=True, editable=False,
+        help_text="Identifiant public du QR code de vérification (voir certificats.py).",
+    )
     numero = models.CharField(max_length=30, unique=True, blank=True)
     date_emission = models.DateTimeField(auto_now_add=True)
     fichier_pdf = models.FileField(upload_to="certificats/", blank=True, null=True)
@@ -605,19 +612,22 @@ class RapportExtincteur(models.Model):
         self.save()
         self.historiser(utilisateur, "Rapport fermé")
 
-        if not hasattr(self, "certificat"):
-            CertificatExtincteur.objects.create(rapport=self, emis_par=utilisateur)
-
-        # Un seul certificat couvre extincteurs + éclairage d'urgence — les
-        # deux rapports d'une même visite se ferment donc ensemble.
+        # Les rapports liés d'une même visite (éclairage, cuisine) se ferment
+        # ensemble — AVANT l'émission du certificat, pour qu'il reflète leur
+        # état final (échéances calculées à la fermeture comprises).
         eclairage = getattr(self, "rapport_eclairage_lie", None)
         if eclairage is not None and eclairage.statut != eclairage.Statut.FERME:
-            eclairage.fermer(utilisateur)
+            eclairage.fermer(utilisateur, cascade=True)
 
-        # Même logique pour le système de cuisine lié, s'il y en a un.
         cuisine = getattr(self, "rapport_cuisine_lie", None)
         if cuisine is not None and cuisine.statut != cuisine.Statut.FERME:
-            cuisine.fermer(utilisateur)
+            cuisine.fermer(utilisateur, cascade=True)
+
+        # Certificat de la visite (ou des extincteurs seuls si l'organisation
+        # délivre un certificat par système) — voir certificats.py.
+        from .certificats import assurer_certificat
+
+        assurer_certificat(self, utilisateur)
 
         self._generer_ou_rafraichir_brouillon_suivant(utilisateur)
 
@@ -672,13 +682,11 @@ class RapportExtincteur(models.Model):
         self.save()
         self.historiser(utilisateur, "Rapport rouvert")
 
-        # Le rapport va potentiellement être modifié (réparation, mise à jour) —
-        # le certificat déjà envoyé ne reflète plus l'état courant, donc on le
-        # marque comme non envoyé pour permettre de le renvoyer après refermeture.
-        if hasattr(self, "certificat") and self.certificat.certificat_envoye:
-            self.certificat.certificat_envoye = False
-            self.certificat.save()
-            self.historiser(utilisateur, "Certificat marqué comme non envoyé (rapport rouvert)")
+        # Le rapport va potentiellement être modifié — le certificat émis
+        # repasse en révision (et « non envoyé ») jusqu'à la prochaine émission.
+        from .certificats import invalider_certificat
+
+        invalider_certificat(self, utilisateur)
 
         eclairage = getattr(self, "rapport_eclairage_lie", None)
         if eclairage is not None and eclairage.statut == eclairage.Statut.FERME:
@@ -693,13 +701,59 @@ class RapportExtincteur(models.Model):
 
 
 class CertificatExtincteur(models.Model):
-    """Généré automatiquement quand un rapport extincteurs est fermé."""
+    """Certificat de vérification — extincteurs, éclairage d'urgence et
+    système de cuisine.
+
+    Ancré sur UN rapport (`rapport` extincteur, `rapport_cuisine` ou
+    `rapport_eclairage`, un seul renseigné). En regroupement « par visite »,
+    un certificat ancré sur un rapport extincteur couvre aussi ses rapports
+    liés (éclairage, cuisine) ; un rapport cuisine/éclairage seul a son propre
+    certificat. En regroupement « par système », chaque rapport a le sien.
+
+    Le contenu est figé à l'émission (`html_fige`, une `RevisionCertificat`
+    par émission) : rouvrir un rapport repasse le certificat en brouillon et
+    la prochaine émission crée une révision (R1, R2…) au lieu de modifier en
+    silence un document déjà remis au client. Toute la logique est dans
+    certificats.py."""
+
+    class Statut(models.TextChoices):
+        BROUILLON = "brouillon", "Brouillon"
+        EMIS = "emis", "Émis"
+
+    class TypeDocument(models.TextChoices):
+        CERTIFICAT = "certificat", "Certificat"
+        AVIS = "avis", "Avis de non-conformité"
 
     rapport = models.OneToOneField(
-        RapportExtincteur, on_delete=models.CASCADE, related_name="certificat"
+        RapportExtincteur, on_delete=models.CASCADE, related_name="certificat", null=True, blank=True
+    )
+    rapport_cuisine = models.OneToOneField(
+        "RapportCuisine", on_delete=models.CASCADE, related_name="certificat", null=True, blank=True
+    )
+    rapport_eclairage = models.OneToOneField(
+        "RapportEclairageUrgence", on_delete=models.CASCADE, related_name="certificat", null=True, blank=True
+    )
+    batiment = models.ForeignKey(
+        Batiment, on_delete=models.CASCADE, related_name="certificats_visite", null=True, blank=True
+    )
+    regroupement = models.CharField(
+        max_length=10, default="visite",
+        help_text="Réglage de l'organisation à la création — « visite » : couvre aussi les rapports liés.",
     )
     numero = models.CharField(max_length=30, unique=True, blank=True)
-    date_emission = models.DateTimeField(auto_now_add=True)
+    date_emission = models.DateTimeField(default=timezone.now)
+    statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.EMIS)
+    type_document = models.CharField(max_length=12, choices=TypeDocument.choices, default=TypeDocument.CERTIFICAT)
+    revision = models.PositiveIntegerField(default=0)
+    ajustements = models.JSONField(
+        default=dict, blank=True,
+        help_text="Statuts ajustés à la main par ligne — {systeme: {statut, raison, par, par_nom, date}}.",
+    )
+    conforme = models.BooleanField(null=True, blank=True, help_text="Conformité à la dernière émission.")
+    lignes = models.JSONField(default=list, blank=True, help_text="Lignes à la dernière émission.")
+    html_fige = models.TextField(blank=True)
+    empreinte = models.CharField(max_length=64, blank=True)
+    jeton = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     certificat_envoye = models.BooleanField(
         default=False,
         help_text="True quand le superviseur envoie explicitement le certificat au citoyen.",
@@ -722,12 +776,33 @@ class CertificatExtincteur(models.Model):
     class Meta:
         ordering = ["-date_emission"]
 
-    def save(self, *args, **kwargs):
-        if not self.numero:
-            from django.utils import timezone
+    @property
+    def rapport_ancre(self):
+        return self.rapport or self.rapport_cuisine or self.rapport_eclairage
 
+    @property
+    def systeme_ancre(self):
+        if self.rapport_id:
+            return "extincteurs"
+        return "cuisine" if self.rapport_cuisine_id else "eclairage"
+
+    @property
+    def numero_affiche(self):
+        return f"{self.numero}-R{self.revision}" if self.revision else self.numero
+
+    def save(self, *args, **kwargs):
+        if not self.batiment_id and self.rapport_ancre is not None:
+            self.batiment = self.rapport_ancre.batiment
+        if not self.numero:
             annee = timezone.now().year
-            prefixe = f"CERT-EXT-{annee}-"
+            prefixe = "CERT-EXT"
+            if self.batiment_id:
+                parametres = ParametresCertificat.objects.filter(
+                    organisation_id=self.batiment.client.organisation_id
+                ).first()
+                if parametres and parametres.prefixe_numero:
+                    prefixe = parametres.prefixe_numero
+            prefixe = f"{prefixe}-{annee}-"
             # Basé sur le plus grand numéro déjà attribué (pas un count()) pour
             # rester correct même si des certificats plus anciens ont été supprimés.
             dernier = CertificatExtincteur.objects.filter(numero__startswith=prefixe).order_by("-numero").first()
@@ -736,7 +811,80 @@ class CertificatExtincteur(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.numero} — {self.rapport}"
+        return f"{self.numero_affiche} — {self.rapport_ancre}"
+
+
+class RevisionCertificat(models.Model):
+    """Une émission figée d'un certificat — le document exact remis au
+    client, vérifiable par son QR code même après une révision."""
+
+    certificat = models.ForeignKey(CertificatExtincteur, on_delete=models.CASCADE, related_name="revisions")
+    revision = models.PositiveIntegerField(default=0)
+    numero_affiche = models.CharField(max_length=40)
+    type_document = models.CharField(max_length=12, default="certificat")
+    conforme = models.BooleanField(default=True)
+    lignes = models.JSONField(default=list, blank=True)
+    html = models.TextField()
+    empreinte = models.CharField(max_length=64, blank=True)
+    date_emission = models.DateTimeField(default=timezone.now)
+    emis_par = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    remplacee_le = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-revision"]
+        unique_together = [("certificat", "revision")]
+
+    def __str__(self):
+        return self.numero_affiche
+
+
+class ParametresCertificat(models.Model):
+    """Réglages des certificats (extincteurs, éclairage, cuisine) propres à
+    une organisation — page Paramètres → Certificats du superviseur."""
+
+    class ModeEmission(models.TextChoices):
+        AUTO = "auto", "Automatique à la fermeture"
+        MANUEL = "manuel", "Manuelle (le superviseur valide)"
+
+    class Regroupement(models.TextChoices):
+        VISITE = "visite", "Un certificat par visite"
+        SYSTEME = "systeme", "Un certificat par système"
+
+    class SystemesAbsents(models.TextChoices):
+        AFFICHER_SO = "afficher_so", "Afficher en S.O."
+        MASQUER = "masquer", "Masquer la ligne"
+
+    class NonConformite(models.TextChoices):
+        CERTIFICAT = "certificat", "Certificat « non conforme »"
+        AVIS = "avis", "Avis de non-conformité"
+
+    organisation = models.OneToOneField(
+        "organisations.Organisation", on_delete=models.CASCADE, related_name="parametres_certificat"
+    )
+    mode_emission = models.CharField(max_length=10, choices=ModeEmission.choices, default=ModeEmission.AUTO)
+    regroupement = models.CharField(max_length=10, choices=Regroupement.choices, default=Regroupement.VISITE)
+    systemes_absents = models.CharField(max_length=12, choices=SystemesAbsents.choices, default=SystemesAbsents.MASQUER)
+    ajustement_manuel = models.BooleanField(default=True)
+    non_conformite = models.CharField(max_length=12, choices=NonConformite.choices, default=NonConformite.CERTIFICAT)
+    prefixe_numero = models.CharField(max_length=16, default="CERT-EXT")
+    afficher_qr = models.BooleanField(default=True)
+    signataire_nom = models.CharField(max_length=150, blank=True)
+    signataire_titre = models.CharField(max_length=150, blank=True)
+    signature = models.TextField(blank=True, help_text="Image de la signature (data URI PNG/JPEG).")
+    normes_citees = models.CharField(
+        max_length=300, blank=True,
+        default="NFPA 10 · ULC S508 · ULC ORD 1254.6 · ULC 300 · CSA C22.2 N° 141",
+    )
+    texte_legal = models.TextField(blank=True)
+    date_modification = models.DateTimeField(auto_now=True)
+
+    @classmethod
+    def pour(cls, organisation):
+        parametres, _ = cls.objects.get_or_create(organisation=organisation)
+        return parametres
+
+    def __str__(self):
+        return f"Paramètres des certificats — {self.organisation}"
 
 
 class HistoriqueRapportExtincteur(models.Model):
@@ -1005,7 +1153,7 @@ class RapportEclairageUrgence(models.Model):
             rapport=self, utilisateur=utilisateur, description=description
         )
 
-    def fermer(self, utilisateur):
+    def fermer(self, utilisateur, cascade=False):
         from datetime import timedelta
 
         from django.utils import timezone
@@ -1023,11 +1171,22 @@ class RapportEclairageUrgence(models.Model):
         self.save()
         self.historiser(utilisateur, "Rapport fermé")
 
+        # `cascade` : fermé par son rapport extincteur — en regroupement par
+        # visite, c'est lui qui émet le certificat une fois tous ses rapports
+        # liés fermés (voir certificats.assurer_certificat).
+        from .certificats import assurer_certificat
+
+        assurer_certificat(self, utilisateur, cascade=cascade)
+
     def rouvrir(self, utilisateur):
         self.statut = self.Statut.OUVERT
         self.date_fermeture = None
         self.save()
         self.historiser(utilisateur, "Rapport rouvert")
+
+        from .certificats import invalider_certificat
+
+        invalider_certificat(self, utilisateur)
 
     def __str__(self):
         return f"Rapport éclairage d'urgence {self.batiment.adresse_complete} — {self.get_statut_display()}"
@@ -1160,6 +1319,12 @@ class RapportCuisine(models.Model):
     liens_fusibles_nettoyes = models.BooleanField(null=True, blank=True, default=None)
 
     commentaires = models.TextField(blank=True)
+    conforme_recommandations = models.BooleanField(
+        null=True, blank=True, default=None,
+        help_text="Décision du technicien (« À cette date, le système... est conforme / nécessite des "
+                   "modifications ») — quand renseignée, remplace le calcul automatique basé sur la "
+                   "checklist pour déterminer la conformité affichée sur le certificat.",
+    )
 
     date_inspection = models.DateField(null=True, blank=True)
     date_derniere_sauvegarde = models.DateTimeField(auto_now=True)
@@ -1187,18 +1352,23 @@ class RapportCuisine(models.Model):
 
     @property
     def nb_verifications_conformes(self):
-        return sum(1 for champ in self.CHAMPS_VERIFICATION if getattr(self, champ) is True)
+        # Une vérification jamais touchée (None) compte comme faite : dans
+        # l'application, chaque case est cochée par défaut et le technicien
+        # décoche ce qui n'est pas conforme (ChecklistCuisine.tsx).
+        return sum(1 for champ in self.CHAMPS_VERIFICATION if getattr(self, champ) is not False)
 
     @property
     def est_conforme(self):
-        return all(getattr(self, champ) is True for champ in self.CHAMPS_VERIFICATION)
+        if self.conforme_recommandations is not None:
+            return self.conforme_recommandations
+        return all(getattr(self, champ) is not False for champ in self.CHAMPS_VERIFICATION)
 
     def historiser(self, utilisateur, description):
         HistoriqueRapportCuisine.objects.create(
             rapport=self, utilisateur=utilisateur, description=description
         )
 
-    def fermer(self, utilisateur):
+    def fermer(self, utilisateur, cascade=False):
         from datetime import timedelta
 
         from django.utils import timezone
@@ -1216,11 +1386,22 @@ class RapportCuisine(models.Model):
         self.save()
         self.historiser(utilisateur, "Rapport fermé")
 
+        # `cascade` : fermé par son rapport extincteur — en regroupement par
+        # visite, c'est lui qui émet le certificat une fois tous ses rapports
+        # liés fermés (voir certificats.assurer_certificat).
+        from .certificats import assurer_certificat
+
+        assurer_certificat(self, utilisateur, cascade=cascade)
+
     def rouvrir(self, utilisateur):
         self.statut = self.Statut.OUVERT
         self.date_fermeture = None
         self.save()
         self.historiser(utilisateur, "Rapport rouvert")
+
+        from .certificats import invalider_certificat
+
+        invalider_certificat(self, utilisateur)
 
     def __str__(self):
         return f"Rapport cuisine {self.batiment.adresse_complete} — {self.get_statut_display()}"
@@ -1263,11 +1444,13 @@ class HotteCuisine(models.Model):
         CUISINIERE_2_FEUX = "R2", "Cuisinière 2 feux"
         CUISINIERE_4_FEUX = "R4", "Cuisinière 4 feux"
         CUISINIERE_6_FEUX = "R6", "Cuisinière 6 feux"
-        GRILLE_CHARBON = "C", "Grille charbon"
+        GRILLE_CHARBON = "GC", "Grille charbon"
+        GRILLE_GAZ = "GZ", "Grille à gaz"
         SALAMANDRE = "S", "Salamandre"
-        MARMITE = "SP", "Marmite (stock pot)"
+        STOCK_POT = "SP", "Stock pot"
         BASSIN_FRIRE = "BP", "Bassin à frire"
         WOK = "W", "Wok"
+        SHAWARMA = "SH", "Shawarma"
         AUTRE = "O", "Autre"
 
     rapport = models.ForeignKey(RapportCuisine, on_delete=models.CASCADE, related_name="hottes")
@@ -1279,10 +1462,18 @@ class HotteCuisine(models.Model):
     )
     buses = models.JSONField(
         default=list, blank=True,
-        help_text="Positions horizontales des buses, placées manuellement — [{'x': 120}, ...], comme `appareils`.",
+        help_text="Positions horizontales des buses, placées manuellement — [{'x': 120, 'direction': 'gauche'|'droite'}, ...], comme `appareils`. `direction` absente = buse verticale (droit devant).",
+    )
+    elevations = models.JSONField(
+        default=list, blank=True,
+        help_text="Positions horizontales des conduits d'évacuation verticaux (raccords vers le toit), placés manuellement — [{'x': 250}, ...].",
     )
     appareils = models.JSONField(default=list, blank=True)
     dividers = models.JSONField(default=list, blank=True)
+    tailles = models.JSONField(
+        default=list, blank=True,
+        help_text="Petits carrés « taille de hotte » (en pieds) placés à l'intérieur de la hotte — [{'x': 120, 'pieds': 6}, ...].",
+    )
 
     class Meta:
         ordering = ["ordre", "id"]
@@ -1563,6 +1754,10 @@ class CertificatGicleur(models.Model):
     """Généré automatiquement quand un rapport gicleur est fermé."""
 
     rapport = models.OneToOneField(RapportGicleur, on_delete=models.CASCADE, related_name="certificat")
+    jeton = models.UUIDField(
+        default=uuid.uuid4, unique=True, editable=False,
+        help_text="Identifiant public du QR code de vérification (voir certificats.py).",
+    )
     numero = models.CharField(max_length=30, unique=True, blank=True)
     date_emission = models.DateTimeField(auto_now_add=True)
     certificat_envoye = models.BooleanField(

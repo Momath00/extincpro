@@ -12,6 +12,7 @@ type DocumentsPrets = {
   contact_email: string | null
   count: number
   nb_rapports: number
+  nb_certificats?: number
   labels: string[]
 }
 
@@ -107,6 +108,7 @@ export default function EnvoiDirectBanner({
   )
 
   if (!donnees || !donnees.mode_direct || donnees.count === 0) return overlay
+  const nbCertificats = donnees.nb_certificats ?? donnees.count
 
   return (
     <>
@@ -119,9 +121,11 @@ export default function EnvoiDirectBanner({
           <div>
             <p className="text-sm font-bold" style={{ color: NAVY }}>
               {donnees.nb_rapports} {donnees.nb_rapports > 1 ? t('rapports_pluriel') : t('rapport_singulier')}
-              {' '}{t('et')}{' '}
-              {donnees.count} {donnees.count > 1 ? t('certificats_pluriel') : t('certificat_singulier')}
-              {' '}{(donnees.nb_rapports + donnees.count) > 1 ? t('prets_a_envoyer_pluriel') : t('pret_a_envoyer_singulier')}
+              {nbCertificats > 0 && <>
+                {' '}{t('et')}{' '}
+                {nbCertificats} {nbCertificats > 1 ? t('certificats_pluriel') : t('certificat_singulier')}
+              </>}
+              {' '}{(donnees.nb_rapports + nbCertificats) > 1 ? t('prets_a_envoyer_pluriel') : t('pret_a_envoyer_singulier')}
             </p>
             <p className="text-xs text-gray-500 mt-0.5">
               {donnees.labels.join(' + ')} — {t('documents_prets_desc')}
