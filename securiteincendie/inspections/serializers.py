@@ -6,6 +6,7 @@ from .models import (
     AppelService,
     Batiment,
     BoyauItem,
+    CODES_NON_CONFORMITES,
     Certificat,
     CertificatExtincteur,
     CertificatGicleur,
@@ -320,9 +321,18 @@ class ExtincteurItemSerializer(serializers.ModelSerializer):
             "id", "rapport", "ordre", "etage", "etat", "etat_display", "emplacement", "date_fabrication",
             "format", "format_display", "type_extincteur", "type_extincteur_display",
             "marque", "marque_display", "numero_serie", "prochaine_maintenance",
-            "prochain_test_hydrostatique", "remarque",
+            "prochain_test_hydrostatique", "remarque", "non_conformites",
         ]
         read_only_fields = ["rapport"]
+
+    def validate_non_conformites(self, valeur):
+        if not isinstance(valeur, list):
+            raise serializers.ValidationError("Liste de codes attendue.")
+        inconnus = [c for c in valeur if c not in CODES_NON_CONFORMITES]
+        if inconnus:
+            raise serializers.ValidationError(f"Code(s) inconnu(s) : {', '.join(map(str, inconnus))}")
+        # Ordre de la légende, sans doublon.
+        return [c for c in CODES_NON_CONFORMITES if c in valeur]
 
 
 class BoyauItemSerializer(serializers.ModelSerializer):
@@ -816,8 +826,8 @@ class PhotoAnomalieSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PhotoAnomalie
-        fields = ["id", "emplacement", "description", "ordre", "date_ajout", "ajoutee_par_nom"]
-        read_only_fields = ["ordre", "date_ajout"]
+        fields = ["id", "emplacement", "description", "ordre", "date_ajout", "ajoutee_par_nom", "section"]
+        read_only_fields = ["ordre", "date_ajout", "section"]
 
 
 class CertificatGicleurSerializer(serializers.ModelSerializer):

@@ -111,7 +111,7 @@ export default function OngletLegende({
                   <td className="px-2 sm:px-3 py-2.5 font-mono font-bold text-xs align-top" style={{ color: NAVY }}>
                     {code}
                   </td>
-                  <td className="px-2 sm:px-3 py-2.5 text-xs sm:text-sm text-gray-600 leading-snug align-top break-words">
+                  <td className="px-2 sm:px-3 py-2.5 text-xs sm:text-sm font-bold text-[#0a0b0d] leading-snug align-top break-words">
                     {description[langue] ?? description.fr}
                   </td>
                   <td className="px-1 sm:px-2 py-2 align-top">
@@ -122,7 +122,7 @@ export default function OngletLegende({
                         type="text"
                         defaultValue={ligne.type || ''}
                         onBlur={e => e.target.value !== (ligne.type || '') && patchLigne(code, 'type', e.target.value)}
-                        className="w-full min-w-0 text-xs sm:text-sm border border-gray-200 rounded px-1.5 sm:px-2 py-1.5 focus:outline-none focus:border-[#e11324] bg-white"
+                        className="w-full min-w-0 text-xs sm:text-sm border-2 border-[#0a0b0d] rounded px-1.5 sm:px-2 py-1.5 focus:outline-none focus:border-[#e11324] bg-white"
                       />
                     )}
                   </td>
@@ -134,7 +134,7 @@ export default function OngletLegende({
                         type="text"
                         defaultValue={ligne.modele || ''}
                         onBlur={e => e.target.value !== (ligne.modele || '') && patchLigne(code, 'modele', e.target.value)}
-                        className="w-full min-w-0 text-xs sm:text-sm border border-gray-200 rounded px-1.5 sm:px-2 py-1.5 focus:outline-none focus:border-[#e11324] bg-white"
+                        className="w-full min-w-0 text-xs sm:text-sm border-2 border-[#0a0b0d] rounded px-1.5 sm:px-2 py-1.5 focus:outline-none focus:border-[#e11324] bg-white"
                       />
                     )}
                   </td>

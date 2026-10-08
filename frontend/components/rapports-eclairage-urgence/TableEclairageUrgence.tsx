@@ -4,6 +4,10 @@ import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { useT } from '@/lib/i18n'
 import { resilientMutate, resilientCreate, isTempId } from '@/lib/offline/resilientFetch'
 import { onReconciled } from '@/lib/offline/queue'
+import GroupesRepliables from '@/components/rapports/GroupesRepliables'
+import { BoutonPrincipal } from '@/components/rapports/BarreOutils'
+import { estEnDeficience } from './OngletDeficiences'
+import Legende, { LignesCouleurs } from '@/components/rapports/Legende'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -95,7 +99,7 @@ function LigneEclairage({
         defaultValue={it[field] || ''}
         onBlur={e => patchField(field, e.target.value)}
         placeholder={placeholder}
-        className={`${width} text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-orange-300 rounded px-1 py-0.5`}
+        className={`${width} text-xs border-2 border-[#0a0b0d] bg-white focus:outline-none focus:border-[#e11324] rounded px-1.5 py-1`}
         style={{ color: NAVY }}
       />
     )
@@ -120,7 +124,7 @@ function LigneEclairage({
       <select
         value={it.etat || ''}
         onChange={e => patchField('etat', e.target.value || null)}
-        className="text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-full"
+        className="text-xs border-2 border-[#0a0b0d] rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-full"
       >
         <option value="">-</option>
         <option value="D">D</option>
@@ -190,10 +194,12 @@ export default function TableEclairageUrgence({
   rapport,
   readOnly,
   onRefresh,
+  onItemChange,
 }: {
   rapport: any
   readOnly: boolean
   onRefresh: () => void
+  onItemChange?: (id: any, field: string, value: any) => void
 }) {
   const t = useT()
   const [items, setItems] = useState<any[]>(rapport.eclairages_urgence || [])
@@ -212,6 +218,7 @@ export default function TableEclairageUrgence({
 
   function updateLocal(id: any, field: string, value: any) {
     setItems(prev => prev.map(it => it.id === id ? { ...it, [field]: value } : it))
+    onItemChange?.(id, field, value)
   }
 
   function removerLocal(id: any) {
@@ -242,19 +249,16 @@ export default function TableEclairageUrgence({
   return (
     <div className="flex flex-col gap-5">
       {/* Légende */}
-      <div className="bg-gray-50 border border-gray-100 rounded-md px-4 py-3">
-        <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-500">
-          <span><strong style={{ color: NAVY }}>{t('col_etat')}</strong> — {t('etat_legende')}</span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: '#fee2e2', border: '2px solid #ef4444' }} />
-            <span className="text-red-600 font-semibold">{t('ligne_rouge_defectueux')}</span>
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: '#fef3c7', border: '2px solid #f59e0b' }} />
-            <span className="font-semibold" style={{ color: '#b45309' }}>{t('ligne_jaune_ni')}</span>
-          </span>
-        </div>
-      </div>
+      <Legende
+        titre={t('legende_etats')}
+        compacte
+        elements={[
+          { code: 'D', libelle: t('defectueux'), couleur: '#dc2626' },
+          { code: 'C', libelle: t('conforme'), couleur: '#16a34a' },
+          { code: 'NI', libelle: t('non_inspecte_ni'), couleur: '#d97706' },
+        ]}
+        pied={<LignesCouleurs />}
+      />
 
       {/* Sommaire */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -380,54 +384,54 @@ export default function TableEclairageUrgence({
         </div>
       )}
 
-      {/* Bouton ajout */}
-      {!readOnly && (
-        <div className="flex justify-end">
-          <button onClick={ajouterLigne} disabled={adding}
-            className="flex items-center gap-2 border border-gray-200 px-4 py-2 rounded-md text-sm font-bold hover:border-[#0a0b0d] transition-colors disabled:opacity-50"
-            style={{ color: NAVY }}>
-            <i className="ti ti-plus" /> {adding ? t('ajout_en_cours') : t('ajouter_ligne')}
-          </button>
-        </div>
-      )}
-
-      {/* Tableau */}
-      <div className="bg-white rounded-md border border-gray-100 overflow-hidden shadow-sm">
-        {items.length === 0 ? (
-          <div className="text-center py-10 text-xs text-gray-400">
-            {readOnly ? t('aucune_unite_enregistree') : t('aucune_unite_cliquez')}
-          </div>
-        ) : (
-          <ScrollableTable>
-            <table className="w-full text-sm min-w-[900px]">
-              <thead>
-                <tr className="text-[10px] font-bold uppercase tracking-widest text-white"
-                  style={{ background: `linear-gradient(135deg, ${NAVY}, #232733)` }}>
-                  <th className="text-center px-2 py-2.5 w-10">{t('col_no')}</th>
-                  <th className="text-left px-2 py-2.5">{t('col_etage')}</th>
-                  <th className="text-left px-2 py-2.5">{t('col_emplacement')}</th>
-                  <th className="text-left px-2 py-2.5">{t('col_modele')}</th>
-                  <th className="text-left px-2 py-2.5">{t('col_voltage')}</th>
-                  <th className="text-center px-2 py-2.5" title={t('etat_legende')}>{t('col_etat')}</th>
-                  <th className="text-left px-2 py-2.5">{t('col_remarque')}</th>
-                  {!readOnly && <th className="px-2 py-2.5 w-10" />}
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((it: any) => (
-                  <LigneEclairage
-                    key={it.id}
-                    item={it}
-                    readOnly={readOnly}
-                    onDeleted={() => { removerLocal(it.id); onRefresh() }}
-                    onUpdate={(field, value) => updateLocal(it.id, field, value)}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </ScrollableTable>
-        )}
-      </div>
+      {/* Tableau — regroupé par étage, blocs fermés par défaut */}
+      <GroupesRepliables
+          actions={!readOnly && (
+            <BoutonPrincipal onClick={ajouterLigne} disabled={adding}>
+              {adding ? t('ajout_en_cours') : t('ajouter_ligne')}
+            </BoutonPrincipal>
+          )}
+          vide={
+            <div className="bg-white rounded-md border border-gray-100 overflow-hidden shadow-sm">
+              <div className="text-center py-10 text-xs text-gray-400">
+                {readOnly ? t('aucune_unite_enregistree') : t('aucune_unite_cliquez')}
+              </div>
+            </div>
+          }
+          items={items}
+          unite={t('unite_eclairages')}
+          estEnDeficience={estEnDeficience}
+          rendreTableau={lignes => (
+              <ScrollableTable>
+                <table className="w-full text-sm min-w-[900px]">
+                  <thead>
+                    <tr className="text-[10px] font-bold uppercase tracking-widest text-white"
+                      style={{ background: `linear-gradient(135deg, ${NAVY}, #232733)` }}>
+                      <th className="text-center px-2 py-2.5 w-10">{t('col_no')}</th>
+                      <th className="text-left px-2 py-2.5">{t('col_etage')}</th>
+                      <th className="text-left px-2 py-2.5">{t('col_emplacement')}</th>
+                      <th className="text-left px-2 py-2.5">{t('col_modele')}</th>
+                      <th className="text-left px-2 py-2.5">{t('col_voltage')}</th>
+                      <th className="text-center px-2 py-2.5" title={t('etat_legende')}>{t('col_etat')}</th>
+                      <th className="text-left px-2 py-2.5">{t('col_remarque')}</th>
+                      {!readOnly && <th className="px-2 py-2.5 w-10" />}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lignes.map((it: any) => (
+                      <LigneEclairage
+                        key={it.id}
+                        item={it}
+                        readOnly={readOnly}
+                        onDeleted={() => { removerLocal(it.id); onRefresh() }}
+                        onUpdate={(field, value) => updateLocal(it.id, field, value)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </ScrollableTable>
+          )}
+        />
     </div>
   )
 }

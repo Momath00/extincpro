@@ -80,7 +80,15 @@ class PhotosRapportMixin:
         rapport = self.get_object()
 
         if request.method == "GET":
-            return Response(PhotoAnomalieSerializer(rapport.photos.all(), many=True).data)
+            photos = rapport.photos.all()
+            # ?section=<id> : photos d'une section E3 ; ?section=aucune : celles
+            # rattachées au rapport seulement (anciennes photos).
+            section = request.query_params.get("section")
+            if section == "aucune":
+                photos = photos.filter(section__isnull=True)
+            elif section:
+                photos = photos.filter(section_id=section)
+            return Response(PhotoAnomalieSerializer(photos, many=True).data)
 
         refus = self._refus_modification_photos(request, rapport)
         if refus:
@@ -97,8 +105,17 @@ class PhotosRapportMixin:
         except ImageInvalide as e:
             return Response({"image": [str(e)]}, status=status.HTTP_400_BAD_REQUEST)
 
+        section = None
+        if request.data.get("section"):
+            sections = getattr(rapport, "sections", None)
+            section = sections.filter(pk=request.data["section"]).first() if sections is not None else None
+            if section is None:
+                return Response({"section": ["Section inconnue pour ce rapport."]}, status=status.HTTP_400_BAD_REQUEST)
+
         ordre = (rapport.photos.aggregate(m=Max("ordre"))["m"] or 0) + 1
-        photo = serializer.save(**{self.champ_rapport_photo: rapport}, image=image, ordre=ordre, ajoutee_par=request.user)
+        photo = serializer.save(
+            **{self.champ_rapport_photo: rapport}, section=section, image=image, ordre=ordre, ajoutee_par=request.user,
+        )
         rapport.historiser(request.user, f"Photo ajoutée : {photo.emplacement}"[:300])
         return Response(PhotoAnomalieSerializer(photo).data, status=status.HTTP_201_CREATED)
 
@@ -165,7 +182,7 @@ def html_annexe_photos(rapport, titre: str = "Photos des anomalies", suite: str 
     dans le navigateur, ou rendu en PDF par Playwright sans accès réseau)."""
     from django.utils import timezone
 
-    photos = list(rapport.photos.all())
+    photos = list(rapport.photos.select_related("section").order_by("section__ordre", "section_id", "ordre", "id"))
     if not photos:
         return ""
 
@@ -175,7 +192,7 @@ def html_annexe_photos(rapport, titre: str = "Photos des anomalies", suite: str 
         meta = timezone.localtime(photo.date_ajout).strftime("%Y-%m-%d %H:%M")
         description = f"<div class='photo-description'>{escape(photo.description)}</div>" if photo.description else ""
         cartes.append(f"""<div class="photo-carte">
-  <div class="photo-entete"><span class="photo-num">{numero}</span><span class="photo-emplacement">{escape(photo.emplacement)}</span></div>
+  <div class="photo-entete"><span class="photo-num">{numero}</span><span class="photo-emplacement">{escape(f"{photo.section.nom} — {photo.emplacement}" if photo.section else photo.emplacement)}</span></div>
   <div class="photo-cadre"><img src='{src}' alt='Photo {numero}'/></div>
   <div class="photo-texte">{description}<div class="photo-meta">{meta}</div></div>
 </div>""")

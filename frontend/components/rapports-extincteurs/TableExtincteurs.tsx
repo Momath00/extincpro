@@ -1,24 +1,122 @@
 'use client'
 
 import { useState, useEffect, useRef, type ReactNode } from 'react'
-import { useT, useChoix, FORMAT_CHOICES_I18N, TYPE_EXTINCTEUR_CHOICES_I18N, MARQUE_CHOICES_I18N } from '@/lib/i18n'
+import { useT, useLangue, useChoix, FORMAT_CHOICES_I18N, TYPE_EXTINCTEUR_CHOICES_I18N, MARQUE_CHOICES_I18N } from '@/lib/i18n'
+import { LEGENDE_NON_CONFORMITES, libelleNC, estEnDeficience } from '@/lib/nonConformites'
 import { resilientMutate, resilientCreate, isTempId } from '@/lib/offline/resilientFetch'
 import { onReconciled } from '@/lib/offline/queue'
+import GroupesRepliables from '@/components/rapports/GroupesRepliables'
+import { BoutonPrincipal } from '@/components/rapports/BarreOutils'
+import Legende, { CodeLegende, LignesCouleurs } from '@/components/rapports/Legende'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
 
-const LEGENDE = [
-  ['HT', 'legende_ht'],
-  ['T/O', 'legende_to'],
-  ['MQ', 'legende_mq'],
-  ['RM', 'legende_rm'],
-  ['D', 'legende_d'],
-  ['MT', 'legende_mt'],
-]
-
 // ── Saisie d'année auto-formatée AAAA (4 chiffres, pas de jour/mois) ────────
+// ── Pastille d'un code de non-conformité ────────────────────────────────────
+export function PastilleNC({ code }: { code: string }) {
+  const langue = useLangue()
+  return (
+    <span title={libelleNC(code, langue)}
+      className="inline-block text-[10px] font-extrabold px-1.5 py-0.5 rounded-full leading-none"
+      style={{ color: '#dc2626', background: '#fee2e2', border: '1px solid #fecaca' }}>
+      {code}
+    </span>
+  )
+}
+
+// ── Sélecteur multiple des non-conformités (légende) ───────────────────────
+function SelecteurNC({
+  valeur,
+  readOnly,
+  onChange,
+}: {
+  valeur: string[]
+  readOnly: boolean
+  onChange: (codes: string[]) => void
+}) {
+  const t = useT()
+  const langue = useLangue()
+  // Position écran du menu — `fixed` pour ne pas être coupé par le
+  // défilement horizontal du tableau.
+  const [ouvert, setOuvert] = useState<{ top: number; left: number } | null>(null)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!ouvert) return
+    function clicExterieur(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOuvert(null)
+    }
+    function fermer() { setOuvert(null) }
+    document.addEventListener('mousedown', clicExterieur)
+    window.addEventListener('scroll', fermer, true)
+    window.addEventListener('resize', fermer)
+    return () => {
+      document.removeEventListener('mousedown', clicExterieur)
+      window.removeEventListener('scroll', fermer, true)
+      window.removeEventListener('resize', fermer)
+    }
+  }, [ouvert])
+
+  function basculerMenu(e: React.MouseEvent<HTMLButtonElement>) {
+    if (ouvert) { setOuvert(null); return }
+    const r = e.currentTarget.getBoundingClientRect()
+    const largeur = 256, hauteur = 13 * 34 + 16
+    const top = r.bottom + 4 + hauteur > window.innerHeight ? Math.max(8, r.top - 4 - hauteur) : r.bottom + 4
+    setOuvert({ top, left: Math.max(8, Math.min(r.right - largeur, window.innerWidth - largeur - 8)) })
+  }
+
+  const pastilles = valeur.length
+    ? <span className="flex flex-wrap gap-1">{valeur.map(c => <PastilleNC key={c} code={c} />)}</span>
+    : <span className="text-gray-300 text-xs">—</span>
+
+  if (readOnly) return valeur.length ? pastilles : null
+
+  function basculer(code: string) {
+    const suivant = valeur.includes(code) ? valeur.filter(c => c !== code) : [...valeur, code]
+    onChange(LEGENDE_NON_CONFORMITES.map(l => l.code).filter(c => suivant.includes(c)))
+  }
+
+  return (
+    <div ref={ref}>
+      <button type="button" onClick={basculerMenu}
+        className="min-w-[90px] w-full flex items-center justify-between gap-1 border-2 border-[#0a0b0d] rounded px-1.5 py-1 bg-white hover:border-[#e11324] transition-colors">
+        {pastilles}
+        <i className="ti ti-chevron-down text-gray-400 text-xs flex-shrink-0" />
+      </button>
+      {ouvert && (
+        <div className="fixed z-50 w-64 bg-white rounded-lg shadow-xl border border-gray-100 p-1.5"
+          style={{ top: ouvert.top, left: ouvert.left }}>
+          <button type="button" onClick={() => { onChange([]); setOuvert(null) }}
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left hover:bg-gray-50 transition-colors border-b border-gray-100 mb-1">
+            <span className="w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0"
+              style={{ borderColor: valeur.length ? '#cbd5e1' : NAVY, background: valeur.length ? '#fff' : NAVY }}>
+              {!valeur.length && <i className="ti ti-check text-white text-[10px]" />}
+            </span>
+            <span className="w-10 text-[11px] font-extrabold text-gray-400">—</span>
+            <span className="text-xs font-semibold" style={{ color: NAVY }}>{t('aucune_non_conformite')}</span>
+          </button>
+          {LEGENDE_NON_CONFORMITES.map(l => {
+            const coche = valeur.includes(l.code)
+            return (
+              <button key={l.code} type="button" onClick={() => basculer(l.code)}
+                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left hover:bg-gray-50 transition-colors">
+                <span className="w-4 h-4 rounded border flex items-center justify-center flex-shrink-0"
+                  style={{ borderColor: coche ? '#dc2626' : '#cbd5e1', background: coche ? '#dc2626' : '#fff' }}>
+                  {coche && <i className="ti ti-check text-white text-[10px]" />}
+                </span>
+                <span className="w-10 text-[11px] font-extrabold" style={{ color: '#dc2626' }}>{l.code}</span>
+                <span className="text-xs" style={{ color: NAVY }}>{l[langue]}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AnneeMaskInput({
   value,
   readOnly,
@@ -51,7 +149,7 @@ function AnneeMaskInput({
       onChange={handleChange}
       placeholder="AAAA"
       maxLength={4}
-      className="text-xs border border-gray-200 rounded px-1.5 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-[70px]"
+      className="text-xs border-2 border-[#0a0b0d] rounded px-1.5 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-[70px]"
     />
   )
 }
@@ -157,7 +255,7 @@ function LigneExtincteur({
         defaultValue={it[field] || ''}
         onBlur={e => patchField(field, e.target.value)}
         placeholder={placeholder}
-        className={`${width} text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-orange-300 rounded px-1 py-0.5`}
+        className={`${width} text-xs border-2 border-[#0a0b0d] bg-white focus:outline-none focus:border-[#e11324] rounded px-1.5 py-1`}
         style={{ color: NAVY }}
       />
     )
@@ -190,7 +288,7 @@ function LigneExtincteur({
       <select
         value={it.etat || ''}
         onChange={e => patchField('etat', e.target.value || null)}
-        className="text-xs border border-gray-200 rounded px-1.5 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-full min-w-[64px]"
+        className="text-xs border-2 border-[#0a0b0d] rounded px-1.5 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-full min-w-[64px]"
       >
         <option value="">-</option>
         <option value="D">D</option>
@@ -207,7 +305,7 @@ function LigneExtincteur({
       <select
         value={it[field] || ''}
         onChange={e => patchField(field, e.target.value)}
-        className="text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-full"
+        className="text-xs border-2 border-[#0a0b0d] rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-full"
       >
         <option value="">—</option>
         {Object.entries(choices).map(([k, v]) => (
@@ -242,7 +340,17 @@ function LigneExtincteur({
         <td className="px-2 py-2">{anneeInput('prochaine_maintenance')}</td>
         <td className="px-2 py-2">{anneeInput('prochain_test_hydrostatique')}</td>
         <td className="px-2 py-2">{etatInput()}</td>
-        <td className="px-2 py-2">{textInput('remarque', t('col_remarque') + '...', 'w-full min-w-[120px]')}</td>
+        <td className="px-2 py-2">
+          {/* Codes de la légende + texte libre, comme la case du formulaire Excel. */}
+          <div className="flex flex-col gap-1 min-w-[180px]">
+            <SelecteurNC valeur={it.non_conformites || []} readOnly={readOnly}
+              onChange={codes => patchField('non_conformites', codes)} />
+            {readOnly
+              ? (it.remarque ? <span className="text-xs" style={{ color: NAVY }}>{it.remarque}</span>
+                : !(it.non_conformites || []).length && <span className="text-gray-300 text-xs">—</span>)
+              : textInput('remarque', t('ecrire_non_conformite'), 'w-full')}
+          </div>
+        </td>
         {!readOnly && (
           <td className="px-2 py-2 text-center">
             <button
@@ -293,12 +401,17 @@ export default function TableExtincteurs({
   rapport,
   readOnly,
   onRefresh,
+  onItemChange,
 }: {
   rapport: any
   readOnly: boolean
   onRefresh: () => void
+  /** Remonte chaque modification à la page — l'onglet Déficiences reste
+   *  ainsi à jour sans recharger. */
+  onItemChange?: (id: any, field: string, value: any) => void
 }) {
   const t = useT()
+  const langue = useLangue()
   const [items, setItems] = useState<any[]>(rapport.extincteurs || [])
   const [adding, setAdding] = useState(false)
 
@@ -317,6 +430,7 @@ export default function TableExtincteurs({
 
   function updateLocal(id: any, field: string, value: any) {
     setItems(prev => prev.map(it => it.id === id ? { ...it, [field]: value } : it))
+    onItemChange?.(id, field, value)
   }
 
   function removerLocal(id: any) {
@@ -346,28 +460,30 @@ export default function TableExtincteurs({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Légende */}
-      <div className="bg-gray-50 border border-gray-100 rounded-md px-4 py-3">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">{t('legende_titre')}</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
-          {LEGENDE.map(([code, descKey]) => (
-            <div key={code} className="text-xs text-gray-500">
-              <strong style={{ color: NAVY }}>{code}</strong> — {t(descKey)}
+      {/* Légende des non-conformités */}
+      <Legende
+        titre={t('legende_non_conformites')}
+        sousTitre={`/ ${langue === 'en' ? 'Légende des non-conformités' : 'Deficiencies legend'}`}
+        elements={LEGENDE_NON_CONFORMITES.map(l => ({
+          code: l.code, couleur: '#dc2626', libelle: l[langue], detail: langue === 'en' ? l.fr : l.en,
+        }))}
+        pied={
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap gap-x-5 gap-y-1.5">
+              {[
+                { code: 'D', libelle: t('defectueux'), couleur: '#dc2626' },
+                { code: 'C', libelle: t('conforme'), couleur: '#16a34a' },
+                { code: 'NI', libelle: t('non_inspecte_ni'), couleur: '#d97706' },
+              ].map(e => (
+                <span key={e.code} className="flex items-center gap-2 text-xs font-bold" style={{ color: NAVY }}>
+                  <CodeLegende code={e.code} couleur={e.couleur} /> {e.libelle}
+                </span>
+              ))}
             </div>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 pt-2 border-t border-gray-100 text-xs text-gray-500">
-          <span><strong style={{ color: NAVY }}>{t('col_etat')}</strong> — {t('etat_legende')}</span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: '#fee2e2', border: '2px solid #ef4444' }} />
-            <span className="text-red-600 font-semibold">{t('ligne_rouge_defectueux')}</span>
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: '#fef3c7', border: '2px solid #f59e0b' }} />
-            <span className="font-semibold" style={{ color: '#b45309' }}>{t('ligne_jaune_ni')}</span>
-          </span>
-        </div>
-      </div>
+            <LignesCouleurs />
+          </div>
+        }
+      />
 
       {/* Sommaire */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -430,7 +546,12 @@ export default function TableExtincteurs({
                       <span className="text-sm font-bold" style={{ color: '#e11324' }}>{it.emplacement || '—'}</span>
                     </td>
                     <td className="px-3 py-2.5">
-                      <span className="text-xs text-gray-500">{it.remarque || '—'}</span>
+                      <div className="flex flex-wrap items-center gap-1">
+                        {(it.non_conformites || []).map((c: string) => <PastilleNC key={c} code={c} />)}
+                        {(it.remarque || !(it.non_conformites || []).length) && (
+                          <span className="text-xs text-gray-500">{it.remarque || '—'}</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -493,58 +614,58 @@ export default function TableExtincteurs({
         </div>
       )}
 
-      {/* Bouton ajout */}
-      {!readOnly && (
-        <div className="flex justify-end">
-          <button onClick={ajouterLigne} disabled={adding}
-            className="flex items-center gap-2 border border-gray-200 px-4 py-2 rounded-md text-sm font-bold hover:border-[#0a0b0d] transition-colors disabled:opacity-50"
-            style={{ color: NAVY }}>
-            <i className="ti ti-plus" /> {adding ? t('ajout_en_cours') : t('ajouter_ligne')}
-          </button>
-        </div>
-      )}
-
-      {/* Tableau */}
-      <div className="bg-white rounded-md border border-gray-100 overflow-hidden shadow-sm">
-        {items.length === 0 ? (
-          <div className="text-center py-10 text-xs text-gray-400">
-            {readOnly ? t('aucun_extincteur_enregistre') : t('aucun_extincteur_cliquez')}
-          </div>
-        ) : (
-          <ScrollableTable>
-            <table className="w-full text-sm min-w-[1180px]">
-              <thead>
-                <tr className="text-[10px] font-bold uppercase tracking-widest text-white"
-                  style={{ background: `linear-gradient(135deg, ${NAVY}, #232733)` }}>
-                  <th className="text-center px-2 py-2.5 w-10">{t('col_no')}</th>
-                  <th className="text-left px-2 py-2.5">{t('col_etage')}</th>
-                  <th className="text-left px-2 py-2.5">{t('col_emplacement')}</th>
-                  <th className="text-left px-2 py-2.5">{t('col_type')}</th>
-                  <th className="text-left px-2 py-2.5">{t('col_format')}</th>
-                  <th className="text-left px-2 py-2.5">{t('col_marque')}</th>
-                  <th className="text-left px-2 py-2.5">{t('col_date_fabrication')}</th>
-                  <th className="text-left px-2 py-2.5">{t('col_prochaine_maintenance')}</th>
-                  <th className="text-left px-2 py-2.5">{t('col_prochain_test_hydro')}</th>
-                  <th className="text-center px-2 py-2.5 w-16" title={t('etat_legende')}>{t('col_etat')}</th>
-                  <th className="text-left px-2 py-2.5">{t('col_remarque')}</th>
-                  {!readOnly && <th className="px-2 py-2.5 w-10" />}
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((it: any) => (
-                  <LigneExtincteur
-                    key={it.id}
-                    item={it}
-                    readOnly={readOnly}
-                    onDeleted={() => { removerLocal(it.id); onRefresh() }}
-                    onUpdate={(field, value) => updateLocal(it.id, field, value)}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </ScrollableTable>
-        )}
-      </div>
+      {/* Tableau — regroupé par étage, blocs fermés par défaut */}
+      <GroupesRepliables
+          actions={!readOnly && (
+            <BoutonPrincipal onClick={ajouterLigne} disabled={adding}>
+              {adding ? t('ajout_en_cours') : t('ajouter_ligne')}
+            </BoutonPrincipal>
+          )}
+          vide={
+            <div className="bg-white rounded-md border border-gray-100 overflow-hidden shadow-sm">
+              <div className="text-center py-10 text-xs text-gray-400">
+                {readOnly ? t('aucun_extincteur_enregistre') : t('aucun_extincteur_cliquez')}
+              </div>
+            </div>
+          }
+          items={items}
+          unite={t('unite_extincteurs')}
+          estEnDeficience={estEnDeficience}
+          rendreTableau={lignes => (
+              <ScrollableTable>
+                <table className="w-full text-sm min-w-[1180px]">
+                  <thead>
+                    <tr className="text-[10px] font-bold uppercase tracking-widest text-white"
+                      style={{ background: `linear-gradient(135deg, ${NAVY}, #232733)` }}>
+                      <th className="text-center px-2 py-2.5 w-10">{t('col_no')}</th>
+                      <th className="text-left px-2 py-2.5">{t('col_etage')}</th>
+                      <th className="text-left px-2 py-2.5">{t('col_emplacement')}</th>
+                      <th className="text-left px-2 py-2.5">{t('col_type')}</th>
+                      <th className="text-left px-2 py-2.5">{t('col_format')}</th>
+                      <th className="text-left px-2 py-2.5">{t('col_marque')}</th>
+                      <th className="text-left px-2 py-2.5">{t('col_date_fabrication')}</th>
+                      <th className="text-left px-2 py-2.5">{t('col_prochaine_maintenance')}</th>
+                      <th className="text-left px-2 py-2.5">{t('col_prochain_test_hydro')}</th>
+                      <th className="text-center px-2 py-2.5 w-16" title={t('etat_legende')}>{t('col_etat')}</th>
+                      <th className="text-left px-2 py-2.5">{t('col_remarque')}</th>
+                      {!readOnly && <th className="px-2 py-2.5 w-10" />}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lignes.map((it: any) => (
+                      <LigneExtincteur
+                        key={it.id}
+                        item={it}
+                        readOnly={readOnly}
+                        onDeleted={() => { removerLocal(it.id); onRefresh() }}
+                        onUpdate={(field, value) => updateLocal(it.id, field, value)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </ScrollableTable>
+          )}
+        />
     </div>
   )
 }

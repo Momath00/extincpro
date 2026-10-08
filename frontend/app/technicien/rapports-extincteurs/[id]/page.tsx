@@ -5,6 +5,8 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import TableExtincteurs from '@/components/rapports-extincteurs/TableExtincteurs'
 import TableBoyaux from '@/components/rapports-extincteurs/TableBoyaux'
+import OngletDeficiences from '@/components/rapports-extincteurs/OngletDeficiences'
+import { estEnDeficience } from '@/lib/nonConformites'
 import { useT } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
 import SectionPhotos from '@/components/rapports/SectionPhotos'
@@ -13,7 +15,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
 
-type OngletPrincipal = 'extincteurs' | 'historique'
+type OngletPrincipal = 'extincteurs' | 'historique' | 'deficiences'
 
 export default function TechnicienRapportExtincteurDetailPage() {
   const router = useRouter()
@@ -61,6 +63,11 @@ export default function TechnicienRapportExtincteurDetailPage() {
 
   const badge = STATUT_BADGE[rapport.statut] || STATUT_BADGE.ouvert
   const readOnly = rapport.statut === 'ferme'
+  const nbDeficiences = (rapport.extincteurs || []).filter(estEnDeficience).length
+    + (rapport.boyaux || []).filter(estEnDeficience).length
+  // Garde l'onglet Déficiences à jour pendant la saisie, sans recharger.
+  const majLigne = (cle: 'extincteurs' | 'boyaux') => (id: any, field: string, value: any) =>
+    setRapport((r: any) => r && ({ ...r, [cle]: (r[cle] || []).map((x: any) => x.id === id ? { ...x, [field]: value } : x) }))
 
   return (
     <div>
@@ -139,18 +146,20 @@ export default function TechnicienRapportExtincteurDetailPage() {
         </div>
       )}
 
-      <div className="flex gap-0.5 sm:gap-1 mb-6 border-b border-gray-100 overflow-x-auto">
+      <div className="flex gap-1.5 sm:gap-2 mb-6 overflow-x-auto">
         {([
           { key: 'extincteurs', label: `${t('col_extincteurs')} (${rapport.extincteurs?.length || 0})`, shortLabel: `${t('col_extincteurs')} (${rapport.extincteurs?.length || 0})` },
           { key: 'historique', label: `${t('historique')} (${rapport.historique?.length || 0})`, shortLabel: `${t('historique')} (${rapport.historique?.length || 0})` },
+          { key: 'deficiences', label: `${t('onglet_deficiences')} (${nbDeficiences})`, shortLabel: `${t('onglet_deficiences')} (${nbDeficiences})` },
         ] as { key: OngletPrincipal; label: string; shortLabel: string }[]).map(o => (
           <button
             key={o.key}
             onClick={() => setOnglet(o.key)}
-            className="px-2.5 sm:px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap flex-shrink-0"
+            className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm font-bold rounded-md border shadow-sm transition-all whitespace-nowrap flex-shrink-0 hover:border-[#0a0b0d] hover:shadow active:scale-[0.97]"
             style={{
-              borderColor: onglet === o.key ? ORANGE : 'transparent',
-              color: onglet === o.key ? NAVY : '#9ca3af',
+              background: onglet === o.key ? NAVY : '#f8fafc',
+              color: onglet === o.key ? '#fff' : NAVY,
+              borderColor: onglet === o.key ? NAVY : '#94a3b8',
             }}
           >
             <span className="sm:hidden">{o.shortLabel}</span>
@@ -161,11 +170,13 @@ export default function TechnicienRapportExtincteurDetailPage() {
 
       {onglet === 'extincteurs' && (
         <div className="flex flex-col gap-8">
-          <TableExtincteurs rapport={rapport} readOnly={readOnly} onRefresh={charger} />
-          <TableBoyaux rapport={rapport} readOnly={readOnly} onRefresh={charger} />
+          <TableExtincteurs rapport={rapport} readOnly={readOnly} onRefresh={charger} onItemChange={majLigne('extincteurs')} />
+          <TableBoyaux rapport={rapport} readOnly={readOnly} onRefresh={charger} onItemChange={majLigne('boyaux')} />
           <SectionPhotos photosUrl={`${API_URL}/api/rapports-extincteurs/${rapport.id}/photos/`} readOnly={readOnly} />
         </div>
       )}
+
+      {onglet === 'deficiences' && <OngletDeficiences rapport={rapport} />}
 
       {onglet === 'historique' && (
         <div className="bg-white rounded-md border border-gray-100 p-5">

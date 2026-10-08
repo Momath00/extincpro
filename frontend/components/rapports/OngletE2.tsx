@@ -141,7 +141,7 @@ export default function OngletE2({
                     value={sectionData.localisation || ''}
                     onChange={e => updateSectionField(sectionActive, 'localisation', e.target.value)}
                     placeholder={t('placeholder_localisation_ex')}
-                    className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
+                    className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
                   />
                 )}
               </div>
@@ -159,7 +159,7 @@ export default function OngletE2({
                     value={sectionData.description || ''}
                     onChange={e => updateSectionField(sectionActive, 'description', e.target.value)}
                     placeholder={t('placeholder_description_ex')}
-                    className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
+                    className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
                   />
                 )}
               </div>
@@ -179,7 +179,7 @@ export default function OngletE2({
                   onChange={e => updateSectionField(sectionActive, 'remarques', e.target.value)}
                   placeholder={section.items[0]?.placeholder || t('saisir_remarques_placeholder')}
                   rows={5}
-                  className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324] resize-none"
+                  className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324] resize-none"
                 />
               )}
             </div>
@@ -192,7 +192,7 @@ export default function OngletE2({
                     {item.id}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-500 leading-relaxed mb-1.5">{item.label}</p>
+                    <p className="text-sm font-bold text-[#0a0b0d] leading-snug mb-1.5">{item.label}</p>
                     {item.type === 'oui_non_so' ? (
                       readOnly ? (
                         <p className="text-xs font-semibold"
@@ -203,7 +203,7 @@ export default function OngletE2({
                         <select
                           value={sectionData[item.id] || ''}
                           onChange={e => updateSectionField(sectionActive, item.id, e.target.value)}
-                          className="border border-gray-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#e11324]"
+                          className="border-2 border-[#0a0b0d] rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#e11324]"
                         >
                           <option value="">—</option>
                           <option value="oui">{t('oui')}</option>
@@ -223,7 +223,7 @@ export default function OngletE2({
                           value={sectionData[item.id] || ''}
                           onChange={e => updateSectionField(sectionActive, item.id, e.target.value)}
                           placeholder={item.placeholder || ''}
-                          className="w-full border border-gray-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#e11324]"
+                          className="w-full border-2 border-[#0a0b0d] rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#e11324]"
                         />
                       )
                     )}

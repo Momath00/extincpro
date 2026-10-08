@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import TableEclairageUrgence from '@/components/rapports-eclairage-urgence/TableEclairageUrgence'
+import OngletDeficiences, { estEnDeficience } from '@/components/rapports-eclairage-urgence/OngletDeficiences'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 import ModuleBadge from '@/components/dashboard/ModuleBadge'
 import EnvoiDirectBanner from '@/components/dashboard/EnvoiDirectBanner'
@@ -17,7 +18,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
 
-type OngletType = 'eclairages' | 'certificat' | 'historique'
+type OngletType = 'eclairages' | 'deficiences' | 'certificat' | 'historique'
 
 export default function SuperviseurRapportEclairageUrgenceDetailPage() {
   const router = useRouter()
@@ -107,10 +108,16 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
 
   const estFerme = rapport.statut === 'ferme'
 
+  const nbDeficiences = (rapport.eclairages_urgence || []).filter(estEnDeficience).length
+  // Garde l'onglet Déficiences à jour pendant la saisie, sans recharger.
+  const majLigne = (id: any, field: string, value: any) =>
+    setRapport((r: any) => r && ({ ...r, eclairages_urgence: (r.eclairages_urgence || []).map((x: any) => x.id === id ? { ...x, [field]: value } : x) }))
+
   const onglets: { key: OngletType; label: string; shortLabel: string }[] = [
     { key: 'eclairages', label: `${t('titre_rapport_eclairage')} (${rapport.eclairages_urgence?.length || 0})`, shortLabel: `${t('titre_rapport_eclairage')} (${rapport.eclairages_urgence?.length || 0})` },
     { key: 'certificat', label: t('certificat'), shortLabel: t('certificat') },
     { key: 'historique', label: `${t('historique')} (${rapport.historique?.length || 0})`, shortLabel: `${t('historique')} (${rapport.historique?.length || 0})` },
+    { key: 'deficiences', label: `${t('onglet_deficiences')} (${nbDeficiences})`, shortLabel: `${t('onglet_deficiences')} (${nbDeficiences})` },
   ]
 
   return (
@@ -172,7 +179,7 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
             <button
               onClick={() => setConfirmFermer(true)}
               disabled={actionLoading}
-              className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
+              className="h-10 text-sm font-bold px-4 rounded-md flex items-center gap-2 shadow-sm active:scale-[0.97] text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
               style={{ background: NAVY }}
             >
               <i className="ti ti-lock" /> {t('fermer_rapport')}
@@ -183,8 +190,8 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
             <button
               onClick={() => setConfirmRouvrir(true)}
               disabled={actionLoading}
-              className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 disabled:opacity-50 hover:opacity-90 transition-opacity"
-              style={{ background: '#fef3c7', color: '#b45309' }}
+              className="h-10 text-sm font-bold px-4 rounded-md flex items-center gap-2 shadow-sm active:scale-[0.97] disabled:opacity-50 hover:opacity-90 transition-opacity"
+              style={{ background: '#d97706', color: '#fff' }}
             >
               <i className="ti ti-lock-open" /> {t('rouvrir_rapport')}
             </button>
@@ -192,8 +199,8 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
 
           <button
             onClick={() => downloadHtml(`${API_URL}/api/rapports-eclairage-urgence/${rapport.id}/telecharger/`)}
-            className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 hover:opacity-90 transition-opacity"
-            style={{ background: '#e0e7ff', color: '#3730a3' }}
+            className="h-10 text-sm font-bold px-4 rounded-md flex items-center gap-2 shadow-sm active:scale-[0.97] hover:opacity-90 transition-opacity"
+            style={{ background: '#4338ca', color: '#fff' }}
           >
             <i className="ti ti-file-download" /> {t('telecharger_rapport')}
           </button>
@@ -239,7 +246,7 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
       )}
 
       <div className="bg-white rounded-md border border-gray-100 p-4 mb-6 flex items-center gap-3 flex-wrap">
-        <span className="text-xs font-bold uppercase tracking-widest text-gray-400">{t('techniciens_col')}</span>
+        <span className="text-xs font-extrabold uppercase tracking-widest text-[#0a0b0d]">{t('techniciens_col')}</span>
         {rapport.techniciens?.length
           ? rapport.techniciens.map((t: any) => (
             <div key={t.id} className="flex items-center gap-1.5 bg-gray-50 rounded-full pl-1 pr-3 py-1">
@@ -253,22 +260,23 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
           : <span className="text-xs text-gray-300 italic">{t('aucun_technicien_assigne')}</span>}
         <button
           onClick={() => setModalMode('technicien')}
-          className="text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-200 hover:border-[#e11324] transition-colors flex items-center gap-1"
+          className="h-8 text-xs font-bold px-3 rounded-md border border-[#94a3b8] bg-[#f8fafc] text-[#0a0b0d] shadow-sm transition-all hover:border-[#0a0b0d] hover:shadow active:scale-[0.97] flex items-center gap-1.5"
           style={{ color: NAVY }}
         >
           <i className="ti ti-edit text-[11px]" /> {t('reassigner')}
         </button>
       </div>
 
-      <div className="flex gap-0.5 sm:gap-1 mb-6 border-b border-gray-100 overflow-x-auto">
+      <div className="flex gap-1.5 sm:gap-2 mb-6 overflow-x-auto">
         {onglets.map(o => (
           <button
             key={o.key}
             onClick={() => setOnglet(o.key)}
-            className="px-2.5 sm:px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap flex-shrink-0"
+            className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm font-bold rounded-md border shadow-sm transition-all whitespace-nowrap flex-shrink-0 hover:border-[#0a0b0d] hover:shadow active:scale-[0.97]"
             style={{
-              borderColor: onglet === o.key ? ORANGE : 'transparent',
-              color: onglet === o.key ? NAVY : '#9ca3af',
+              background: onglet === o.key ? NAVY : '#f8fafc',
+              color: onglet === o.key ? '#fff' : NAVY,
+              borderColor: onglet === o.key ? NAVY : '#94a3b8',
             }}
           >
             <span className="sm:hidden">{o.shortLabel}</span>
@@ -279,10 +287,12 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
 
       {onglet === 'eclairages' && (
         <div className="flex flex-col gap-6">
-          <TableEclairageUrgence rapport={rapport} readOnly={false} onRefresh={charger} />
+          <TableEclairageUrgence rapport={rapport} readOnly={false} onRefresh={charger} onItemChange={majLigne} />
           <SectionPhotos photosUrl={`${API_URL}/api/rapports-eclairage-urgence/${rapport.id}/photos/`} readOnly={false} />
         </div>
       )}
+
+      {onglet === 'deficiences' && <OngletDeficiences rapport={rapport} />}
 
       {onglet === 'certificat' && (
         <PanneauCertificat type="eclairage" rapportId={rapport.id} cle={rapport.statut} />

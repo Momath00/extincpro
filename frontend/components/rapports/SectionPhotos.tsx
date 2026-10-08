@@ -68,7 +68,7 @@ function envoyerFormulaire(url: string, form: FormData, onProgression: (pct: num
 }
 
 /** <img> d'une photo protégée par l'authentification (fetch → blob:). */
-function ImageProtegee({ url, alt, className }: { url: string; alt: string; className?: string }) {
+export function ImageProtegee({ url, alt, className }: { url: string; alt: string; className?: string }) {
   const t = useT()
   const [src, setSrc] = useState<string | null>(null)
   const [echec, setEchec] = useState(false)
@@ -98,10 +98,17 @@ export default function SectionPhotos({
   photosUrl,
   readOnly,
   suggestionsEmplacement = [],
+  section,
+  masquerSiVide = false,
 }: {
   photosUrl: string // ex. `${API_URL}/api/rapports-gicleurs/12/photos/`
   readOnly: boolean
   suggestionsEmplacement?: string[]
+  /** Rapport d'alarme : id de la section E3 dont on affiche/ajoute les
+   *  photos, ou « aucune » pour les photos rattachées au rapport seulement. */
+  section?: number | 'aucune'
+  /** Ne rien afficher tant qu'il n'y a aucune photo (anciennes photos). */
+  masquerSiVide?: boolean
 }) {
   const t = useT()
   const [photos, setPhotos] = useState<Photo[]>([])
@@ -116,15 +123,16 @@ export default function SectionPhotos({
   const [enEdition, setEnEdition] = useState<{ id: number; emplacement: string; description: string } | null>(null)
   const [visionneuse, setVisionneuse] = useState<number | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const cameraRef = useRef<HTMLInputElement>(null)
   const compteurSurvol = useRef(0)
   const idListe = useRef(`emplacements-${Math.random().toString(36).slice(2)}`).current
 
   useEffect(() => {
-    appelJson(photosUrl).then(res => {
+    appelJson(section ? `${photosUrl}?section=${section}` : photosUrl).then(res => {
       if (res.ok && Array.isArray(res.data)) setPhotos(res.data)
       setChargement(false)
     })
-  }, [photosUrl])
+  }, [photosUrl, section])
 
   // Libère les aperçus locaux quand le composant disparaît.
   const enAttenteRef = useRef(enAttente)
@@ -195,6 +203,7 @@ export default function SectionPhotos({
       form.append('image', p.fichier)
       form.append('emplacement', p.emplacement.trim())
       form.append('description', p.description.trim())
+      if (typeof section === 'number') form.append('section', String(section))
       const res = await envoyerFormulaire(photosUrl, form, pct => majAttente(p.cle, { progression: pct }))
       if (res.ok) {
         setPhotos(prev => [...prev, res.data])
@@ -243,6 +252,8 @@ export default function SectionPhotos({
   const emplacementsManquants = enAttente.some(p => !p.emplacement.trim())
   const suggestions = Array.from(new Set(suggestionsEmplacement.map(s => s.trim()).filter(Boolean)))
   const photoVisionneuse = visionneuse !== null ? photos[visionneuse] : null
+
+  if (masquerSiVide && !chargement && photos.length === 0 && enAttente.length === 0) return null
 
   return (
     <section className="bg-white border border-gray-100 rounded-md overflow-hidden shadow-sm">
@@ -300,9 +311,30 @@ export default function SectionPhotos({
             <p className="text-sm font-semibold" style={{ color: NAVY }}>
               {survol ? t('photos_deposez_ici') : t('photos_glissez_deposez')}
             </p>
-            <p className="text-xs text-gray-400">
-              {t('photos_ou')} <span className="font-semibold underline" style={{ color: RED }}>{t('photos_cliquez_choisir')}</span> — {t('photos_sur_mobile')}
-            </p>
+            {/* Tablette / téléphone : l'appareil photo s'ouvre directement. */}
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
+              <button type="button"
+                onClick={e => { e.stopPropagation(); cameraRef.current?.click() }}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-bold text-white transition-opacity hover:opacity-90"
+                style={{ background: RED }}>
+                <i className="ti ti-camera text-base" /> {t('photos_prendre')}
+              </button>
+              <button type="button"
+                onClick={e => { e.stopPropagation(); inputRef.current?.click() }}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-md text-sm font-bold border border-gray-200 bg-white transition-colors hover:border-[#0a0b0d]"
+                style={{ color: NAVY }}>
+                <i className="ti ti-paperclip text-base" /> {t('photos_joindre')}
+              </button>
+            </div>
+            <input
+              ref={cameraRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onClick={e => e.stopPropagation()}
+              onChange={e => { if (e.target.files) ajouterFichiers(e.target.files); e.target.value = '' }}
+            />
             <input
               ref={inputRef}
               type="file"

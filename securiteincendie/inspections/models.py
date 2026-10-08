@@ -904,6 +904,26 @@ class HistoriqueRapportExtincteur(models.Model):
         return f"{self.date_heure:%Y-%m-%d %H:%M} — {self.description}"
 
 
+# Légende des non-conformités des extincteurs — mêmes codes que le formulaire
+# papier des clients industriels : (code, libellé français, libellé anglais).
+# Doit rester alignée avec frontend/lib/nonConformites.ts.
+LEGENDE_NON_CONFORMITES = [
+    ("TH", "Test hydrostatique", "Hydrostatic test"),
+    ("6Y", "Entretien préventif 6 ans", "6 year preventive maintenance"),
+    ("RL", "Déplacer", "Relocate"),
+    ("RC", "Recharger", "To recharge"),
+    ("SUPM", "Support manquant", "Missing support"),
+    ("SUPR", "Réparer support", "Repair support"),
+    ("LOCK", "Serrure pour cabinet", "Cabinet lock"),
+    ("MIS", "Manquant", "Missing"),
+    ("PIC", "Installer un pictogramme", "Install sign"),
+    ("RP", "Remplacer", "To replace"),
+    ("REC", "Recommandé", "Recommendation"),
+    ("GAU", "Réparer manomètre", "Repair gauge"),
+]
+CODES_NON_CONFORMITES = [code for code, _fr, _en in LEGENDE_NON_CONFORMITES]
+
+
 class ExtincteurItem(models.Model):
     """Une ligne du tableau de vérification des extincteurs portatifs."""
 
@@ -959,6 +979,8 @@ class ExtincteurItem(models.Model):
     numero_serie = models.CharField(max_length=100, blank=True)
     prochaine_maintenance = models.CharField(max_length=4, blank=True)
     prochain_test_hydrostatique = models.CharField(max_length=4, blank=True)
+    # Codes de LEGENDE_NON_CONFORMITES, ex. ["TH", "SUPM"].
+    non_conformites = models.JSONField(default=list, blank=True)
     remarque = models.CharField(max_length=300, blank=True)
 
     ordre = models.PositiveIntegerField(default=0)
@@ -2011,6 +2033,9 @@ class PhotoAnomalie(models.Model):
     rapport_eclairage = models.ForeignKey(RapportEclairageUrgence, null=True, blank=True, on_delete=models.CASCADE, related_name="photos")
     rapport_cuisine = models.ForeignKey(RapportCuisine, null=True, blank=True, on_delete=models.CASCADE, related_name="photos")
     rapport_gicleur = models.ForeignKey(RapportGicleur, null=True, blank=True, on_delete=models.CASCADE, related_name="photos")
+    # Rapport d'alarme : photo rattachée à une section E3 (un étage, une
+    # aile…). Nulle pour les autres types de rapport et les anciennes photos.
+    section = models.ForeignKey(SectionDispositif, null=True, blank=True, on_delete=models.CASCADE, related_name="photos")
 
     image = models.BinaryField()
     emplacement = models.CharField(max_length=200, help_text="Titre de la photo, ex. « Sous-sol — salle mécanique ».")

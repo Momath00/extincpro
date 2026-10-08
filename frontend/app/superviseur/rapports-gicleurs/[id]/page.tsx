@@ -126,7 +126,7 @@ function CertificatTab({
             <button
               onClick={() => downloadHtml(`${API_URL}/api/rapports-gicleurs/${rapport.id}/certificat-pdf/`)}
               className="flex-1 text-sm font-bold px-4 py-3 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-              style={{ background: '#e0e7ff', color: '#3730a3' }}
+              style={{ background: '#4338ca', color: '#fff' }}
             >
               <i className="ti ti-download" /> {t('telecharger_pdf')}
             </button>
@@ -311,7 +311,7 @@ export default function SuperviseurRapportGicleurDetailPage() {
             <button
               onClick={() => setConfirmFermer(true)}
               disabled={actionLoading}
-              className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
+              className="h-10 text-sm font-bold px-4 rounded-md flex items-center gap-2 shadow-sm active:scale-[0.97] text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
               style={{ background: NAVY }}
             >
               <i className="ti ti-lock" /> {t('fermer_rapport')}
@@ -323,7 +323,7 @@ export default function SuperviseurRapportGicleurDetailPage() {
             <button
               onClick={envoyerCertificat}
               disabled={actionLoading}
-              className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
+              className="h-10 text-sm font-bold px-4 rounded-md flex items-center gap-2 shadow-sm active:scale-[0.97] text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
               style={{ background: ORANGE }}
             >
               <i className="ti ti-send" /> {t('envoyer_certificat_btn')}
@@ -334,8 +334,8 @@ export default function SuperviseurRapportGicleurDetailPage() {
             <button
               onClick={() => setConfirmRouvrir(true)}
               disabled={actionLoading}
-              className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 disabled:opacity-50 hover:opacity-90 transition-opacity"
-              style={{ background: '#fef3c7', color: '#b45309' }}
+              className="h-10 text-sm font-bold px-4 rounded-md flex items-center gap-2 shadow-sm active:scale-[0.97] disabled:opacity-50 hover:opacity-90 transition-opacity"
+              style={{ background: '#d97706', color: '#fff' }}
             >
               <i className="ti ti-lock-open" /> {t('rouvrir_rapport')}
             </button>
@@ -351,10 +351,10 @@ export default function SuperviseurRapportGicleurDetailPage() {
                   setTelechargement(null)
                 }}
                 disabled={telechargement !== null}
-                className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
-                style={{ background: '#e0e7ff', color: '#3730a3' }}
+                className="h-10 text-sm font-bold px-4 rounded-md flex items-center gap-2 shadow-sm active:scale-[0.97] hover:opacity-90 transition-opacity disabled:opacity-50"
+                style={{ background: '#4338ca', color: '#fff' }}
               >
-                {telechargement === 'rapport' ? <SpinnerBouton color="#3730a3" /> : <i className="ti ti-file-download" />} {t('telecharger_rapport')}
+                {telechargement === 'rapport' ? <SpinnerBouton /> : <i className="ti ti-file-download" />} {t('telecharger_rapport')}
               </button>
               {rapport.certificat && (
                 <button
@@ -365,10 +365,10 @@ export default function SuperviseurRapportGicleurDetailPage() {
                     setTelechargement(null)
                   }}
                   disabled={telechargement !== null}
-                  className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
-                  style={{ background: '#fef2f2', color: ORANGE }}
+                  className="h-10 text-sm font-bold px-4 rounded-md flex items-center gap-2 shadow-sm active:scale-[0.97] hover:opacity-90 transition-opacity disabled:opacity-50"
+                  style={{ background: '#9f1239', color: '#fff' }}
                 >
-                  {telechargement === 'certificat' ? <SpinnerBouton color={ORANGE} /> : <i className="ti ti-certificate" />} {t('certificat')}
+                  {telechargement === 'certificat' ? <SpinnerBouton /> : <i className="ti ti-certificate" />} {t('certificat')}
                 </button>
               )}
             </>
@@ -401,7 +401,7 @@ export default function SuperviseurRapportGicleurDetailPage() {
       )}
 
       <div className="bg-white rounded-md border border-gray-100 p-4 mb-6 flex items-center gap-3 flex-wrap">
-        <span className="text-xs font-bold uppercase tracking-widest text-gray-400">{t('techniciens_col')}</span>
+        <span className="text-xs font-extrabold uppercase tracking-widest text-[#0a0b0d]">{t('techniciens_col')}</span>
         {rapport.techniciens?.length
           ? rapport.techniciens.map((t: any) => (
             <div key={t.id} className="flex items-center gap-1.5 bg-gray-50 rounded-full pl-1 pr-3 py-1">
@@ -415,14 +415,14 @@ export default function SuperviseurRapportGicleurDetailPage() {
           : <span className="text-xs text-gray-300 italic">{t('aucun_technicien_assigne')}</span>}
         <button
           onClick={() => setModalMode('technicien')}
-          className="text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-200 hover:border-[#e11324] transition-colors flex items-center gap-1"
+          className="h-8 text-xs font-bold px-3 rounded-md border border-[#94a3b8] bg-[#f8fafc] text-[#0a0b0d] shadow-sm transition-all hover:border-[#0a0b0d] hover:shadow active:scale-[0.97] flex items-center gap-1.5"
           style={{ color: NAVY }}
         >
           <i className="ti ti-edit text-[11px]" /> {t('reassigner')}
         </button>
 
         <span className="w-px h-4 bg-gray-200 flex-shrink-0" />
-        <span className="text-xs font-bold uppercase tracking-widest text-gray-400">{t('citoyen_col')}</span>
+        <span className="text-xs font-extrabold uppercase tracking-widest text-[#0a0b0d]">{t('citoyen_col')}</span>
         <span className="text-xs font-medium" style={{ color: rapport.citoyen ? NAVY : '#9ca3af' }}>
           {rapport.citoyen?.username || t('aucun')}
         </span>
@@ -433,22 +433,23 @@ export default function SuperviseurRapportGicleurDetailPage() {
         )}
         <button
           onClick={() => setModalMode('citoyen')}
-          className="text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-200 hover:border-[#e11324] transition-colors flex items-center gap-1"
+          className="h-8 text-xs font-bold px-3 rounded-md border border-[#94a3b8] bg-[#f8fafc] text-[#0a0b0d] shadow-sm transition-all hover:border-[#0a0b0d] hover:shadow active:scale-[0.97] flex items-center gap-1.5"
           style={{ color: NAVY }}
         >
           <i className="ti ti-edit text-[11px]" /> {t('reassigner')}
         </button>
       </div>
 
-      <div className="flex gap-0.5 sm:gap-1 mb-6 border-b border-gray-100 overflow-x-auto">
+      <div className="flex gap-1.5 sm:gap-2 mb-6 overflow-x-auto">
         {onglets.map(o => (
           <button
             key={o.key}
             onClick={() => setOnglet(o.key)}
-            className="px-2.5 sm:px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap flex-shrink-0"
+            className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm font-bold rounded-md border shadow-sm transition-all whitespace-nowrap flex-shrink-0 hover:border-[#0a0b0d] hover:shadow active:scale-[0.97]"
             style={{
-              borderColor: onglet === o.key ? ORANGE : 'transparent',
-              color: onglet === o.key ? NAVY : '#9ca3af',
+              background: onglet === o.key ? NAVY : '#f8fafc',
+              color: onglet === o.key ? '#fff' : NAVY,
+              borderColor: onglet === o.key ? NAVY : '#94a3b8',
             }}
           >
             <span className="sm:hidden">{o.shortLabel}</span>

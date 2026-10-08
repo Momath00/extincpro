@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react'
 import { useT, useLangue, useChoix, TYPE_DISPOSITIF_I18N } from '@/lib/i18n'
 import { resilientMutate } from '@/lib/offline/resilientFetch'
+import SectionPhotos from './SectionPhotos'
+import BarreOutils, { BoutonPrincipal, BoutonFiltre } from './BarreOutils'
+import Legende, { GrilleLegende, LignesCouleurs } from './Legende'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -118,7 +121,7 @@ function LigneDispositif({
               type="text"
               defaultValue={d.localisation}
               onBlur={e => patchField('localisation', e.target.value)}
-              className="w-full text-sm border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-orange-300 rounded px-1 py-0.5 min-w-[80px] font-medium"
+              className="w-full text-sm border-2 border-[#0a0b0d] bg-white focus:outline-none focus:border-[#e11324] focus:ring-1 focus:ring-[#e11324]/30 rounded px-1 py-0.5 min-w-[80px] font-medium"
               style={{ color: isDefect ? '#e11324' : isNI ? '#b45309' : isInspecte ? '#15803d' : NAVY }}
             />
           )}
@@ -137,7 +140,7 @@ function LigneDispositif({
             <select
               value={d.type_dispositif || ''}
               onChange={e => patchField('type_dispositif', e.target.value || null)}
-              className="w-full min-w-0 text-xs border border-gray-200 rounded px-1.5 py-1 focus:outline-none focus:border-[#e11324] bg-white"
+              className="w-full min-w-0 text-xs border-2 border-[#0a0b0d] rounded px-1.5 py-1 focus:outline-none focus:border-[#e11324] bg-white"
             >
               <option value="">-</option>
               {Object.keys(typeDispositif).sort().map(k => (
@@ -159,7 +162,7 @@ function LigneDispositif({
             <select
               value={d.installation_correcte === true ? 'true' : d.installation_correcte === false ? 'false' : ''}
               onChange={e => patchField('installation_correcte', e.target.value === 'true' ? true : e.target.value === 'false' ? false : null)}
-              className="w-full min-w-0 text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
+              className="w-full min-w-0 text-xs border-2 border-[#0a0b0d] rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
             >
               <option value="">{t('so_abrege')}</option>
               <option value="true">{t('oui')}</option>
@@ -180,7 +183,7 @@ function LigneDispositif({
             <select
               value={d.necessite_entretien === true ? 'true' : d.necessite_entretien === false ? 'false' : ''}
               onChange={e => patchField('necessite_entretien', e.target.value === 'true' ? true : e.target.value === 'false' ? false : null)}
-              className="w-full min-w-0 text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
+              className="w-full min-w-0 text-xs border-2 border-[#0a0b0d] rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
             >
               <option value="">{t('so_abrege')}</option>
               <option value="true">{t('oui')}</option>
@@ -201,7 +204,7 @@ function LigneDispositif({
             <select
               value={d.alarme_confirmee === true ? 'true' : d.alarme_confirmee === false ? 'false' : ''}
               onChange={e => patchField('alarme_confirmee', e.target.value === 'true' ? true : e.target.value === 'false' ? false : null)}
-              className="w-full min-w-0 text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
+              className="w-full min-w-0 text-xs border-2 border-[#0a0b0d] rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
             >
               <option value="">{t('so_abrege')}</option>
               <option value="true">{t('oui')}</option>
@@ -226,7 +229,7 @@ function LigneDispositif({
             <select
               value={d.annonce_statut || ''}
               onChange={e => handleStatutChange(e.target.value)}
-              className="w-full min-w-0 text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
+              className="w-full min-w-0 text-xs border-2 border-[#0a0b0d] rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
             >
               <option value="">-</option>
               <option value="D">D</option>
@@ -246,7 +249,7 @@ function LigneDispositif({
               defaultValue={d.zone_circuit || ''}
               onBlur={e => patchField('zone_circuit', e.target.value)}
               placeholder="Z1"
-              className="w-full min-w-0 text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-orange-300 rounded px-1 py-0.5 text-center"
+              className="w-full min-w-0 text-xs border-2 border-[#0a0b0d] bg-white focus:outline-none focus:border-[#e11324] focus:ring-1 focus:ring-[#e11324]/30 rounded px-1 py-0.5 text-center"
             />
           )}
         </td>
@@ -261,7 +264,7 @@ function LigneDispositif({
               defaultValue={d.remarque || ''}
               onBlur={e => patchField('remarque', e.target.value)}
               placeholder={t('placeholder_remarque')}
-              className="w-full min-w-0 text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-orange-300 rounded px-1 py-0.5"
+              className="w-full min-w-0 text-xs border-2 border-[#0a0b0d] bg-white focus:outline-none focus:border-[#e11324] focus:ring-1 focus:ring-[#e11324]/30 rounded px-1 py-0.5"
             />
           )}
         </td>
@@ -606,14 +609,21 @@ export default function OngletE3({
   rapport,
   readOnly,
   onRefresh,
+  onItemChange,
 }: {
   rapport: any
   readOnly: boolean
   onRefresh: () => void
+  /** Remonte chaque modification à la page — l'onglet Déficiences reste
+   *  ainsi à jour sans recharger. */
+  onItemChange?: (id: any, field: string, value: any) => void
 }) {
   const t = useT()
   const langue = useLangue()
   const typeDispositif = useChoix(TYPE_DISPOSITIF_I18N)
+  // Sections fermées par défaut : un gros bâtiment compte plusieurs centaines
+  // de dispositifs, on n'ouvre que celle sur laquelle on travaille.
+  const [ouvertes, setOuvertes] = useState<Set<number>>(new Set())
   const [sections, setSections] = useState<any[]>(rapport.sections || [])
   const [filtreType, setFiltreType] = useState('Tous')
   const [modalSection, setModalSection] = useState(false)
@@ -631,6 +641,16 @@ export default function OngletE3({
         d.id === dispositifId ? { ...d, [field]: value } : d
       ),
     })))
+    onItemChange?.(dispositifId, field, value)
+  }
+
+  function basculerSection(id: number) {
+    setOuvertes(prev => {
+      const s = new Set(prev)
+      if (s.has(id)) s.delete(id)
+      else s.add(id)
+      return s
+    })
   }
 
   const allDispositifs = sections.flatMap(s => s.dispositifs || [])
@@ -709,21 +729,18 @@ export default function OngletE3({
       )}
 
       {/* Légende */}
-      <div className="bg-gray-50 border border-gray-100 rounded-md px-4 py-3 text-xs text-gray-500 flex flex-wrap gap-x-5 gap-y-1">
-        <span><strong style={{ color: NAVY }}>A</strong> — {t('legende_installation_correcte')}</span>
-        <span><strong style={{ color: NAVY }}>B</strong> — {t('legende_necessite_entretien')}</span>
-        <span><strong style={{ color: NAVY }}>C</strong> — {t('legende_alarme_confirmee')}</span>
-        <span><strong style={{ color: NAVY }}>D</strong> — {t('legende_statut_detail')}</span>
-        <span><strong style={{ color: NAVY }}>E</strong> — {t('zone_circuit_label')}</span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: '#fee2e2', border: '2px solid #ef4444' }} />
-          <span className="text-red-600 font-semibold">{t('ligne_rouge_defaut')}</span>
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: '#fef3c7', border: '2px solid #f59e0b' }} />
-          <span className="font-semibold" style={{ color: '#b45309' }}>{t('ligne_jaune_ni')}</span>
-        </span>
-      </div>
+      <Legende
+        titre={t('legende_tableau')}
+        compacte
+        elements={[
+          { code: 'A', libelle: t('legende_installation_correcte') },
+          { code: 'B', libelle: t('legende_necessite_entretien') },
+          { code: 'C', libelle: t('legende_alarme_confirmee') },
+          { code: 'D', libelle: t('legende_statut_detail') },
+          { code: 'E', libelle: t('zone_circuit_label') },
+        ]}
+        pied={<LignesCouleurs defaut={t('ligne_rouge_defaut')} />}
+      />
 
       {/* Sommaire */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -878,16 +895,13 @@ export default function OngletE3({
         </div>
       )}
 
-      {/* Bouton ajout section — toujours visible */}
-      {!readOnly && (
-        <div className="flex justify-end">
-          <button onClick={() => setModalSection(true)}
-            className="flex items-center gap-2 border border-gray-200 px-4 py-2 rounded-md text-sm font-bold hover:border-[#0a0b0d] transition-colors"
-            style={{ color: NAVY }}>
-            <i className="ti ti-plus" /> {t('ajouter_section_btn')}
-          </button>
-        </div>
-      )}
+      {/* Barre d'outils commune : Tout ouvrir / Tout fermer à gauche, Ajouter à droite */}
+      <BarreOutils
+        onToutOuvrir={sections.length ? () => setOuvertes(new Set(sections.map(s => s.id))) : undefined}
+        onToutFermer={sections.length ? () => setOuvertes(new Set()) : undefined}
+      >
+        {!readOnly && <BoutonPrincipal onClick={() => setModalSection(true)}>{t('ajouter_section_btn')}</BoutonPrincipal>}
+      </BarreOutils>
 
       {/* Générateur — raccourci quand aucune section n'existe encore */}
       {sections.length === 0 && !readOnly && (
@@ -941,23 +955,61 @@ export default function OngletE3({
         </div>
       )}
 
-      {/* Filtre type */}
-      <div className="flex flex-wrap gap-2">
-        {['Tous', ...Object.keys(typeDispositif).sort()].map(tp => (
-          <button key={tp} onClick={() => setFiltreType(tp)}
-            className="px-3 py-1.5 rounded-full text-xs font-bold transition-all duration-150"
-            style={{ background: filtreType === tp ? NAVY : '#f1f5f9', color: filtreType === tp ? '#fff' : '#64748b' }}>
-            {tp === 'Tous' ? t('tous') : tp}
-          </button>
-        ))}
-      </div>
+      {/* Filtre par type de dispositif — encadré et expliqué : les codes
+          (AFE, IBH, K/S…) ne parlent pas à un nouvel utilisateur. */}
+      {allDispositifs.length > 0 && (() => {
+        const nbParType: Record<string, number> = {}
+        allDispositifs.forEach((d: any) => { if (d.type_dispositif) nbParType[d.type_dispositif] = (nbParType[d.type_dispositif] || 0) + 1 })
+        const typesPresents = Object.keys(nbParType).sort()
+        return (
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-b border-gray-100 bg-gray-50">
+              <div className="flex items-center gap-2 min-w-0">
+                <i className="ti ti-filter text-base" style={{ color: ORANGE }} />
+                <div className="min-w-0">
+                  <p className="text-xs font-bold uppercase tracking-widest" style={{ color: NAVY }}>{t('filtre_type_titre')}</p>
+                  <p className="text-[11px] text-gray-500">{t('filtre_type_aide')}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-4 py-3 flex flex-wrap gap-2">
+              <BoutonFiltre actif={filtreType === 'Tous'} onClick={() => setFiltreType('Tous')}
+                libelle={t('tous')} nombre={allDispositifs.length} />
+              {typesPresents.map(tp => (
+                <BoutonFiltre key={tp} actif={filtreType === tp} onClick={() => setFiltreType(tp)}
+                  code={tp} libelle={typeDispositif[tp] || tp} nombre={nbParType[tp]} />
+              ))}
+            </div>
+
+            {filtreType !== 'Tous' && (
+              <div className="flex flex-wrap items-center gap-2 px-4 py-2 text-xs border-t border-amber-200 bg-amber-50" style={{ color: '#92400e' }}>
+                <i className="ti ti-info-circle" />
+                <span>
+                  {t('filtre_actif')} <strong>{filtreType} — {typeDispositif[filtreType] || filtreType}</strong>. {t('filtre_actif_suite')}
+                </span>
+                <button type="button" onClick={() => setFiltreType('Tous')}
+                  className="ml-auto flex items-center gap-1 font-bold px-2.5 py-1 rounded-md bg-white border border-amber-300 hover:border-amber-500">
+                  <i className="ti ti-x" /> {t('retirer_filtre')}
+                </button>
+              </div>
+            )}
+
+            {/* Légende des codes — toujours visible pour s'y référer. */}
+            <div className="px-4 py-3 border-t border-gray-100">
+              <GrilleLegende elements={Object.keys(typeDispositif).sort().map(tp => ({ code: tp, libelle: typeDispositif[tp] }))} />
+            </div>
+          </div>
+        )
+      })()}
 
       {sections.length === 0 && readOnly && (
         <p className="text-gray-400 text-sm text-center py-10">{t('aucune_section_creee')}</p>
       )}
 
       {/* Sections */}
-      {sections.map(section => {
+      {sections.map((section, index) => {
+        const ouverte = ouvertes.has(section.id)
         const dispFiltres = (section.dispositifs || []).filter(
           (d: any) => filtreType === 'Tous' || d.type_dispositif === filtreType
         )
@@ -968,9 +1020,14 @@ export default function OngletE3({
 
         return (
           <div key={section.id} className="bg-white rounded-md border border-gray-100 overflow-hidden shadow-sm">
-            <div className="px-4 py-3 border-b flex items-center justify-between"
-              style={{ background: nbDefectSection > 0 ? '#fff5f5' : nbNISection > 0 ? '#fffbeb' : '#f2edfa', borderColor: nbDefectSection > 0 ? '#fecaca' : nbNISection > 0 ? '#fde68a' : '#e9e0f8' }}>
-              <div className="flex items-center gap-3">
+            <div className={`flex items-center justify-between gap-2 ${ouverte ? 'border-b' : ''}`}
+              style={{ background: nbDefectSection > 0 ? '#fecaca' : nbNISection > 0 ? '#fde68a' : '#e4d9f7', borderColor: nbDefectSection > 0 ? '#f87171' : nbNISection > 0 ? '#f59e0b' : '#c4b5e8', borderLeft: `5px solid ${nbDefectSection > 0 ? '#dc2626' : nbNISection > 0 ? '#d97706' : '#4b2f8c'}` }}>
+              <button type="button" onClick={() => basculerSection(section.id)} aria-expanded={ouverte}
+                className="flex-1 min-w-0 flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-left hover:brightness-[0.98] transition">
+                <span className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white transition-colors"
+                  style={{ background: ouverte ? ORANGE : NAVY }}>
+                  {index + 1}
+                </span>
                 <p className="text-sm font-bold" style={{ color: nbDefectSection > 0 ? '#e11324' : nbNISection > 0 ? '#b45309' : '#4b2f8c' }}>
                   {section.nom}
                 </p>
@@ -978,19 +1035,21 @@ export default function OngletE3({
                   {section.dispositifs?.length || 0} {(section.dispositifs?.length || 0) !== 1 ? t('dispositifs_pluriel') : t('dispositif_singulier')}
                 </span>
                 {nbDefectSection > 0 && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-600 text-white">
                     <i className="ti ti-alert-triangle text-[9px]" /> {nbDefectSection} {nbDefectSection > 1 ? t('defauts_pluriel') : t('defaut_singulier')}
                   </span>
                 )}
                 {nbNISection > 0 && (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100" style={{ color: '#b45309' }}>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-600 text-white">
                     <i className="ti ti-eye-off text-[9px]" /> {nbNISection} NI
                   </span>
                 )}
-              </div>
+                <i className="ti ti-chevron-down text-xl font-bold transition-transform flex-shrink-0 ml-auto"
+                  style={{ color: NAVY, transform: ouverte ? 'rotate(180deg)' : 'none' }} />
+              </button>
               {!readOnly && (
-                <div className="flex items-center gap-2">
-                  <button onClick={() => setModalDispositif(section.id)}
+                <div className="flex items-center gap-2 pr-3">
+                  <button onClick={() => { setModalDispositif(section.id); setOuvertes(prev => new Set(prev).add(section.id)) }}
                     className="text-xs px-3 py-1.5 rounded-md font-semibold flex items-center gap-1 hover:opacity-80 transition-opacity"
                     style={{ background: NAVY, color: '#fff' }}>
                     <i className="ti ti-plus text-xs" /> {t('ajouter')}
@@ -1012,7 +1071,7 @@ export default function OngletE3({
               )}
             </div>
 
-            {dispFiltres.length === 0 ? (
+            {!ouverte ? null : dispFiltres.length === 0 ? (
               <div className="text-center py-8 text-xs text-gray-400">
                 {filtreType !== 'Tous'
                   ? `${t('aucun_dispositif_type_prefix')} ${filtreType} ${t('aucun_dispositif_type_suffix')}`
@@ -1060,6 +1119,17 @@ export default function OngletE3({
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+            {/* Photos d'anomalies de la section — prises sur place à la tablette ou jointes. */}
+            {ouverte && (
+              <div className="p-3 border-t border-gray-100">
+                <SectionPhotos
+                  photosUrl={`${API_URL}/api/rapports/${rapport.id}/photos/`}
+                  readOnly={readOnly}
+                  section={section.id}
+                  suggestionsEmplacement={(section.dispositifs || []).map((d: any) => d.localisation)}
+                />
               </div>
             )}
           </div>

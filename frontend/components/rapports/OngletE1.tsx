@@ -121,7 +121,7 @@ export default function OngletE1({
                 {lettre}
               </span>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-gray-500 leading-relaxed mb-1.5">{label[langue] ?? label.fr}</p>
+                <p className="text-sm font-bold text-[#0a0b0d] leading-snug mb-1.5">{label[langue] ?? label.fr}</p>
                 {readOnly ? (
                   <p className="text-xs font-semibold"
                     style={{
@@ -135,7 +135,7 @@ export default function OngletE1({
                   <select
                     value={boolToStr(form[key])}
                     onChange={e => { setForm({ ...form, [key]: strToBool(e.target.value) }); setErreurs([]) }}
-                    className="border border-gray-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#e11324]"
+                    className="border-2 border-[#0a0b0d] rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#e11324]"
                   >
                     <option value="">—</option>
                     <option value="true">{t('oui')}</option>
@@ -155,7 +155,7 @@ export default function OngletE1({
               G
             </span>
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-gray-500 leading-relaxed mb-1.5">{t('commentaires_label')}</p>
+              <p className="text-sm font-bold text-[#0a0b0d] leading-snug mb-1.5">{t('commentaires_label')}</p>
               {readOnly ? (
                 <p className="text-sm px-3 py-1.5 bg-gray-50 rounded-md min-h-[60px]"
                   style={{ color: form.commentaires ? '#111827' : '#9ca3af' }}>
@@ -167,7 +167,7 @@ export default function OngletE1({
                   onChange={e => setForm({ ...form, commentaires: e.target.value })}
                   rows={3}
                   placeholder={t('saisir_commentaires_placeholder')}
-                  className="w-full border border-gray-200 rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#e11324] resize-none"
+                  className="w-full border-2 border-[#0a0b0d] rounded-md px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#e11324] resize-none"
                 />
               )}
             </div>

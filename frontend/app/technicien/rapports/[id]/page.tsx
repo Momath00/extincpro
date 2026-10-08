@@ -7,6 +7,7 @@ import OngletE1 from '@/components/rapports/OngletE1'
 import OngletE2 from '@/components/rapports/OngletE2'
 import OngletLegende from '@/components/rapports/OngletLegende'
 import OngletE3 from '@/components/rapports/OngletE3'
+import OngletDeficiences, { compterDeficiences } from '@/components/rapports/OngletDeficiences'
 import { useT, useLangue } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
 import SectionPhotos from '@/components/rapports/SectionPhotos'
@@ -15,7 +16,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
 
-type OngletPrincipal = 'e1' | 'e2' | 'legende' | 'e3' | 'historique'
+type OngletPrincipal = 'e1' | 'e2' | 'legende' | 'e3' | 'historique' | 'deficiences'
 
 function ProgressionRapport({ rapport }: { rapport: any }) {
   const t = useT()
@@ -113,6 +114,10 @@ export default function TechnicienRapportDetailPage() {
 
   const badge = STATUT_BADGE[rapport.statut] || STATUT_BADGE.ouvert
   const readOnly = rapport.statut === 'ferme'
+  const nbDeficiences = compterDeficiences(rapport)
+  // Garde l'onglet Déficiences à jour pendant la saisie, sans recharger.
+  const majDispositif = (id: any, field: string, value: any) =>
+    setRapport((r: any) => r && ({ ...r, sections: (r.sections || []).map((s: any) => ({ ...s, dispositifs: (s.dispositifs || []).map((d: any) => d.id === id ? { ...d, [field]: value } : d) })) }))
   const totalDispositifs = (rapport.sections || []).reduce(
     (sum: number, s: any) => sum + (s.dispositifs?.length || 0), 0
   )
@@ -170,21 +175,23 @@ export default function TechnicienRapportDetailPage() {
       )}
 
       {/* Onglets */}
-      <div className="flex gap-0.5 sm:gap-1 mb-6 border-b border-gray-100 overflow-x-auto">
+      <div className="flex gap-1.5 sm:gap-2 mb-6 overflow-x-auto">
         {([
           { key: 'e1', label: t('e1_rapport_annuel'), shortLabel: 'E1' },
           { key: 'e2', label: t('e2_poste_controle'), shortLabel: 'E2' },
           { key: 'legende', label: t('legende_titre'), shortLabel: t('legende_titre') },
           { key: 'e3', label: `${t('e3_dispositifs')} (${totalDispositifs})`, shortLabel: `E3 (${totalDispositifs})` },
           { key: 'historique', label: `${t('historique')} (${rapport.historique?.length || 0})`, shortLabel: `${t('historique')} (${rapport.historique?.length || 0})` },
+          { key: 'deficiences', label: `${t('onglet_deficiences')} (${nbDeficiences})`, shortLabel: `${t('onglet_deficiences')} (${nbDeficiences})` },
         ] as { key: OngletPrincipal; label: string; shortLabel: string }[]).map(o => (
           <button
             key={o.key}
             onClick={() => setOnglet(o.key)}
-            className="px-2.5 sm:px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap flex-shrink-0"
+            className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm font-bold rounded-md border shadow-sm transition-all whitespace-nowrap flex-shrink-0 hover:border-[#0a0b0d] hover:shadow active:scale-[0.97]"
             style={{
-              borderColor: onglet === o.key ? ORANGE : 'transparent',
-              color: onglet === o.key ? NAVY : '#9ca3af',
+              background: onglet === o.key ? NAVY : '#f8fafc',
+              color: onglet === o.key ? '#fff' : NAVY,
+              borderColor: onglet === o.key ? NAVY : '#94a3b8',
             }}
           >
             <span className="sm:hidden">{o.shortLabel}</span>
@@ -196,10 +203,12 @@ export default function TechnicienRapportDetailPage() {
       {onglet === 'e1' && <OngletE1 rapport={rapport} readOnly={readOnly} onSaved={charger} />}
       {onglet === 'e2' && <OngletE2 rapport={rapport} readOnly={readOnly} onSaved={charger} />}
       {onglet === 'legende' && <OngletLegende rapport={rapport} readOnly={readOnly} onSaved={charger} />}
-      {onglet === 'e3' && <OngletE3 rapport={rapport} readOnly={readOnly} onRefresh={charger} />}
+      {onglet === 'e3' && <OngletE3 rapport={rapport} readOnly={readOnly} onRefresh={charger} onItemChange={majDispositif} />}
       {['e1', 'e2', 'legende', 'e3'].includes(onglet) && (
-        <div className="mt-6"><SectionPhotos photosUrl={`${API_URL}/api/rapports/${rapport.id}/photos/`} readOnly={readOnly} /></div>
+        <div className="mt-6"><SectionPhotos photosUrl={`${API_URL}/api/rapports/${rapport.id}/photos/`} readOnly={readOnly} section="aucune" masquerSiVide /></div>
       )}
+
+      {onglet === 'deficiences' && <OngletDeficiences rapport={rapport} />}
 
       {onglet === 'historique' && (
         <div className="bg-white rounded-md border border-gray-100 p-5">

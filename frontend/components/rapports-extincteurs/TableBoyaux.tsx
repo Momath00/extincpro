@@ -4,6 +4,7 @@ import { useState, useEffect, type ReactNode } from 'react'
 import { useT, useChoix, LONGUEUR_CHOICES_I18N } from '@/lib/i18n'
 import { resilientMutate, resilientCreate, isTempId } from '@/lib/offline/resilientFetch'
 import { onReconciled } from '@/lib/offline/queue'
+import { BoutonPrincipal } from '@/components/rapports/BarreOutils'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -41,7 +42,7 @@ function AnneeMaskInput({
       onChange={handleChange}
       placeholder="AAAA"
       maxLength={4}
-      className="text-xs border border-gray-200 rounded px-1.5 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-[70px]"
+      className="text-xs border-2 border-[#0a0b0d] rounded px-1.5 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-[70px]"
     />
   )
 }
@@ -96,7 +97,7 @@ function LigneBoyau({
         defaultValue={it[field] || ''}
         onBlur={e => patchField(field, e.target.value)}
         placeholder={placeholder}
-        className={`${width} text-xs border-0 bg-transparent focus:outline-none focus:ring-1 focus:ring-orange-300 rounded px-1 py-0.5`}
+        className={`${width} text-xs border-2 border-[#0a0b0d] bg-white focus:outline-none focus:border-[#e11324] rounded px-1.5 py-1`}
         style={{ color: NAVY }}
       />
     )
@@ -129,7 +130,7 @@ function LigneBoyau({
       <select
         value={it.etat || ''}
         onChange={e => patchField('etat', e.target.value || null)}
-        className="text-xs border border-gray-200 rounded px-1.5 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-full min-w-[64px]"
+        className="text-xs border-2 border-[#0a0b0d] rounded px-1.5 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-full min-w-[64px]"
       >
         <option value="">-</option>
         <option value="D">D</option>
@@ -146,7 +147,7 @@ function LigneBoyau({
       <select
         value={it[field] || ''}
         onChange={e => patchField(field, e.target.value)}
-        className="text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-full"
+        className="text-xs border-2 border-[#0a0b0d] rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-full"
       >
         <option value="">—</option>
         {Object.entries(choices).map(([k, v]) => (
@@ -229,10 +230,12 @@ export default function TableBoyaux({
   rapport,
   readOnly,
   onRefresh,
+  onItemChange,
 }: {
   rapport: any
   readOnly: boolean
   onRefresh: () => void
+  onItemChange?: (id: any, field: string, value: any) => void
 }) {
   const t = useT()
   const [items, setItems] = useState<any[]>(rapport.boyaux || [])
@@ -251,6 +254,7 @@ export default function TableBoyaux({
 
   function updateLocal(id: any, field: string, value: any) {
     setItems(prev => prev.map(it => it.id === id ? { ...it, [field]: value } : it))
+    onItemChange?.(id, field, value)
   }
 
   function removerLocal(id: any) {
@@ -281,11 +285,9 @@ export default function TableBoyaux({
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold" style={{ color: NAVY }}>{t('boyaux_incendie')}</h3>
         {!readOnly && (
-          <button onClick={ajouterLigne} disabled={adding}
-            className="flex items-center gap-2 border border-gray-200 px-4 py-2 rounded-md text-sm font-bold hover:border-[#0a0b0d] transition-colors disabled:opacity-50"
-            style={{ color: NAVY }}>
-            <i className="ti ti-plus" /> {adding ? t('ajout_en_cours') : t('ajouter_un_boyau')}
-          </button>
+          <BoutonPrincipal onClick={ajouterLigne} disabled={adding}>
+            {adding ? t('ajout_en_cours') : t('ajouter_un_boyau')}
+          </BoutonPrincipal>
         )}
       </div>
 

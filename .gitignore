@@ -32,3 +32,8 @@ npm-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Assistants IA (Claude) — fichiers locaux, jamais poussés
+.claude/
+CLAUDE.md
+AGENTS.md
