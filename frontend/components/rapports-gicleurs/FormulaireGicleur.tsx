@@ -3,6 +3,7 @@
 import { createContext, Fragment, useContext, useEffect, useState } from 'react'
 import { useLangue, useT } from '@/lib/i18n'
 import { resilientMutate } from '@/lib/offline/resilientFetch'
+import { BoutonPrincipal } from '@/components/rapports/BarreOutils'
 
 // Formulaire d'inspection gicleur — mise en page reprise section par section
 // du rapport gicleur de Préventex (components/rapports-gicleurs/*.tsx) :
@@ -210,14 +211,9 @@ function Carte({ id, titre, numero, badge, children }: {
   )
 }
 
+// Même bouton « Ajouter » que dans tous les autres modules (voir BarreOutils).
 function BoutonAjouter({ onClick, label, disabled }: { onClick: () => void; label: string; disabled?: boolean }) {
-  return (
-    <button type="button" onClick={onClick} disabled={disabled}
-      className="text-xs font-bold px-3 py-1.5 rounded-md border border-[#0a0b0d] hover:bg-gray-50 flex items-center gap-1 transition-colors disabled:opacity-40"
-      style={{ color: NAVY }}>
-      <i className="ti ti-plus" /> {label}
-    </button>
-  )
+  return <BoutonPrincipal onClick={onClick} disabled={disabled}>{label}</BoutonPrincipal>
 }
 
 function SousTitre({ children, droite }: { children: React.ReactNode; droite?: React.ReactNode }) {

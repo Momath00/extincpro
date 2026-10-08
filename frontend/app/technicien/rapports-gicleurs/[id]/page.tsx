@@ -125,7 +125,7 @@ export default function TechnicienRapportGicleurDetailPage() {
         </div>
       )}
 
-      <div className="flex gap-0.5 sm:gap-1 mb-6 border-b border-gray-100 overflow-x-auto">
+      <div className="flex gap-1.5 sm:gap-2 mb-6 overflow-x-auto">
         {([
           { key: 'formulaire', label: t('gic_onglet_inspection'), shortLabel: t('gic_onglet_inspection') },
           { key: 'historique', label: `${t('historique')} (${rapport.historique?.length || 0})`, shortLabel: `${t('historique')} (${rapport.historique?.length || 0})` },
@@ -133,10 +133,11 @@ export default function TechnicienRapportGicleurDetailPage() {
           <button
             key={o.key}
             onClick={() => setOnglet(o.key)}
-            className="px-2.5 sm:px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap flex-shrink-0"
+            className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm font-bold rounded-md border shadow-sm transition-all whitespace-nowrap flex-shrink-0 hover:border-[#0a0b0d] hover:shadow active:scale-[0.97]"
             style={{
-              borderColor: onglet === o.key ? ORANGE : 'transparent',
-              color: onglet === o.key ? NAVY : '#9ca3af',
+              background: onglet === o.key ? NAVY : '#f8fafc',
+              color: onglet === o.key ? '#fff' : NAVY,
+              borderColor: onglet === o.key ? NAVY : '#94a3b8',
             }}
           >
             <span className="sm:hidden">{o.shortLabel}</span>

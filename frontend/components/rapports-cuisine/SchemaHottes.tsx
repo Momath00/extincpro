@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { BoutonPrincipal } from '@/components/rapports/BarreOutils'
+import Legende from '@/components/rapports/Legende'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0f172a'
@@ -1467,14 +1469,7 @@ export default function SchemaHottes({
           )}
         </div>
         {!readOnly && (
-          <button
-            onClick={ajouterHotte}
-            disabled={ajout}
-            className="text-xs font-bold px-3 py-1.5 rounded-md text-white flex items-center gap-1.5 disabled:opacity-50 hover:opacity-90 transition-opacity"
-            style={{ background: ORANGE }}
-          >
-            <i className="ti ti-plus" /> Ajouter une hotte
-          </button>
+          <BoutonPrincipal onClick={ajouterHotte} disabled={ajout}>Ajouter une hotte</BoutonPrincipal>
         )}
       </div>
       {!readOnly && (
@@ -1629,15 +1624,20 @@ export default function SchemaHottes({
       )}
 
       {legende.length > 0 && (
-        <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-gray-50">
-          {legende.map(({ code, texte }) => (
-            <div key={`${code}-${texte}`} className="flex items-center gap-1.5">
-              <span className="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center bg-gray-50">
-                <AppareilIcon code={code} color="#64748b" size={13} />
-              </span>
-              <span className="text-xs font-bold text-gray-700">{texte}</span>
-            </div>
-          ))}
+        <div className="mt-4">
+          <Legende
+            titre="Légende — appareils"
+            icone="ti-flame"
+            compacte
+            elements={legende.map(({ code, texte }) => ({
+              libelle: texte,
+              pastille: (
+                <span className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: '#0a0b0d' }}>
+                  <AppareilIcon code={code} color="#fff" size={14} />
+                </span>
+              ),
+            }))}
+          />
         </div>
       )}
     </div>

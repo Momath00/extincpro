@@ -7,6 +7,7 @@ import { Suspense } from 'react'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 import Pagination from '@/components/dashboard/Pagination'
 import { useT } from '@/lib/i18n'
+import Legende from '@/components/rapports/Legende'
 
 const PAGE_SIZE = 25
 
@@ -200,7 +201,7 @@ function RapportsListContent() {
 
       {/* Filtres + Recherche */}
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
-        <div className="flex gap-1 p-1 rounded-md border border-gray-100 bg-white w-full sm:w-auto">
+        <div className="flex gap-1 p-1 rounded-lg border border-gray-300 bg-gray-100 w-full sm:w-auto">
           {([
             { key: 'tous', label: `${t('tous')} (${compteurs.tous})` },
             { key: 'ouvert', label: `${t('ouverts')} (${nbOuverts})` },
@@ -209,10 +210,10 @@ function RapportsListContent() {
             <button
               key={f.key}
               onClick={() => setFiltre(f.key)}
-              className="flex-1 sm:flex-none px-3 py-1.5 rounded text-xs font-bold transition-colors whitespace-nowrap"
+              className="flex-1 sm:flex-none px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all hover:shadow hover:ring-1 hover:ring-[#0a0b0d] active:scale-[0.97] whitespace-nowrap"
               style={{
-                background: filtre === f.key ? NAVY : 'transparent',
-                color: filtre === f.key ? '#fff' : '#6b7280',
+                background: filtre === f.key ? NAVY : '#fff',
+                color: filtre === f.key ? '#fff' : NAVY,
               }}
             >
               {f.label}
@@ -227,7 +228,7 @@ function RapportsListContent() {
             value={recherche}
             onChange={e => setRecherche(e.target.value)}
             placeholder={t('rechercher_placeholder')}
-            className="w-full pl-8 pr-8 py-2 text-sm border border-gray-100 rounded-md focus:outline-none focus:border-[#e11324] bg-white"
+            className="w-full pl-8 pr-8 py-2 text-sm border-2 border-[#0a0b0d] rounded-md focus:outline-none focus:border-[#e11324] bg-white"
           />
           {recherche && (
             <button onClick={() => setRecherche('')}
@@ -408,20 +409,22 @@ function RapportsListContent() {
       )}
 
       {/* Légende progression */}
-      <div className="mt-4 flex items-center gap-4 flex-wrap px-1">
-        <span className="text-xs text-gray-400 uppercase tracking-widest">{t('progression')} :</span>
-        {[
-          { label: 'E1', color: '#9a4a13' },
-          { label: 'E2', color: '#0d6b4f' },
-          { label: 'E3', color: '#4b2f8c' },
-          { label: t('ferme'), color: NAVY },
-          { label: t('certificat'), color: ORANGE },
-        ].map(d => (
-          <div key={d.label} className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: d.color }} />
-            <span className="text-xs text-gray-500">{d.label}</span>
-          </div>
-        ))}
+      <div className="mt-4">
+        <Legende
+          titre={t('legende_progression')}
+          icone="ti-progress"
+          compacte
+          elements={[
+            { label: 'E1', color: '#9a4a13' },
+            { label: 'E2', color: '#0d6b4f' },
+            { label: 'E3', color: '#4b2f8c' },
+            { label: t('ferme'), color: NAVY },
+            { label: t('certificat'), color: ORANGE },
+          ].map(d => ({
+            libelle: d.label,
+            pastille: <span className="w-3.5 h-3.5 rounded-full flex-shrink-0" style={{ background: d.color }} />,
+          }))}
+        />
       </div>
     </div>
   )

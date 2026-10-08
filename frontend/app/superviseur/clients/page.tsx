@@ -250,7 +250,7 @@ export default function ClientsPage() {
             value={recherche}
             onChange={e => setRecherche(e.target.value)}
             placeholder={t('rechercher_placeholder')}
-            className="w-full pl-8 pr-8 py-2 text-sm border border-gray-100 rounded-md focus:outline-none focus:border-[#e11324] bg-white"
+            className="w-full pl-8 pr-8 py-2 text-sm border-2 border-[#0a0b0d] rounded-md focus:outline-none focus:border-[#e11324] bg-white"
           />
           {recherche && (
             <button onClick={() => setRecherche('')}

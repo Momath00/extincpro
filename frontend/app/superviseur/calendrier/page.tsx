@@ -596,11 +596,11 @@ export default function CalendrierPage() {
             </button>
           </div>
         </div>
-        <div className="flex gap-1 p-1 rounded-md border border-gray-100 bg-white">
+        <div className="flex gap-1 p-1 rounded-lg border border-gray-300 bg-gray-100">
           {(['jour', 'semaine', 'mois'] as Vue[]).map(v => (
             <button key={v} onClick={() => { setVue(v); setJourSelectionne(null) }}
-              className="px-3 py-1.5 rounded text-xs font-bold transition-colors capitalize"
-              style={{ background: vue === v ? NAVY : 'transparent', color: vue === v ? '#fff' : '#6b7280' }}>
+              className="px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all hover:shadow hover:ring-1 hover:ring-[#0a0b0d] active:scale-[0.97] capitalize"
+              style={{ background: vue === v ? NAVY : '#fff', color: vue === v ? '#fff' : NAVY }}>
               {v === 'jour' ? t('vue_jour') : v === 'semaine' ? t('vue_semaine') : t('vue_mois')}
             </button>
           ))}
@@ -609,13 +609,13 @@ export default function CalendrierPage() {
 
       {/* Filtre par catégorie */}
       <div className="flex flex-wrap items-center gap-4 mb-4">
-        <div className="flex gap-1 p-1 rounded-md border border-gray-100 bg-white">
+        <div className="flex gap-1 p-1 rounded-lg border border-gray-300 bg-gray-100">
           {(['tous', 'planifie', 'rappel', 'en_retard'] as const).map(cat => (
             <button key={cat} onClick={() => setFiltreCategorie(cat)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold transition-colors"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold shadow-sm transition-all hover:shadow hover:ring-1 hover:ring-[#0a0b0d] active:scale-[0.97]"
               style={{
-                background: filtreCategorie === cat ? NAVY : 'transparent',
-                color: filtreCategorie === cat ? '#fff' : (cat === 'tous' ? '#6b7280' : COULEUR_CATEGORIE[cat]),
+                background: filtreCategorie === cat ? NAVY : '#fff',
+                color: filtreCategorie === cat ? '#fff' : (cat === 'tous' ? NAVY : COULEUR_CATEGORIE[cat]),
               }}>
               {cat !== 'tous' && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: filtreCategorie === cat ? '#fff' : COULEUR_CATEGORIE[cat] }} />}
               {cat === 'tous' ? t('tous') : cat === 'planifie' ? t('categorie_planifiee') : cat === 'rappel' ? t('categorie_rappel') : t('categorie_en_retard')}

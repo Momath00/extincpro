@@ -174,7 +174,7 @@ function RapportsGicleursListContent() {
 
       {/* Filtres + Recherche */}
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
-        <div className="flex gap-1 p-1 rounded-md border border-gray-100 bg-white w-full sm:w-auto">
+        <div className="flex gap-1 p-1 rounded-lg border border-gray-300 bg-gray-100 w-full sm:w-auto">
           {([
             { key: 'tous', label: `${t('tous')} (${compteurs.tous})` },
             { key: 'ouvert', label: `${t('ouverts')} (${nbOuverts})` },
@@ -183,10 +183,10 @@ function RapportsGicleursListContent() {
             <button
               key={f.key}
               onClick={() => setFiltre(f.key)}
-              className="flex-1 sm:flex-none px-3 py-1.5 rounded text-xs font-bold transition-colors whitespace-nowrap"
+              className="flex-1 sm:flex-none px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all hover:shadow hover:ring-1 hover:ring-[#0a0b0d] active:scale-[0.97] whitespace-nowrap"
               style={{
-                background: filtre === f.key ? NAVY : 'transparent',
-                color: filtre === f.key ? '#fff' : '#6b7280',
+                background: filtre === f.key ? NAVY : '#fff',
+                color: filtre === f.key ? '#fff' : NAVY,
               }}
             >
               {f.label}
@@ -201,7 +201,7 @@ function RapportsGicleursListContent() {
             value={recherche}
             onChange={e => setRecherche(e.target.value)}
             placeholder={t('rechercher_placeholder')}
-            className="w-full pl-8 pr-8 py-2 text-sm border border-gray-100 rounded-md focus:outline-none focus:border-[#e11324] bg-white"
+            className="w-full pl-8 pr-8 py-2 text-sm border-2 border-[#0a0b0d] rounded-md focus:outline-none focus:border-[#e11324] bg-white"
           />
           {recherche && (
             <button onClick={() => setRecherche('')}

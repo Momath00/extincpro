@@ -225,7 +225,7 @@ export default function CertificatsPage() {
             value={recherche}
             onChange={e => setRecherche(e.target.value)}
             placeholder={t('numero_placeholder')}
-            className="w-full pl-8 pr-8 py-2 text-sm border border-gray-100 rounded-md focus:outline-none focus:border-[#e11324] bg-white"
+            className="w-full pl-8 pr-8 py-2 text-sm border-2 border-[#0a0b0d] rounded-md focus:outline-none focus:border-[#e11324] bg-white"
           />
           {recherche && (
             <button onClick={() => setRecherche('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500">
@@ -234,7 +234,7 @@ export default function CertificatsPage() {
           )}
         </div>
 
-        <div className="flex gap-1 p-1 rounded-md border border-gray-100 bg-white">
+        <div className="flex gap-1 p-1 rounded-lg border border-gray-300 bg-gray-100">
           {([
             { key: 'tous', label: t('tous_types') },
             { key: 'incendie', label: t('incendie') },
@@ -242,36 +242,36 @@ export default function CertificatsPage() {
             { key: 'gicleur', label: t('gicleur_badge') },
           ] as { key: typeof typeFiltre; label: string }[]).map(f => (
             <button key={f.key} onClick={() => setTypeFiltre(f.key)}
-              className="px-3 py-1.5 rounded text-xs font-bold transition-colors whitespace-nowrap"
-              style={{ background: typeFiltre === f.key ? NAVY : 'transparent', color: typeFiltre === f.key ? '#fff' : '#6b7280' }}>
+              className="px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all hover:shadow hover:ring-1 hover:ring-[#0a0b0d] active:scale-[0.97] whitespace-nowrap"
+              style={{ background: typeFiltre === f.key ? NAVY : '#fff', color: typeFiltre === f.key ? '#fff' : NAVY }}>
               {f.label}
             </button>
           ))}
         </div>
 
-        <div className="flex gap-1 p-1 rounded-md border border-gray-100 bg-white">
+        <div className="flex gap-1 p-1 rounded-lg border border-gray-300 bg-gray-100">
           {([
             { key: 'tous', label: t('tous_statuts') },
             { key: 'envoye', label: t('envoyes') },
             { key: 'non_envoye', label: t('non_envoyes') },
           ] as { key: typeof statutFiltre; label: string }[]).map(f => (
             <button key={f.key} onClick={() => setStatutFiltre(f.key)}
-              className="px-3 py-1.5 rounded text-xs font-bold transition-colors whitespace-nowrap"
-              style={{ background: statutFiltre === f.key ? NAVY : 'transparent', color: statutFiltre === f.key ? '#fff' : '#6b7280' }}>
+              className="px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all hover:shadow hover:ring-1 hover:ring-[#0a0b0d] active:scale-[0.97] whitespace-nowrap"
+              style={{ background: statutFiltre === f.key ? NAVY : '#fff', color: statutFiltre === f.key ? '#fff' : NAVY }}>
               {f.label}
             </button>
           ))}
         </div>
 
-        <div className="flex gap-1 p-1 rounded-md border border-gray-100 bg-white">
+        <div className="flex gap-1 p-1 rounded-lg border border-gray-300 bg-gray-100">
           {([
             { key: 'tous', label: t('conformite_filtre') },
             { key: 'oui', label: t('stat_conformes') },
             { key: 'non', label: t('non_conformes_filtre') },
           ] as { key: typeof conformiteFiltre; label: string }[]).map(f => (
             <button key={f.key} onClick={() => setConformiteFiltre(f.key)}
-              className="px-3 py-1.5 rounded text-xs font-bold transition-colors whitespace-nowrap"
-              style={{ background: conformiteFiltre === f.key ? NAVY : 'transparent', color: conformiteFiltre === f.key ? '#fff' : '#6b7280' }}>
+              className="px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all hover:shadow hover:ring-1 hover:ring-[#0a0b0d] active:scale-[0.97] whitespace-nowrap"
+              style={{ background: conformiteFiltre === f.key ? NAVY : '#fff', color: conformiteFiltre === f.key ? '#fff' : NAVY }}>
               {f.label}
             </button>
           ))}

@@ -139,7 +139,7 @@ export default function TechnicienRapportCuisineDetailPage() {
             <button
               onClick={() => setConfirmFermer(true)}
               disabled={actionLoading}
-              className="text-sm font-bold px-4 py-2.5 rounded-md flex items-center gap-2 text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
+              className="h-10 text-sm font-bold px-4 rounded-md flex items-center gap-2 shadow-sm active:scale-[0.97] text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
               style={{ background: NAVY }}
             >
               <i className="ti ti-lock" /> {t('fermer_rapport')}
@@ -183,7 +183,7 @@ export default function TechnicienRapportCuisineDetailPage() {
         </div>
       )}
 
-      <div className="flex gap-0.5 sm:gap-1 mb-6 border-b border-gray-100 overflow-x-auto">
+      <div className="flex gap-1.5 sm:gap-2 mb-6 overflow-x-auto">
         {([
           { key: 'systeme', label: t('onglet_systeme_cuisine'), shortLabel: t('onglet_systeme_cuisine') },
           { key: 'historique', label: `${t('historique')} (${rapport.historique?.length || 0})`, shortLabel: `${t('historique')} (${rapport.historique?.length || 0})` },
@@ -191,10 +191,11 @@ export default function TechnicienRapportCuisineDetailPage() {
           <button
             key={o.key}
             onClick={() => setOnglet(o.key)}
-            className="px-2.5 sm:px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap flex-shrink-0"
+            className="h-9 sm:h-10 px-3 sm:px-4 text-xs sm:text-sm font-bold rounded-md border shadow-sm transition-all whitespace-nowrap flex-shrink-0 hover:border-[#0a0b0d] hover:shadow active:scale-[0.97]"
             style={{
-              borderColor: onglet === o.key ? ORANGE : 'transparent',
-              color: onglet === o.key ? NAVY : '#9ca3af',
+              background: onglet === o.key ? NAVY : '#f8fafc',
+              color: onglet === o.key ? '#fff' : NAVY,
+              borderColor: onglet === o.key ? NAVY : '#94a3b8',
             }}
           >
             <span className="sm:hidden">{o.shortLabel}</span>

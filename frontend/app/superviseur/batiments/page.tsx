@@ -335,11 +335,11 @@ export default function BatimentsPage() {
       )}
 
       {total > 0 && (
-        <div className="flex gap-1 p-1 rounded-md border border-gray-100 bg-white mb-4 w-fit">
+        <div className="flex gap-1 p-1 rounded-lg border border-gray-300 bg-gray-100 mb-4 w-fit">
           {(['', 'petit', 'moyen', 'gros'] as const).map(taille => (
             <button key={taille || 'tous'} onClick={() => setFiltreTaille(taille)}
-              className="px-3 py-1.5 rounded text-xs font-bold transition-colors"
-              style={{ background: filtreTaille === taille ? NAVY : 'transparent', color: filtreTaille === taille ? '#fff' : '#6b7280' }}>
+              className="px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all hover:shadow hover:ring-1 hover:ring-[#0a0b0d] active:scale-[0.97]"
+              style={{ background: filtreTaille === taille ? NAVY : '#fff', color: filtreTaille === taille ? '#fff' : NAVY }}>
               {taille === '' ? t('tous') : taille === 'petit' ? t('taille_petit') : taille === 'moyen' ? t('taille_moyen') : t('taille_gros')}
             </button>
           ))}
@@ -354,7 +354,7 @@ export default function BatimentsPage() {
             value={recherche}
             onChange={e => setRecherche(e.target.value)}
             placeholder={t('rechercher_placeholder')}
-            className="w-full pl-8 pr-8 py-2 text-sm border border-gray-100 rounded-md focus:outline-none focus:border-[#e11324] bg-white"
+            className="w-full pl-8 pr-8 py-2 text-sm border-2 border-[#0a0b0d] rounded-md focus:outline-none focus:border-[#e11324] bg-white"
           />
           {recherche && (
             <button onClick={() => setRecherche('')}

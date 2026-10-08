@@ -37,6 +37,7 @@ from .models import (
     Dispositif,
     EclairageUrgenceItem,
     ExtincteurItem,
+    LEGENDE_NON_CONFORMITES,
     FicheE1,
     FicheE2,
     FicheLegende,
@@ -124,15 +125,30 @@ LEGENDE_DISPOSITIFS = [
 ]
 
 
-# ── Légende du rapport extincteurs portatifs ─────────────────────────────
-LEGENDE_EXTINCTEURS = [
-    ("HT", "Test hydro, pour boyaux et/ou extincteurs, voir (Notes)"),
-    ("T/O", "Les extincteurs ou les boyaux ont dépassé le temps recommandé, voir (Notes)"),
-    ("MQ", "Extincteur ou boyaux manquant, doit être ajouté, voir (Notes)"),
-    ("RM", "Recommandation, voir (Notes)"),
-    ("D", "Déficience, voir (Notes)"),
-    ("MT", "Maintenance requise, voir (Notes)"),
-]
+# ── Légende des non-conformités du rapport extincteurs portatifs ─────────
+_STYLE_CODE_NC = (
+    "display:inline-block;font-weight:800;color:#e11324;background:#fee2e2;"
+    "border:1px solid #fecaca;border-radius:100px;"
+)
+_PASTILLE_NC = f"<span style='{_STYLE_CODE_NC}font-size:6.5pt;padding:0 5px;margin:1px;'>{{}}</span>"
+
+
+def _html_legende_non_conformites(langue):
+    """Légende bilingue sur 3 colonnes, comme sur le formulaire papier des
+    clients industriels (codes TH, 6Y, RL…)."""
+    cellules = "".join(
+        f"<div style='font-size:7.5pt;'><span style='{_STYLE_CODE_NC}min-width:38px;text-align:center;"
+        f"font-size:7pt;padding:1px 6px;margin-right:5px;'>{code}</span>"
+        f"<b>{fr if langue != 'en' else en}</b> <span style='color:#6b7280;'>/ {en if langue != 'en' else fr}</span></div>"
+        for code, fr, en in LEGENDE_NON_CONFORMITES
+    )
+    titre = "Deficiencies legend / Légende des non-conformités" if langue == "en" else "Légende des non-conformités / Deficiencies legend"
+    return (
+        "<div class='legende-box'><div class='card-title' style='text-align:center;'>"
+        f"{titre}</div>"
+        "<div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px 14px;margin-top:6px;'>"
+        f"{cellules}</div></div>"
+    )
 
 
 # ── Liste des vérifications du système d'extinction de cuisine (ULC ORD 1254.6) ──
@@ -1777,10 +1793,7 @@ def _html_rapport_extincteur_complet(rapport) -> str:
     techniciens = list(rapport.techniciens.all())
     tech_noms = ", ".join(t2.get_full_name() or t2.username for t2 in techniciens) or "—"
 
-    legende_rows = "".join(
-        f"<tr><td class='bold' style='width:50px;'>{code}</td><td>{desc}</td></tr>"
-        for code, desc in LEGENDE_EXTINCTEURS
-    )
+    legende_html = _html_legende_non_conformites(langue)
 
     items = list(rapport.extincteurs.all())
     item_rows = ""
@@ -1801,7 +1814,8 @@ def _html_rapport_extincteur_complet(rapport) -> str:
             f"<td class='center'>{it.prochaine_maintenance or '—'}</td>"
             f"<td class='center'>{it.prochain_test_hydrostatique or '—'}</td>"
             f"<td class='center bold'{etat_style}>{it.etat or '—'}</td>"
-            f"<td>{it.remarque or ''}</td>"
+            f"<td>{''.join(_PASTILLE_NC.format(c) for c in it.non_conformites)}"
+            f"{' ' if it.non_conformites and it.remarque else ''}{escape(it.remarque or '')}</td>"
             f"</tr>"
         )
     if not item_rows:
@@ -1863,9 +1877,7 @@ def _html_rapport_extincteur_complet(rapport) -> str:
   <div class="card-title">{t("adresse")}</div>
   <div class="card-main" style="font-size:14pt;">{adresse}</div>
 </div>
-<div class="legende-box">
-<table><tbody>{legende_rows}</tbody></table>
-</div>
+{legende_html}
 <div class="sec-title">{t("detail_extincteurs")}</div>
 <table class="data-grid">
   <thead><tr>
@@ -2239,7 +2251,7 @@ class RapportExtincteurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
                 _td(langue, 'format', it.format),
                 _td(langue, 'marque', it.marque), it.numero_serie,
                 it.date_fabrication, it.prochaine_maintenance, it.prochain_test_hydrostatique,
-                it.etat, it.remarque,
+                it.etat, " ".join([*it.non_conformites, it.remarque]).strip(),
             ]
             for col, valeur in enumerate(valeurs, start=1):
                 ws.cell(row=ligne, column=col, value=valeur)
