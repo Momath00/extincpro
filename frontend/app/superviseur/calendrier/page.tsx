@@ -211,7 +211,7 @@ function CarteEvenement({
           <div>
             <p className="text-[11px] text-gray-400 mb-2">{t('modifier_date_inspection_note')}</p>
             <input type="date" value={nouvelleDate} onChange={ev => setNouvelleDate(ev.target.value)}
-              className="w-full border border-gray-200 rounded-md px-2.5 py-1.5 text-xs mb-2 focus:outline-none focus:border-[#e11324]" />
+              className="w-full border-2 border-[#0a0b0d] rounded-md px-2.5 py-1.5 text-xs mb-2 focus:outline-none focus:border-[#e11324]" />
             <div className="flex gap-1.5">
               <button onClick={() => setEdition(null)} className="flex-1 text-[11px] font-semibold py-1.5 rounded border border-gray-200" style={{ color: NAVY }}>
                 {t('annuler')}
@@ -385,7 +385,7 @@ function ModalePlanifier({
           <div>
             <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('etape_date_inspection_5')}</label>
             <input type="date" value={dateInspection} onChange={e => setDateInspection(e.target.value)} required
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
+              className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
           </div>
 
           <div>

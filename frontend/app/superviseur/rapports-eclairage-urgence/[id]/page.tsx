@@ -7,7 +7,6 @@ import TableEclairageUrgence from '@/components/rapports-eclairage-urgence/Table
 import OngletDeficiences, { estEnDeficience } from '@/components/rapports-eclairage-urgence/OngletDeficiences'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 import ModuleBadge from '@/components/dashboard/ModuleBadge'
-import EnvoiDirectBanner from '@/components/dashboard/EnvoiDirectBanner'
 import PanneauCertificat from '@/components/certificats/PanneauCertificat'
 import { downloadHtml } from '@/lib/download'
 import { useT } from '@/lib/i18n'
@@ -151,6 +150,13 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
             <h1 className="text-xl sm:text-2xl font-bold" style={{ color: NAVY }}>
               {rapport.batiment?.adresse_complete}
             </h1>
+            {rapport.batiment?.id && (
+              <Link href={`/superviseur/batiments/${rapport.batiment.id}`}
+                className="h-8 inline-flex items-center gap-1.5 px-2.5 rounded-md text-xs font-bold border-2 border-[#0a0b0d] bg-white hover:bg-gray-50 shadow-sm"
+                style={{ color: NAVY }} title={t('dossier_titre')}>
+                <i className="ti ti-folders text-sm" /> {t('dossier_titre')}
+              </Link>
+            )}
             <span className="text-xs px-2.5 py-1 rounded-full font-semibold"
               style={estFerme
                 ? { background: '#e9f6f2', color: '#0d6b4f' }
@@ -222,9 +228,6 @@ export default function SuperviseurRapportEclairageUrgenceDetailPage() {
         </Link>
       )}
 
-      {rapport.batiment?.id && (
-        <EnvoiDirectBanner key={rapport.statut} batimentId={rapport.batiment.id} onEnvoye={charger} />
-      )}
 
       {estFerme && (
         <div className="mb-4 flex items-center gap-3 px-4 py-3 rounded-md border text-sm"

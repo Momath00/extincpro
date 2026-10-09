@@ -200,7 +200,7 @@ export default function ModalModifierRapport({
               type="date"
               value={dateInspection}
               onChange={e => setDateInspection(e.target.value)}
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
+              className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
             />
           </>
         )}
@@ -218,7 +218,7 @@ export default function ModalModifierRapport({
                     type="text"
                     value={adresse.numero_civique}
                     onChange={e => setAdresse({ ...adresse, numero_civique: e.target.value })}
-                    className="w-full border border-gray-200 rounded-md px-2.5 py-2 text-sm focus:outline-none focus:border-[#e11324]"
+                    className="w-full border-2 border-[#0a0b0d] rounded-md px-2.5 py-2 text-sm focus:outline-none focus:border-[#e11324]"
                   />
                 </div>
                 <div className="col-span-2">
@@ -227,7 +227,7 @@ export default function ModalModifierRapport({
                     type="text"
                     value={adresse.rue}
                     onChange={e => setAdresse({ ...adresse, rue: e.target.value })}
-                    className="w-full border border-gray-200 rounded-md px-2.5 py-2 text-sm focus:outline-none focus:border-[#e11324]"
+                    className="w-full border-2 border-[#0a0b0d] rounded-md px-2.5 py-2 text-sm focus:outline-none focus:border-[#e11324]"
                   />
                 </div>
               </div>
@@ -237,7 +237,7 @@ export default function ModalModifierRapport({
                   type="text"
                   value={adresse.ville}
                   onChange={e => setAdresse({ ...adresse, ville: e.target.value })}
-                  className="w-full border border-gray-200 rounded-md px-2.5 py-2 text-sm focus:outline-none focus:border-[#e11324]"
+                  className="w-full border-2 border-[#0a0b0d] rounded-md px-2.5 py-2 text-sm focus:outline-none focus:border-[#e11324]"
                 />
               </div>
               <div>
@@ -246,7 +246,7 @@ export default function ModalModifierRapport({
                   type="text"
                   value={adresse.code_postal}
                   onChange={e => setAdresse({ ...adresse, code_postal: e.target.value })}
-                  className="w-full border border-gray-200 rounded-md px-2.5 py-2 text-sm focus:outline-none focus:border-[#e11324]"
+                  className="w-full border-2 border-[#0a0b0d] rounded-md px-2.5 py-2 text-sm focus:outline-none focus:border-[#e11324]"
                 />
               </div>
             </div>

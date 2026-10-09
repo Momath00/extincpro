@@ -420,7 +420,7 @@ export default function OrganisationDetailPage() {
                   value={dateFinEssai}
                   onChange={e => setDateFinEssai(e.target.value)}
                   disabled={busyEssai}
-                  className="border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324] disabled:opacity-50"
+                  className="border-2 border-[#0a0b0d] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324] disabled:opacity-50"
                 />
                 <button
                   onClick={() => sauvegarderDateFinEssai(dateFinEssai)}
@@ -622,21 +622,21 @@ export default function OrganisationDetailPage() {
                 <div className="flex gap-2">
                   <input
                     type="text" placeholder="Prénom" value={formPrenom} onChange={e => setFormPrenom(e.target.value)}
-                    className="w-1/2 border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324]"
+                    className="w-1/2 border-2 border-[#0a0b0d] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324]"
                   />
                   <input
                     type="text" placeholder="Nom" value={formNom} onChange={e => setFormNom(e.target.value)}
-                    className="w-1/2 border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324]"
+                    className="w-1/2 border-2 border-[#0a0b0d] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324]"
                   />
                 </div>
                 <input
                   type="text" placeholder="Nom d'utilisateur *" value={formUsername} onChange={e => setFormUsername(e.target.value)}
-                  className="border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324]"
+                  className="border-2 border-[#0a0b0d] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324]"
                   autoFocus
                 />
                 <input
                   type="email" placeholder="Email *" value={formEmail} onChange={e => setFormEmail(e.target.value)}
-                  className="border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324]"
+                  className="border-2 border-[#0a0b0d] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324]"
                 />
 
                 {formErreur && (

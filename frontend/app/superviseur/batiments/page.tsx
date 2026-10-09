@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { clientColor } from '@/lib/clientColor'
 import Pagination from '@/components/dashboard/Pagination'
@@ -107,12 +108,12 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
             <div>
               <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('no_civique')}</label>
               <input value={numeroCivique} onChange={e => setNumeroCivique(e.target.value)} placeholder="9940" required
-                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
+                className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
             </div>
             <div className="col-span-2">
               <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('rue_label')}</label>
               <input value={rue} onChange={e => setRue(e.target.value)} placeholder="St Laurent" required
-                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
+                className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
             </div>
           </div>
 
@@ -120,12 +121,12 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
             <div>
               <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('ville_label')}</label>
               <input value={ville} onChange={e => setVille(e.target.value)} placeholder="Montréal" required
-                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
+                className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
             </div>
             <div>
               <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('code_postal_label')}</label>
               <input value={codePostal} onChange={e => setCodePostal(e.target.value)} placeholder="H2C 2L7"
-                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
+                className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
             </div>
           </div>
 
@@ -143,10 +144,10 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
               </div>
               {creationSecteur ? (
                 <input value={direction} onChange={e => setDirection(e.target.value)} placeholder="Secteur Nord"
-                  className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
+                  className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
               ) : (
                 <select value={direction} onChange={e => setDirection(e.target.value)}
-                  className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" style={{ color: NAVY }}>
+                  className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" style={{ color: NAVY }}>
                   <option value="">{t('secteur_non_precise')}</option>
                   {secteursConnus.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
@@ -155,7 +156,7 @@ function BatimentModal({ batiment, clients, citoyens, onClose, onSaved }: any) {
             <div>
               <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('type_label')}</label>
               <select value={typeApplication} onChange={e => setTypeApplication(e.target.value)}
-                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]">
+                className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]">
                 <option value="residentiel">{t('type_residentiel')}</option>
                 <option value="commercial">{t('type_commercial')}</option>
                 <option value="industriel">{t('type_industriel')}</option>
@@ -208,6 +209,7 @@ export default function BatimentsPage() {
   const [modalBatiment, setModalBatiment] = useState<any>(undefined)
   const [supprimerId, setSupprimerId] = useState<number | null>(null)
   const [successMsg, setSuccessMsg] = useState('')
+  const [erreurMsg, setErreurMsg] = useState('')
 
   function chargerCompteurs() {
     const token = localStorage.getItem('access_token')
@@ -258,8 +260,14 @@ export default function BatimentsPage() {
 
   async function supprimer(id: number) {
     const token = localStorage.getItem('access_token')
-    await fetch(`${API_URL}/api/batiments/${id}/`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    const res = await fetch(`${API_URL}/api/batiments/${id}/`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
     setSupprimerId(null)
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setErreurMsg(d.error || d.detail || t('erreur_generique'))
+      setTimeout(() => setErreurMsg(''), 6000)
+      return
+    }
     setSuccessMsg(t('batiment_supprime'))
     setTimeout(() => setSuccessMsg(''), 2000)
     charger()
@@ -277,6 +285,14 @@ export default function BatimentsPage() {
 
   return (
     <div>
+      {erreurMsg && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 bg-white rounded-xl shadow-xl border border-red-200 px-5 py-3.5 max-w-lg">
+          <div className="w-7 h-7 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+            <i className="ti ti-alert-triangle text-red-600 text-sm" />
+          </div>
+          <p className="text-sm font-semibold text-red-700">{erreurMsg}</p>
+        </div>
+      )}
       {successMsg && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 bg-white rounded-xl shadow-xl border border-green-100 px-5 py-3.5">
           <div className="w-7 h-7 rounded-full bg-green-50 flex items-center justify-center flex-shrink-0">
@@ -391,6 +407,11 @@ export default function BatimentsPage() {
                   {b.proprietaire && <p className="text-xs text-gray-300 mt-1">{t('citoyen_deux_points')} : {b.proprietaire.username}</p>}
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">
+                  <Link href={`/superviseur/batiments/${b.id}`}
+                    className="h-9 inline-flex items-center gap-1.5 px-3 rounded-md text-xs font-bold text-white shadow-sm hover:opacity-90 mr-1"
+                    style={{ background: NAVY }} title={t('dossier_titre')}>
+                    <i className="ti ti-folders text-sm" /> {t('dossier_bouton')}
+                  </Link>
                   <button onClick={() => setModalBatiment(b)} className="p-2 rounded-md hover:bg-gray-100 text-gray-500" title={t('modifier')}>
                     <i className="ti ti-edit text-base" />
                   </button>

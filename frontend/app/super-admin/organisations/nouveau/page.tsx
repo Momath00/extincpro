@@ -96,7 +96,7 @@ export default function NouvelleOrganisationPage() {
             value={nom}
             onChange={e => setNom(e.target.value)}
             placeholder="Ex. Protection Incendie Laurentides"
-            className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
+            className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
             autoFocus
           />
         </div>
@@ -108,7 +108,7 @@ export default function NouvelleOrganisationPage() {
             value={adresse}
             onChange={e => setAdresse(e.target.value)}
             placeholder="Ex. 123 rue Principale, Montréal, QC"
-            className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
+            className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
           />
         </div>
 
@@ -120,7 +120,7 @@ export default function NouvelleOrganisationPage() {
             type="date"
             value={dateFinEssai}
             onChange={e => setDateFinEssai(e.target.value)}
-            className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
+            className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
           />
           <p className="text-[11px] text-gray-300 mt-1">Un courriel d'avis sera envoyé automatiquement 7 jours avant cette date.</p>
         </div>

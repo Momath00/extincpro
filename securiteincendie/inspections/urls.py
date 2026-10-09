@@ -30,6 +30,7 @@ from .views import (
     TourneeViewSet,
     VisitesPlanifieesView,
 )
+from .views_dossier import ArchiveDocumentView, CourrielEnvoiView, CycleViewSet, PieceJointeView
 from .views_certificats import CertificatVisiteViewSet, ParametresCertificatView, VerificationCertificatView
 from .views_gicleur import (
     GicleurAmeliorationViewSet,
@@ -70,6 +71,7 @@ router.register(r"gicleur-valves-etage", GicleurValveEtageSuperviseViewSet, base
 router.register(r"appels-service", AppelServiceViewSet, basename="appel-service")
 router.register(r"tournees", TourneeViewSet, basename="tournee")
 router.register(r"certificats-visite", CertificatVisiteViewSet, basename="certificat-visite")
+router.register(r"cycles", CycleViewSet, basename="cycle")
 
 # Routes générées, à titre de référence :
 # GET/POST    /api/clients/                     → liste / créer un client (superviseur)
@@ -103,5 +105,9 @@ urlpatterns = [
     path("certificats/excel/", CertificatsExcelView.as_view(), name="certificats_excel"),
     path("parametres-certificat/", ParametresCertificatView.as_view(), name="parametres_certificat"),
     path("verifier-certificat/<uuid:jeton>/", VerificationCertificatView.as_view(), name="verifier_certificat"),
+    # Dossier du bâtiment (voir views_dossier.py)
+    path("archives/<int:pk>/", ArchiveDocumentView.as_view(), name="archive_document"),
+    path("pieces-jointes/<int:pk>/", PieceJointeView.as_view(), name="piece_jointe"),
+    path("envois/<int:pk>/courriel/", CourrielEnvoiView.as_view(), name="envoi_courriel"),
     path("", include(router.urls)),
 ]

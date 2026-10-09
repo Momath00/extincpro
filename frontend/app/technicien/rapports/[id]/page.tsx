@@ -19,56 +19,6 @@ const ROUGE = '#7f1d1d'
 
 type OngletPrincipal = 'e1' | 'e2' | 'legende' | 'e3' | 'historique' | 'deficiences'
 
-function ProgressionRapport({ rapport }: { rapport: any }) {
-  const t = useT()
-  const e1 = rapport.fiche_e1
-  const e2 = rapport.fiche_e2
-  const totalDisp = (rapport.sections || []).reduce((s: number, sec: any) => s + (sec.dispositifs?.length || 0), 0)
-  const estFerme = rapport.statut === 'ferme'
-  const aCertificat = !!rapport.certificat
-
-  const etapes = [
-    { label: 'E1', desc: t('rapport_annuel_court'), done: !!(e1 && (e1.fonctionnement_une_etape !== null || e1.reseau_fonctionnel !== null)), color: '#9a4a13' },
-    { label: 'E2', desc: t('poste_controle_court'), done: !!(e2 && Object.keys(e2.details || {}).length > 0), color: '#0d6b4f' },
-    { label: 'E3', desc: `${totalDisp} ${totalDisp !== 1 ? t('dispositifs_pluriel') : t('dispositif_singulier')}`, done: totalDisp > 0, color: '#4b2f8c' },
-    { label: t('ferme'), desc: t('etape_rapport_ferme'), done: estFerme, color: NAVY },
-    { label: t('certificat'), desc: t('certificat_emis_court'), done: aCertificat, color: ORANGE },
-  ]
-
-  return (
-    <div className="bg-white rounded-md border border-gray-100 p-4 mb-5">
-      <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">{t('progression')}</p>
-      <div className="flex items-center gap-0">
-        {etapes.map((e, i) => (
-          <div key={e.label} className="flex items-center flex-1">
-            <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 shadow-sm"
-                style={{
-                  background: e.done ? e.color : '#f1f5f9',
-                  color: e.done ? '#fff' : '#94a3b8',
-                }}
-              >
-                {e.done ? <i className="ti ti-check text-sm" /> : e.label}
-              </div>
-              <div className="text-center">
-                <p className="text-[10px] font-bold" style={{ color: e.done ? e.color : '#94a3b8' }}>
-                  {e.label}
-                </p>
-                <p className="text-[9px] text-gray-400 hidden sm:block">{e.desc}</p>
-              </div>
-            </div>
-            {i < etapes.length - 1 && (
-              <div className="flex-1 h-0.5 mx-1 mb-5 transition-colors duration-300"
-                style={{ background: e.done && etapes[i + 1].done ? '#d1d5db' : '#f1f5f9' }} />
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 export default function TechnicienRapportDetailPage() {
   const router = useRouter()
   const params = useParams()
@@ -158,7 +108,6 @@ export default function TechnicienRapportDetailPage() {
       </div>
 
       {/* Progression */}
-      <ProgressionRapport rapport={rapport} />
 
       {/* Notice rapport fermé */}
       {readOnly && (

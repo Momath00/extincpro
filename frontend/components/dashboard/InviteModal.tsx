@@ -96,7 +96,7 @@ export default function InviteModal({ onClose, onInvited }: { onClose: () => voi
               value={username}
               onChange={e => setUsername(e.target.value)}
               placeholder="jean_dupont"
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
+              className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
               required
             />
           </div>
@@ -110,7 +110,7 @@ export default function InviteModal({ onClose, onInvited }: { onClose: () => voi
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="jean@entreprise.com"
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
+              className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
               required
             />
           </div>

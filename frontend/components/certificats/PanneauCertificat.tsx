@@ -300,7 +300,7 @@ export default function PanneauCertificat({
                   onChange={e => setEdition({ ...edition, raison: e.target.value })}
                   placeholder={t('cp_raison_placeholder')}
                   maxLength={300}
-                  className="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324] bg-white"
+                  className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324] bg-white"
                 />
               </div>
             )}

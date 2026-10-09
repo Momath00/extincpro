@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { clientColor } from '@/lib/clientColor'
 import Pagination from '@/components/dashboard/Pagination'
 import { useT } from '@/lib/i18n'
+import { CHAMP } from '@/lib/styles'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -13,17 +14,18 @@ const PAGE_SIZE = 25
 
 function ClientModal({ client, onClose, onSaved }: { client: any; onClose: () => void; onSaved: () => void }) {
   const t = useT()
-  const [nom, setNom] = useState(client?.nom || '')
+  // Entreprise (ex. Actionéo) ou particulier (ex. propriétaire d'une maison).
+  const [typeClient, setTypeClient] = useState<'entreprise' | 'particulier'>(client?.type_client || 'entreprise')
+  const [nom, setNom] = useState(client?.type_client === 'particulier' ? '' : client?.nom || '')
+  const [prenom, setPrenom] = useState(client?.prenom || '')
+  const [nomFamille, setNomFamille] = useState(client?.nom_famille || '')
   const [contactNom, setContactNom] = useState(client?.contact_nom || '')
   const [email, setEmail] = useState(client?.contact_email || '')
   const [telephone, setTelephone] = useState(client?.contact_telephone || '')
   const [adresse, setAdresse] = useState(client?.adresse || '')
-  const [modeLivraison, setModeLivraison] = useState(client?.mode_livraison || 'plateforme')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-
-  const nbBatiments = client?.nb_batiments || 0
-  const suggereDirect = client && nbBatiments > 0 && nbBatiments < 5
+  const particulier = typeClient === 'particulier'
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -36,12 +38,16 @@ function ClientModal({ client, onClose, onSaved }: { client: any; onClose: () =>
         method: client ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
-          nom, contact_nom: contactNom, contact_email: email,
-          contact_telephone: telephone, adresse, mode_livraison: modeLivraison,
+          type_client: typeClient,
+          ...(particulier ? { prenom, nom_famille: nomFamille } : { nom, contact_nom: contactNom }),
+          contact_email: email, contact_telephone: telephone, adresse,
         }),
       })
       const data = await res.json() as any
-      if (!res.ok) throw new Error(data.error || (Object.values(data) as any[])?.[0]?.[0] || 'Erreur.')
+      if (!res.ok) {
+        const brut = data.error ?? (Object.values(data) as any[])?.[0]
+        throw new Error((Array.isArray(brut) ? brut[0] : brut) || 'Erreur.')
+      }
       onSaved()
       onClose()
     } catch (err: any) {
@@ -51,10 +57,12 @@ function ClientModal({ client, onClose, onSaved }: { client: any; onClose: () =>
     }
   }
 
+  const etiquette = 'text-xs font-bold uppercase tracking-widest mb-1.5 block'
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+      <div className="relative bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: NAVY }}>
             {client ? t('modifier_client') : t('nouveau_client')}
@@ -67,76 +75,66 @@ function ClientModal({ client, onClose, onSaved }: { client: any; onClose: () =>
         {error && <div className="bg-red-50 text-red-600 text-xs px-4 py-2.5 rounded-md mb-4 border border-red-100">{error}</div>}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          {/* Type de client */}
           <div>
-            <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('nom_entreprise')}</label>
-            <input value={nom} onChange={e => setNom(e.target.value)} placeholder="Actionéo"
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" required />
-          </div>
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('personne_ressource')}</label>
-            <input value={contactNom} onChange={e => setContactNom(e.target.value)} placeholder="Jean Dupont"
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('email_label')}</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="contact@entreprise.com"
-                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
+            <label className={etiquette} style={{ color: NAVY }}>{t('type_client')}</label>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { cle: 'entreprise', icone: 'ti-building', libelle: t('type_entreprise'), aide: t('type_entreprise_aide') },
+                { cle: 'particulier', icone: 'ti-user', libelle: t('type_particulier'), aide: t('type_particulier_aide') },
+              ] as const).map(o => {
+                const actif = typeClient === o.cle
+                return (
+                  <button key={o.cle} type="button" onClick={() => setTypeClient(o.cle)} aria-pressed={actif}
+                    className="text-left rounded-lg border-2 px-3 py-2.5 shadow-sm transition-all"
+                    style={actif ? { borderColor: NAVY, background: NAVY, color: '#fff' } : { borderColor: '#94a3b8', background: '#f8fafc', color: NAVY }}>
+                    <span className="flex items-center gap-1.5 text-sm font-extrabold">
+                      <i className={`ti ${o.icone} text-base`} /> {o.libelle}
+                    </span>
+                    <span className={`block text-[11px] leading-snug mt-0.5 ${actif ? 'text-white/70' : 'text-gray-500'}`}>{o.aide}</span>
+                  </button>
+                )
+              })}
             </div>
-            <div>
-              <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('telephone_label')}</label>
-              <input value={telephone} onChange={e => setTelephone(e.target.value)} placeholder="514-000-0000"
-                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
-            </div>
-          </div>
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('adresse_label')}</label>
-            <input value={adresse} onChange={e => setAdresse(e.target.value)} placeholder="123 rue Principale, Montréal, QC"
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
           </div>
 
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('mode_livraison_titre')}</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setModeLivraison('plateforme')}
-                className="text-left rounded-lg border-2 px-3 py-2.5 transition-colors"
-                style={modeLivraison === 'plateforme'
-                  ? { borderColor: NAVY, background: '#f8fafc' }
-                  : { borderColor: '#e5e7eb', background: '#fff' }}
-              >
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <i className="ti ti-users text-sm" style={{ color: modeLivraison === 'plateforme' ? NAVY : '#9ca3af' }} />
-                  <span className="text-xs font-bold" style={{ color: NAVY }}>{t('mode_livraison_plateforme')}</span>
-                </div>
-                <p className="text-[11px] text-gray-400 leading-snug">{t('mode_livraison_plateforme_desc')}</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setModeLivraison('direct')}
-                className="text-left rounded-lg border-2 px-3 py-2.5 transition-colors"
-                style={modeLivraison === 'direct'
-                  ? { borderColor: ORANGE, background: '#fef2f2' }
-                  : { borderColor: '#e5e7eb', background: '#fff' }}
-              >
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <i className="ti ti-mail-forward text-sm" style={{ color: modeLivraison === 'direct' ? ORANGE : '#9ca3af' }} />
-                  <span className="text-xs font-bold" style={{ color: NAVY }}>{t('mode_livraison_direct')}</span>
-                </div>
-                <p className="text-[11px] text-gray-400 leading-snug">{t('mode_livraison_direct_desc')}</p>
-              </button>
+          {particulier ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={etiquette} style={{ color: NAVY }}>{t('prenom_label')}</label>
+                <input value={prenom} onChange={e => setPrenom(e.target.value)} placeholder="Jean" className={CHAMP} required />
+              </div>
+              <div>
+                <label className={etiquette} style={{ color: NAVY }}>{t('nom_label')}</label>
+                <input value={nomFamille} onChange={e => setNomFamille(e.target.value)} placeholder="Tremblay" className={CHAMP} required />
+              </div>
             </div>
-            {suggereDirect && modeLivraison !== 'direct' && (
-              <p className="text-[11px] mt-2 flex items-center gap-1" style={{ color: ORANGE }}>
-                <i className="ti ti-bulb" /> {nbBatiments} {t('mode_livraison_suggestion')}
-              </p>
-            )}
-            {modeLivraison === 'direct' && !email && (
-              <p className="text-[11px] mt-2 flex items-center gap-1 text-red-500">
-                <i className="ti ti-alert-triangle" /> {t('mode_livraison_email_requis')}
-              </p>
-            )}
+          ) : (
+            <>
+              <div>
+                <label className={etiquette} style={{ color: NAVY }}>{t('nom_entreprise')}</label>
+                <input value={nom} onChange={e => setNom(e.target.value)} placeholder="Actionéo" className={CHAMP} required />
+              </div>
+              <div>
+                <label className={etiquette} style={{ color: NAVY }}>{t('personne_ressource')}</label>
+                <input value={contactNom} onChange={e => setContactNom(e.target.value)} placeholder="Jean Dupont" className={CHAMP} />
+              </div>
+            </>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={etiquette} style={{ color: NAVY }}>{t('email_label')}</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+                placeholder={particulier ? 'jean.tremblay@courriel.com' : 'contact@entreprise.com'} className={CHAMP} />
+            </div>
+            <div>
+              <label className={etiquette} style={{ color: NAVY }}>{t('telephone_label')}</label>
+              <input value={telephone} onChange={e => setTelephone(e.target.value)} placeholder="514-000-0000" className={CHAMP} />
+            </div>
+          </div>
+          <div>
+            <label className={etiquette} style={{ color: NAVY }}>{t('adresse_label')}</label>
+            <input value={adresse} onChange={e => setAdresse(e.target.value)} placeholder="123 rue Principale, Montréal, QC" className={CHAMP} />
           </div>
 
           <button type="submit" disabled={loading}
@@ -160,6 +158,7 @@ export default function ClientsPage() {
   const [page, setPage] = useState(1)
   const [recherche, setRecherche] = useState('')
   const [rechercheDebouncee, setRechercheDebouncee] = useState('')
+  const [filtreType, setFiltreType] = useState<'' | 'entreprise' | 'particulier'>('')
   const [modalClient, setModalClient] = useState<any>(undefined)
   const [supprimerId, setSupprimerId] = useState<number | null>(null)
   const [successMsg, setSuccessMsg] = useState('')
@@ -177,6 +176,7 @@ export default function ClientsPage() {
     if (!token) { router.push('/login'); return }
     const params = new URLSearchParams({ page: String(page) })
     if (rechercheDebouncee.trim()) params.set('q', rechercheDebouncee.trim())
+    if (filtreType) params.set('type', filtreType)
     fetch(`${API_URL}/api/clients/?${params}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => {
         if (res.status === 401) { router.push('/login'); return null }
@@ -192,14 +192,14 @@ export default function ClientsPage() {
     chargerCompteurs()
   }
 
-  useEffect(() => { charger() }, [page, rechercheDebouncee])
+  useEffect(() => { charger() }, [page, rechercheDebouncee, filtreType])
 
   useEffect(() => {
     const id = setTimeout(() => setRechercheDebouncee(recherche), 300)
     return () => clearTimeout(id)
   }, [recherche])
 
-  useEffect(() => { setPage(1) }, [rechercheDebouncee])
+  useEffect(() => { setPage(1) }, [rechercheDebouncee, filtreType])
 
   async function supprimer(id: number) {
     const token = localStorage.getItem('access_token')
@@ -243,7 +243,8 @@ export default function ClientsPage() {
       </div>
 
       {total > 0 && (
-        <div className="relative mb-5 max-w-xs">
+        <div className="flex flex-col sm:flex-row gap-3 mb-5">
+        <div className="relative flex-1 max-w-xs">
           <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 text-sm" />
           <input
             type="text"
@@ -258,6 +259,20 @@ export default function ClientsPage() {
               <i className="ti ti-x text-xs" />
             </button>
           )}
+        </div>
+        <div className="flex gap-1 p-1 rounded-lg border border-gray-300 bg-gray-100 w-fit">
+          {([
+            { cle: '', libelle: t('tous'), icone: '' },
+            { cle: 'entreprise', libelle: t('filtre_entreprises'), icone: 'ti-building' },
+            { cle: 'particulier', libelle: t('filtre_particuliers'), icone: 'ti-user' },
+          ] as const).map(f => (
+            <button key={f.cle || 'tous'} onClick={() => setFiltreType(f.cle)} aria-pressed={filtreType === f.cle}
+              className="px-3 py-1.5 rounded text-xs font-bold shadow-sm transition-all hover:shadow hover:ring-1 hover:ring-[#0a0b0d] active:scale-[0.97] flex items-center gap-1.5 whitespace-nowrap"
+              style={{ background: filtreType === f.cle ? NAVY : '#fff', color: filtreType === f.cle ? '#fff' : NAVY }}>
+              {f.icone && <i className={`ti ${f.icone}`} />} {f.libelle}
+            </button>
+          ))}
+        </div>
         </div>
       )}
 
@@ -281,20 +296,17 @@ export default function ClientsPage() {
                 <i className="ti ti-building-skyscraper text-xl flex-shrink-0 mt-0.5" style={{ color: col.bg }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold truncate" style={{ color: NAVY }}>{c.nom}</p>
-                  {c.contact_nom && <p className="text-xs text-gray-500 mt-0.5">{c.contact_nom}</p>}
+                  {c.type_client !== 'particulier' && c.contact_nom && <p className="text-xs text-gray-500 mt-0.5">{c.contact_nom}</p>}
+                  {c.type_client === 'particulier' && c.adresse && <p className="text-xs text-gray-500 mt-0.5">{c.adresse}</p>}
                   {c.contact_email && <p className="text-xs text-gray-400">{c.contact_email}</p>}
                   {c.contact_telephone && <p className="text-xs text-gray-400">{c.contact_telephone}</p>}
                   <div className="flex items-center gap-2 mt-2 flex-wrap">
                     <p className="text-xs font-semibold" style={{ color: col.bg }}>{c.nb_batiments || 0} {t('batiment_s')}</p>
-                    {c.mode_livraison === 'direct' ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full" style={{ color: ORANGE, background: '#fef2f2' }}>
-                        <i className="ti ti-mail-forward text-[11px]" /> {t('badge_envoi_direct')}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full text-gray-500 bg-gray-100">
-                        <i className="ti ti-users text-[11px]" /> {t('badge_espace_client')}
-                      </span>
-                    )}
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                      style={c.type_client === 'particulier' ? { background: '#ede9fe', color: '#5b21b6' } : { background: '#f1f5f9', color: NAVY }}>
+                      <i className={`ti ${c.type_client === 'particulier' ? 'ti-user' : 'ti-building'} text-[11px]`} />
+                      {c.type_client === 'particulier' ? t('type_particulier') : t('type_entreprise')}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0">

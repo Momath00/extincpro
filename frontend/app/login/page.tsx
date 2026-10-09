@@ -46,7 +46,7 @@ function Field({
 }
 
 const inputClass =
-  'w-full bg-white border border-gray-200 rounded-md pl-10 pr-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-[#e11324] transition-colors placeholder-gray-300'
+  'w-full bg-white border-2 border-[#0a0b0d] rounded-md pl-10 pr-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:border-[#e11324] transition-colors placeholder-gray-300'
 
 export default function LoginPage() {
   const [langue, setLangue] = usePrefLangue()

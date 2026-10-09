@@ -10,7 +10,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
 
-const CLASSE_CHAMP = 'w-full border-2 border-gray-400 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]'
+const CLASSE_CHAMP = 'w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]'
 
 export default function EditMembreModal({ membre, onClose, onSaved }: { membre: any; onClose: () => void; onSaved: () => void }) {
   const t = useT()

@@ -58,9 +58,37 @@ class ClientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Client
         fields = [
-            "id", "nom", "contact_nom", "contact_email", "contact_telephone",
+            "id", "type_client", "nom", "prenom", "nom_famille", "contact_nom", "contact_email", "contact_telephone",
             "adresse", "mode_livraison", "mode_livraison_display", "nb_batiments", "date_creation",
         ]
+        extra_kwargs = {"nom": {"required": False}}
+
+    def validate(self, attrs):
+        type_client = attrs.get("type_client", getattr(self.instance, "type_client", Client.TypeClient.ENTREPRISE))
+        if type_client == Client.TypeClient.PARTICULIER:
+            prenom = (attrs.get("prenom", getattr(self.instance, "prenom", "")) or "").strip()
+            nom_famille = (attrs.get("nom_famille", getattr(self.instance, "nom_famille", "")) or "").strip()
+            if not prenom or not nom_famille:
+                raise serializers.ValidationError({"error": "Indiquez le prénom et le nom du client."})
+            attrs["nom"] = f"{prenom} {nom_famille}"
+            return attrs
+
+        nom = (attrs.get("nom", getattr(self.instance, "nom", "")) or "").strip()
+        if not nom:
+            raise serializers.ValidationError({"error": "Indiquez le nom de l'entreprise."})
+        attrs["nom"] = nom
+        attrs["prenom"] = attrs["nom_famille"] = ""
+        # Deux entreprises de la même organisation ne peuvent pas porter le même nom.
+        request = self.context.get("request")
+        if request is not None:
+            doublons = Client.objects.filter(
+                organisation=request.user.organisation, type_client=Client.TypeClient.ENTREPRISE, nom__iexact=nom,
+            )
+            if self.instance is not None:
+                doublons = doublons.exclude(pk=self.instance.pk)
+            if doublons.exists():
+                raise serializers.ValidationError({"error": f"Une entreprise nommée « {nom} » existe déjà."})
+        return attrs
 
 
 class BatimentSerializer(serializers.ModelSerializer):
@@ -181,6 +209,7 @@ class RapportListSerializer(serializers.ModelSerializer):
     """Version allégée — pour les listes (dashboard, recherche par client/adresse)."""
 
     batiment = BatimentSerializer(read_only=True)
+    cycle = serializers.PrimaryKeyRelatedField(read_only=True)  # cycle d'inspection (dossier du bâtiment)
     techniciens = UtilisateurSerializer(many=True, read_only=True)
     citoyen = UtilisateurSerializer(read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
@@ -228,7 +257,7 @@ class RapportListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rapport
         fields = [
-            "id", "batiment", "techniciens", "citoyen", "statut", "statut_display",
+            "id", "batiment", "techniciens", "citoyen", "statut", "statut_display", "cycle",
             "date_inspection", "prochaine_inspection", "date_prise_effet", "date_derniere_sauvegarde",
             "date_fermeture", "nb_dispositifs", "nb_lacunes", "a_certificat",
             "certificat", "progression",
@@ -371,6 +400,7 @@ class RapportExtincteurListSerializer(serializers.ModelSerializer):
     """Version allégée — pour les listes."""
 
     batiment = BatimentSerializer(read_only=True)
+    cycle = serializers.PrimaryKeyRelatedField(read_only=True)  # cycle d'inspection (dossier du bâtiment)
     techniciens = UtilisateurSerializer(many=True, read_only=True)
     citoyen = UtilisateurSerializer(read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
@@ -408,7 +438,7 @@ class RapportExtincteurListSerializer(serializers.ModelSerializer):
         model = RapportExtincteur
         fields = [
             "id", "batiment", "rapport_alarme", "techniciens", "citoyen", "numero_job",
-            "statut", "statut_display", "date_inspection", "date_derniere_sauvegarde",
+            "statut", "statut_display", "cycle", "date_inspection", "date_derniere_sauvegarde",
             "date_fermeture", "nb_extincteurs", "certificat", "rapport_eclairage_lie",
             "rapport_cuisine_lie",
         ]
@@ -853,6 +883,7 @@ class RapportGicleurListSerializer(serializers.ModelSerializer):
     """Version allégée — pour les listes."""
 
     batiment = BatimentSerializer(read_only=True)
+    cycle = serializers.PrimaryKeyRelatedField(read_only=True)  # cycle d'inspection (dossier du bâtiment)
     techniciens = UtilisateurSerializer(many=True, read_only=True)
     citoyen = UtilisateurSerializer(read_only=True)
     statut_display = serializers.CharField(source="get_statut_display", read_only=True)
@@ -867,7 +898,7 @@ class RapportGicleurListSerializer(serializers.ModelSerializer):
     class Meta:
         model = RapportGicleur
         fields = [
-            "id", "batiment", "techniciens", "citoyen", "numero_job", "statut", "statut_display",
+            "id", "batiment", "techniciens", "citoyen", "numero_job", "statut", "statut_display", "cycle",
             "date_inspection", "date_derniere_sauvegarde", "date_fermeture", "prochaine_inspection",
             "date_creation", "identification_systeme", "local_gicleur", "type_systeme",
             "frequence_inspection", "compagnie_installatrice", "certificat",

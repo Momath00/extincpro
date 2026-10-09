@@ -1184,7 +1184,7 @@ function HotteEditor({
                     defaultValue={appareils[edition.index].nom || ''}
                     onBlur={e => changerNom(edition.index, e.target.value.trim())}
                     onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
-                    className="h-8 px-2 rounded-md border border-gray-200 text-sm font-bold focus:outline-none focus:border-[#dc2626]"
+                    className="h-8 px-2 rounded-md border-2 border-[#0a0b0d] text-sm font-bold focus:outline-none focus:border-[#dc2626]"
                     style={{ color: NAVY }}
                   />
                 </>

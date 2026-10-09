@@ -83,28 +83,6 @@ function Interrupteur({ actif, onChange, titre, description }: { actif: boolean;
   )
 }
 
-/** Réduit l'image de signature (≤ 600 px de large) avant l'envoi. */
-function lireSignature(fichier: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const lecteur = new FileReader()
-    lecteur.onerror = reject
-    lecteur.onload = () => {
-      const img = new Image()
-      img.onerror = reject
-      img.onload = () => {
-        const echelle = Math.min(1, 600 / img.width)
-        const canvas = document.createElement('canvas')
-        canvas.width = Math.round(img.width * echelle)
-        canvas.height = Math.round(img.height * echelle)
-        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
-        resolve(canvas.toDataURL('image/png'))
-      }
-      img.src = String(lecteur.result)
-    }
-    lecteur.readAsDataURL(fichier)
-  })
-}
-
 export default function ParametresCertificatsPage() {
   const t = useT()
   const [p, setP] = useState<Parametres | null>(null)
@@ -146,22 +124,9 @@ export default function ParametresCertificatsPage() {
     }
   }
 
-  async function choisirSignature(e: React.ChangeEvent<HTMLInputElement>) {
-    const fichier = e.target.files?.[0]
-    e.target.value = ''
-    if (!fichier) return
-    const donnees = await lireSignature(fichier)
-    if (donnees.length > 500_000) {
-      setErreurs(prev => ({ ...prev, signature: t('pc_image_trop_lourde') }))
-      return
-    }
-    maj('signature', donnees)
-  }
-
   if (!p) return null
 
-  const annee = new Date().getFullYear()
-  const champ = 'w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324]'
+  const champ = 'w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324]'
   const etiquette = 'text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-1 block'
 
   return (
@@ -192,54 +157,6 @@ export default function ParametresCertificatsPage() {
           <Interrupteur actif={p.ajustement_manuel} onChange={v => maj('ajustement_manuel', v)} titre={t('pc_ajustement')} description={t('pc_ajustement_desc')} />
         </Section>
 
-        <Section titre={t('pc_numerotation')}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
-            <div>
-              <label className={etiquette}>{t('pc_prefixe')}</label>
-              <input className={champ} value={p.prefixe_numero} maxLength={16}
-                onChange={e => maj('prefixe_numero', e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))} />
-              {erreurs.prefixe_numero && <p className="text-xs text-red-500 mt-1">{erreurs.prefixe_numero}</p>}
-            </div>
-            <p className="text-sm text-gray-500 pb-2">
-              {t('pc_exemple')} : <strong style={{ color: NAVY }}>{p.prefixe_numero || 'CERT-EXT'}-{annee}-0001</strong>
-            </p>
-          </div>
-        </Section>
-
-        <Section titre={t('pc_signature')}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className={etiquette}>{t('pc_signataire_nom')}</label>
-              <input className={champ} value={p.signataire_nom} maxLength={150} onChange={e => maj('signataire_nom', e.target.value)} />
-            </div>
-            <div>
-              <label className={etiquette}>{t('pc_signataire_titre')}</label>
-              <input className={champ} value={p.signataire_titre} maxLength={150} onChange={e => maj('signataire_titre', e.target.value)} />
-            </div>
-          </div>
-          <div>
-            <label className={etiquette}>{t('pc_signature_image')}</label>
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="h-16 w-56 rounded-md border border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden">
-                {p.signature
-                  ? <img src={p.signature} alt="" className="max-h-14 max-w-[210px]" />
-                  : <i className="ti ti-signature text-2xl text-gray-300" />}
-              </div>
-              <label className="text-xs font-bold px-3 py-2 rounded-md border border-gray-200 cursor-pointer hover:bg-gray-50" style={{ color: NAVY }}>
-                <i className="ti ti-upload" /> {t('pc_televerser')}
-                <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={choisirSignature} />
-              </label>
-              {p.signature && (
-                <button type="button" onClick={() => maj('signature', '')} className="text-xs font-bold" style={{ color: ORANGE }}>
-                  {t('pc_retirer')}
-                </button>
-              )}
-            </div>
-            {erreurs.signature && <p className="text-xs text-red-500 mt-1">{erreurs.signature}</p>}
-            <p className="text-xs text-gray-400 mt-2">{t('pc_signature_note')}</p>
-          </div>
-        </Section>
-
         <Section titre={t('pc_contenu')}>
           <div>
             <label className={etiquette}>{t('pc_normes')}</label>
@@ -260,6 +177,7 @@ export default function ParametresCertificatsPage() {
             <i className="ti ti-device-floppy" /> {t('pc_enregistrer')}
           </button>
           {message && <span className="text-sm font-semibold text-green-600"><i className="ti ti-check" /> {message}</span>}
+          {Object.keys(erreurs).length > 0 && <span className="text-sm font-semibold text-red-600"><i className="ti ti-alert-triangle" /> {Object.values(erreurs).join(' — ')}</span>}
           <span className="text-xs text-gray-400 w-full sm:w-auto sm:ml-auto">{t('pc_note_existants')}</span>
         </div>
       </div>

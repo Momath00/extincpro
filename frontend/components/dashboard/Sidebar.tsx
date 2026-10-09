@@ -42,7 +42,6 @@ const NAV_GROUPS = [
           { href: '/superviseur/rapports-gicleurs', label: 'nav_gicleurs', icon: 'ti-droplets', module: 'rapport_gicleur' },
         ],
       },
-      { href: '/superviseur/certificats', label: 'nav_certificats', icon: 'ti-certificate' },
       { href: '/superviseur/clients', label: 'nav_clients', icon: 'ti-building' },
       { href: '/superviseur/batiments', label: 'nav_batiments', icon: 'ti-home' },
     ],

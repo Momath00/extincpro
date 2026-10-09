@@ -118,16 +118,21 @@ def html_template(body: str) -> str:
 
 
 def envoyer_email(
-    to_email: str,
+    to_email: str | list[str],
     subject: str,
     html: str,
     reply_to: str | None = None,
     attachments: list[tuple[str, bytes, str]] | None = None,
-) -> None:
+) -> dict:
     """Envoie via Resend si RESEND_API_KEY est défini, sinon repli SMTP Django.
 
     `attachments` : liste de (nom_fichier, contenu_octets, type_mime), par ex.
-    pour joindre un PDF de certificat/rapport au courriel."""
+    pour joindre un PDF de certificat/rapport au courriel.
+
+    Retourne {"ok": bool, "reference": identifiant du message, "erreur": texte}
+    — conservé comme preuve d'envoi dans le dossier du bâtiment."""
+    erreur = ""
+    destinataires = [to_email] if isinstance(to_email, str) else list(to_email)
     api_key = getattr(settings, "RESEND_API_KEY", "")
     from_email = getattr(settings, "RESEND_FROM_EMAIL", settings.DEFAULT_FROM_EMAIL)
     if api_key:
@@ -135,25 +140,30 @@ def envoyer_email(
             import resend as _resend
 
             _resend.api_key = api_key
-            payload = {"from": from_email, "to": [to_email], "subject": subject, "html": html}
+            payload = {"from": from_email, "to": destinataires, "subject": subject, "html": html}
             if reply_to:
                 payload["reply_to"] = [reply_to]
             if attachments:
                 payload["attachments"] = [
                     {"filename": nom, "content": list(contenu)} for nom, contenu, _mime in attachments
                 ]
-            _resend.Emails.send(payload)
-            return
-        except Exception:
-            pass
+            reponse = _resend.Emails.send(payload)
+            reference = reponse.get("id", "") if isinstance(reponse, dict) else getattr(reponse, "id", "")
+            return {"ok": True, "reference": str(reference or "resend"), "erreur": ""}
+        except Exception as e:  # noqa: BLE001
+            erreur = f"Resend : {e}"[:200]
     email = EmailMultiAlternatives(
         subject=subject,
         body=strip_tags(html),
         from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[to_email],
+        to=destinataires,
         reply_to=[reply_to] if reply_to else None,
     )
     email.attach_alternative(html, "text/html")
     for nom, contenu, mime in attachments or []:
         email.attach(nom, contenu, mime)
-    email.send(fail_silently=True)
+    try:
+        envoyes = email.send(fail_silently=False)
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "reference": "", "erreur": (f"{erreur} / SMTP : {e}" if erreur else f"SMTP : {e}")[:300]}
+    return {"ok": bool(envoyes), "reference": "smtp" if envoyes else "", "erreur": "" if envoyes else erreur}

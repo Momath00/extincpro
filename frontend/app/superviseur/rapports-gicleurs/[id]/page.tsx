@@ -7,7 +7,6 @@ import FormulaireGicleur from '@/components/rapports-gicleurs/FormulaireGicleur'
 import SectionPhotos from '@/components/rapports/SectionPhotos'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 import ModuleBadge from '@/components/dashboard/ModuleBadge'
-import EnvoiDirectBanner from '@/components/dashboard/EnvoiDirectBanner'
 import { downloadHtml } from '@/lib/download'
 import { useT } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
@@ -218,21 +217,10 @@ export default function SuperviseurRapportGicleurDetailPage() {
     }
   }
 
-  async function envoyerCertificat() {
-    setActionLoading(true)
-    const token = localStorage.getItem('access_token')
-    const res = await fetch(`${API_URL}/api/rapports-gicleurs/${rapport.id}/envoyer-certificat/`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    setActionLoading(false)
-    const d = await res.json().catch(() => ({}))
-    if (res.ok) {
-      showToast(d.message || t('certificat_envoye_toast'), 'success')
-      charger()
-    } else {
-      showToast(d.error || t('erreur_envoi'), 'error')
-    }
+  // Tous les envois au client se font depuis le dossier du bâtiment :
+  // tous les rapports du cycle en un seul courriel, avec la facture.
+  function envoyerCertificat() {
+    router.push(`/superviseur/batiments/${rapport.batiment.id}?${rapport.cycle ? `cycle=${rapport.cycle}&` : ''}envoyer=1`)
   }
 
   if (loading || !rapport) {
@@ -282,6 +270,13 @@ export default function SuperviseurRapportGicleurDetailPage() {
             <h1 className="text-xl sm:text-2xl font-bold" style={{ color: NAVY }}>
               {rapport.batiment?.adresse_complete}
             </h1>
+            {rapport.batiment?.id && (
+              <Link href={`/superviseur/batiments/${rapport.batiment.id}`}
+                className="h-8 inline-flex items-center gap-1.5 px-2.5 rounded-md text-xs font-bold border-2 border-[#0a0b0d] bg-white hover:bg-gray-50 shadow-sm"
+                style={{ color: NAVY }} title={t('dossier_titre')}>
+                <i className="ti ti-folders text-sm" /> {t('dossier_titre')}
+              </Link>
+            )}
             <span className="text-xs px-2.5 py-1 rounded-full font-semibold"
               style={estFerme
                 ? { background: '#e9f6f2', color: '#0d6b4f' }
@@ -376,9 +371,6 @@ export default function SuperviseurRapportGicleurDetailPage() {
         </div>
       </div>
 
-      {rapport.batiment?.id && (
-        <EnvoiDirectBanner batimentId={rapport.batiment.id} onEnvoye={charger} />
-      )}
 
       {estFerme && (
         <div className="mb-4 flex items-center gap-3 px-4 py-3 rounded-md border text-sm"

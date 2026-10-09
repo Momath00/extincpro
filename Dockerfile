@@ -27,4 +27,7 @@ ENV SECRET_KEY=build-time-placeholder \
 
 RUN python manage.py collectstatic --noinput
 
-CMD ["sh", "-c", "python manage.py migrate && gunicorn securiteincendie.wsgi:application --bind 0.0.0.0:${PORT:-8080}"]
+# archiver_dossiers : fige en arrière-plan les rapports fermés sans copie
+# (dossier du bâtiment) — sans effet sur ce qui est déjà archivé, et un échec
+# n'empêche jamais le serveur de démarrer.
+CMD ["sh", "-c", "python manage.py migrate && { (python manage.py archiver_dossiers || true) & } && exec gunicorn securiteincendie.wsgi:application --bind 0.0.0.0:${PORT:-8080}"]

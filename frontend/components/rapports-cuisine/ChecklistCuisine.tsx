@@ -133,7 +133,7 @@ export default function ChecklistCuisine({
           value={commentaires}
           onChange={e => onCommentairesChange(e.target.value)}
           rows={3}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#dc2626] disabled:bg-gray-50 disabled:text-gray-400"
+          className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#dc2626] disabled:bg-gray-50 disabled:text-gray-400"
         />
       </div>
 

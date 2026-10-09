@@ -395,7 +395,7 @@ function ModalAjoutDispositif({
               onChange={e => setNombreLignesInput(e.target.value)}
               onBlur={() => setNombreLignesInput(String(nombreLignes))}
               placeholder={t('placeholder_nb_lignes')}
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
+              className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
             />
             {nombreLignes > 1 && (
               <p className="text-xs text-gray-400 mt-1">
@@ -414,8 +414,8 @@ function ModalAjoutDispositif({
               onChange={e => { setForm({ ...form, localisation: e.target.value }); signalerErreur('', null) }}
               placeholder={nombreLignes > 1 ? t('placeholder_multi_localisation') : t('placeholder_single_localisation')}
               autoFocus
-              className={`w-full border rounded-md px-3 py-2.5 text-sm focus:outline-none ${
-                erreurChamp === 'localisation' ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-[#e11324]'
+              className={`w-full border-2 rounded-md px-3 py-2.5 text-sm focus:outline-none ${
+                erreurChamp === 'localisation' ? 'border-red-500 focus:border-red-600' : 'border-[#0a0b0d] focus:border-[#e11324]'
               }`}
             />
             {erreurChamp === 'localisation' && <p className="text-xs text-red-500 mt-1">{erreur}</p>}
@@ -427,7 +427,7 @@ function ModalAjoutDispositif({
             <select
               value={form.type_dispositif}
               onChange={e => setForm({ ...form, type_dispositif: e.target.value })}
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
+              className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
             >
               <option value="">-</option>
               {Object.entries(typeDispositif).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => (
@@ -445,7 +445,7 @@ function ModalAjoutDispositif({
               value={form.zone_circuit}
               onChange={e => setForm({ ...form, zone_circuit: e.target.value })}
               placeholder={t('placeholder_zone_ex')}
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
+              className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
             />
           </div>
         </div>
@@ -523,8 +523,8 @@ function ModalAjoutSection({
               onChange={e => { setNom(e.target.value); setErreur('') }}
               placeholder={t('placeholder_nom_section')}
               autoFocus
-              className={`w-full border rounded-md px-3 py-2.5 text-sm focus:outline-none ${
-                erreur ? 'border-red-400 focus:border-red-500' : 'border-gray-200 focus:border-[#e11324]'
+              className={`w-full border-2 rounded-md px-3 py-2.5 text-sm focus:outline-none ${
+                erreur ? 'border-red-500 focus:border-red-600' : 'border-[#0a0b0d] focus:border-[#e11324]'
               }`}
             />
             {erreur && <p className="text-xs text-red-500 mt-1">{erreur}</p>}
@@ -922,7 +922,7 @@ export default function OngletE3({
               </label>
               <input type="number" min={1} max={20} value={generateur.nbEtages}
                 onChange={e => setGenerateur({ ...generateur, nbEtages: Math.min(20, Math.max(1, Number(e.target.value))) })}
-                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
+                className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
             </div>
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest mb-1.5" style={{ color: NAVY }}>
@@ -930,7 +930,7 @@ export default function OngletE3({
               </label>
               <input type="number" min={1} max={50} value={generateur.aptsParEtage}
                 onChange={e => setGenerateur({ ...generateur, aptsParEtage: Math.min(50, Math.max(1, Number(e.target.value))) })}
-                className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
+                className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
             </div>
           </div>
           <div className="flex gap-6 mb-5">

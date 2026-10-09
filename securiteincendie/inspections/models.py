@@ -6,8 +6,17 @@ from django.utils import timezone
 
 
 class Client(models.Model):
-    """L'entreprise avec qui l'organisation travaille (ex. Actionéo).
-    Regroupe tous les bâtiments et rapports d'une même entreprise cliente."""
+    """Le client de l'organisation : une entreprise (ex. Actionéo) ou un
+    particulier (ex. le propriétaire d'une maison). Regroupe tous ses
+    bâtiments et rapports.
+
+    `nom` est le nom affiché partout (listes, rapports, certificats,
+    courriels) : le nom de l'entreprise, ou « Prénom Nom » pour un
+    particulier (calculé à l'enregistrement)."""
+
+    class TypeClient(models.TextChoices):
+        ENTREPRISE = "entreprise", "Entreprise"
+        PARTICULIER = "particulier", "Particulier"
 
     class ModeLivraison(models.TextChoices):
         PLATEFORME = "plateforme", "Espace client (invitation)"
@@ -16,7 +25,10 @@ class Client(models.Model):
     organisation = models.ForeignKey(
         "organisations.Organisation", on_delete=models.CASCADE, related_name="clients"
     )
+    type_client = models.CharField(max_length=12, choices=TypeClient.choices, default=TypeClient.ENTREPRISE)
     nom = models.CharField(max_length=150)
+    prenom = models.CharField(max_length=75, blank=True, help_text="Particulier seulement.")
+    nom_famille = models.CharField(max_length=75, blank=True, help_text="Particulier seulement.")
     contact_nom = models.CharField(max_length=150, blank=True)
     contact_email = models.EmailField(blank=True)
     contact_telephone = models.CharField(max_length=20, blank=True)
@@ -35,7 +47,19 @@ class Client(models.Model):
 
     class Meta:
         ordering = ["nom"]
-        unique_together = [("organisation", "nom")]
+        # Pas d'unicité en base : deux particuliers peuvent porter le même nom.
+        # L'unicité des entreprises est vérifiée par ClientSerializer.
+
+    @property
+    def est_particulier(self) -> bool:
+        return self.type_client == self.TypeClient.PARTICULIER
+
+    def save(self, *args, **kwargs):
+        if self.est_particulier:
+            self.nom = f"{self.prenom.strip()} {self.nom_famille.strip()}".strip() or self.nom
+            # La personne-ressource d'un particulier, c'est lui-même.
+            self.contact_nom = self.nom
+        super().save(*args, **kwargs)
 
     @property
     def est_petit_client(self) -> bool:
@@ -159,6 +183,11 @@ class Rapport(models.Model):
     )
 
     statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.OUVERT)
+    cycle = models.ForeignKey(
+        "CycleInspection", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="rapports_incendie",
+        help_text="Cycle d'inspection du bâtiment (voir dossier.py).",
+    )
 
     date_inspection = models.DateField(
         null=True, blank=True, help_text="Jour prévu de la visite — sert au filtre 'aujourd'hui' du technicien."
@@ -221,7 +250,17 @@ class Rapport(models.Model):
 
             envoyer_email_reparations_requises(self)
 
+        # Dossier du bâtiment : copie figée du rapport (et de son certificat).
+        from .dossier import apres_fermeture
+
+        apres_fermeture(self, utilisateur)
+
     def rouvrir(self, utilisateur):
+        # Un cycle fermé est verrouillé : il faut d'abord le rouvrir (avec un motif).
+        from .dossier import verifier_cycle_modifiable
+
+        verifier_cycle_modifiable(self)
+
         self.statut = self.Statut.OUVERT
         self.date_fermeture = None
         self.save()
@@ -567,6 +606,11 @@ class RapportExtincteur(models.Model):
     numero_job = models.CharField(max_length=50, blank=True, help_text="Champ « JOB » du formulaire papier.")
 
     statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.OUVERT)
+    cycle = models.ForeignKey(
+        "CycleInspection", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="rapports_extincteurs",
+        help_text="Cycle d'inspection du bâtiment (voir dossier.py).",
+    )
 
     date_inspection = models.DateField(null=True, blank=True)
     date_derniere_sauvegarde = models.DateTimeField(auto_now=True)
@@ -631,6 +675,11 @@ class RapportExtincteur(models.Model):
 
         self._generer_ou_rafraichir_brouillon_suivant(utilisateur)
 
+        # Dossier du bâtiment : copie figée du rapport (et de son certificat).
+        from .dossier import apres_fermeture
+
+        apres_fermeture(self, utilisateur)
+
     def _generer_ou_rafraichir_brouillon_suivant(self, utilisateur):
         """Prépare le rapport de la prochaine visite : copie l'inventaire des
         extincteurs (mêmes appareils, mêmes emplacements) mais remet à neuf
@@ -677,6 +726,11 @@ class RapportExtincteur(models.Model):
             )
 
     def rouvrir(self, utilisateur):
+        # Un cycle fermé est verrouillé : il faut d'abord le rouvrir (avec un motif).
+        from .dossier import verifier_cycle_modifiable
+
+        verifier_cycle_modifiable(self)
+
         self.statut = self.Statut.OUVERT
         self.date_fermeture = None
         self.save()
@@ -1157,6 +1211,11 @@ class RapportEclairageUrgence(models.Model):
     numero_job = models.CharField(max_length=50, blank=True, help_text="Champ « JOB » du formulaire papier.")
 
     statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.OUVERT)
+    cycle = models.ForeignKey(
+        "CycleInspection", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="rapports_eclairage",
+        help_text="Cycle d'inspection du bâtiment (voir dossier.py).",
+    )
 
     date_inspection = models.DateField(null=True, blank=True)
     date_derniere_sauvegarde = models.DateTimeField(auto_now=True)
@@ -1200,7 +1259,17 @@ class RapportEclairageUrgence(models.Model):
 
         assurer_certificat(self, utilisateur, cascade=cascade)
 
+        # Dossier du bâtiment : copie figée du rapport (et de son certificat).
+        from .dossier import apres_fermeture
+
+        apres_fermeture(self, utilisateur)
+
     def rouvrir(self, utilisateur):
+        # Un cycle fermé est verrouillé : il faut d'abord le rouvrir (avec un motif).
+        from .dossier import verifier_cycle_modifiable
+
+        verifier_cycle_modifiable(self)
+
         self.statut = self.Statut.OUVERT
         self.date_fermeture = None
         self.save()
@@ -1305,6 +1374,11 @@ class RapportCuisine(models.Model):
     numero_job = models.CharField(max_length=50, blank=True, help_text="Champ « JOB » du formulaire papier.")
 
     statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.OUVERT)
+    cycle = models.ForeignKey(
+        "CycleInspection", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="rapports_cuisine",
+        help_text="Cycle d'inspection du bâtiment (voir dossier.py).",
+    )
 
     # ── Informations du système ──
     courtier = models.CharField(max_length=150, blank=True)
@@ -1415,7 +1489,17 @@ class RapportCuisine(models.Model):
 
         assurer_certificat(self, utilisateur, cascade=cascade)
 
+        # Dossier du bâtiment : copie figée du rapport (et de son certificat).
+        from .dossier import apres_fermeture
+
+        apres_fermeture(self, utilisateur)
+
     def rouvrir(self, utilisateur):
+        # Un cycle fermé est verrouillé : il faut d'abord le rouvrir (avec un motif).
+        from .dossier import verifier_cycle_modifiable
+
+        verifier_cycle_modifiable(self)
+
         self.statut = self.Statut.OUVERT
         self.date_fermeture = None
         self.save()
@@ -1656,6 +1740,11 @@ class RapportGicleur(models.Model):
     numero_job = models.CharField(max_length=50, blank=True, help_text="Champ « JOB » du formulaire papier.")
 
     statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.OUVERT)
+    cycle = models.ForeignKey(
+        "CycleInspection", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="rapports_gicleurs",
+        help_text="Cycle d'inspection du bâtiment (voir dossier.py).",
+    )
 
     date_inspection = models.DateField(null=True, blank=True)
     date_derniere_sauvegarde = models.DateTimeField(auto_now=True)
@@ -1755,7 +1844,17 @@ class RapportGicleur(models.Model):
         if not hasattr(self, "certificat"):
             CertificatGicleur.objects.create(rapport=self, emis_par=utilisateur)
 
+        # Dossier du bâtiment : copie figée du rapport (et de son certificat).
+        from .dossier import apres_fermeture
+
+        apres_fermeture(self, utilisateur)
+
     def rouvrir(self, utilisateur):
+        # Un cycle fermé est verrouillé : il faut d'abord le rouvrir (avec un motif).
+        from .dossier import verifier_cycle_modifiable
+
+        verifier_cycle_modifiable(self)
+
         self.statut = self.Statut.OUVERT
         self.date_fermeture = None
         self.save()
@@ -2061,3 +2160,13 @@ class PhotoAnomalie(models.Model):
 
     def __str__(self):
         return f"Photo #{self.ordre} — {self.emplacement}"
+
+
+from .models_dossier import (  # noqa: E402,F401 — tables du dossier du bâtiment
+    ArchiveDocument,
+    CycleInspection,
+    Envoi,
+    EnvoiPieceJointe,
+    EvenementCycle,
+    FichierArchive,
+)

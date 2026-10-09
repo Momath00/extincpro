@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: '/citoyen', label: 'mon_rapport', icon: 'ti-home', module: 'rapport_incendie' },
   { href: '/citoyen/rapports-extincteurs', label: 'nav_rapport_extincteur', icon: 'ti-fire-extinguisher', module: 'rapport_extincteur' },
   { href: '/citoyen/rapports-gicleurs', label: 'nav_rapport_gicleur', icon: 'ti-droplets', module: 'rapport_gicleur' },
+  { href: '/citoyen/dossier', label: 'nav_mon_dossier', icon: 'ti-folders' },
 ]
 
 export default function CitoyenSidebar({ user, onClose }: { user: any; onClose?: () => void }) {
