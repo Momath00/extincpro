@@ -10,7 +10,6 @@ import OngletE3 from '@/components/rapports/OngletE3'
 import OngletDeficiences, { compterDeficiences } from '@/components/rapports/OngletDeficiences'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 import ModuleBadge from '@/components/dashboard/ModuleBadge'
-import EnvoiDirectBanner from '@/components/dashboard/EnvoiDirectBanner'
 import { downloadHtml, downloadFichier } from '@/lib/download'
 import { useT, useLangue } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
@@ -164,61 +163,6 @@ function CertificatTab({
   )
 }
 
-// ── Indicateur de progression ────────────────────────────────────────────────
-function ProgressionRapport({ rapport }: { rapport: any }) {
-  const t = useT()
-  const e1 = rapport.fiche_e1
-  const e2 = rapport.fiche_e2
-  const totalDisp = (rapport.sections || []).reduce((s: number, sec: any) => s + (sec.dispositifs?.length || 0), 0)
-  const estFerme = rapport.statut === 'ferme'
-  const aCartificat = !!rapport.certificat
-
-  const etapes = [
-    {
-      label: 'E1',
-      done: e1 && (e1.fonctionnement_une_etape !== null || e1.reseau_fonctionnel !== null),
-      color: '#9a4a13',
-    },
-    {
-      label: 'E2',
-      done: e2 && Object.keys(e2.details || {}).length > 0,
-      color: '#0d6b4f',
-    },
-    {
-      label: 'E3',
-      done: totalDisp > 0,
-      color: '#4b2f8c',
-    },
-    {
-      label: t('ferme'),
-      done: estFerme,
-      color: NAVY,
-    },
-    {
-      label: t('certificat'),
-      done: aCartificat,
-      color: ORANGE,
-    },
-  ]
-
-  return (
-    <div className="flex items-center gap-1">
-      {etapes.map((e, i) => (
-        <div key={e.label} className="flex items-center gap-1">
-          <div
-            title={e.label}
-            className="w-2.5 h-2.5 rounded-full transition-colors duration-300"
-            style={{ background: e.done ? e.color : '#e2e8f0' }}
-          />
-          {i < etapes.length - 1 && (
-            <div className="w-3 h-px" style={{ background: '#e2e8f0' }} />
-          )}
-        </div>
-      ))}
-    </div>
-  )
-}
-
 // ── Page principale ───────────────────────────────────────────────────────────
 type OngletType = 'e1' | 'e2' | 'legende' | 'e3' | 'certificat' | 'historique' | 'deficiences'
 
@@ -302,21 +246,10 @@ export default function SuperviseurRapportDetailPage() {
     }
   }
 
-  async function envoyerCertificat() {
-    setActionLoading(true)
-    const token = localStorage.getItem('access_token')
-    const res = await fetch(`${API_URL}/api/rapports/${rapport.id}/envoyer-certificat/`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    setActionLoading(false)
-    const d = await res.json().catch(() => ({}))
-    if (res.ok) {
-      showToast(d.message || t('certificat_envoye_toast'), 'success')
-      charger()
-    } else {
-      showToast(d.error || t('erreur_envoi'), 'error')
-    }
+  // Tous les envois au client se font depuis le dossier du bâtiment :
+  // tous les rapports du cycle en un seul courriel, avec la facture.
+  function envoyerCertificat() {
+    router.push(`/superviseur/batiments/${rapport.batiment.id}?${rapport.cycle ? `cycle=${rapport.cycle}&` : ''}envoyer=1`)
   }
 
   if (loading || !rapport) {
@@ -379,6 +312,13 @@ export default function SuperviseurRapportDetailPage() {
             <h1 className="text-xl sm:text-2xl font-bold" style={{ color: NAVY }}>
               {rapport.batiment?.adresse_complete}
             </h1>
+            {rapport.batiment?.id && (
+              <Link href={`/superviseur/batiments/${rapport.batiment.id}`}
+                className="h-8 inline-flex items-center gap-1.5 px-2.5 rounded-md text-xs font-bold border-2 border-[#0a0b0d] bg-white hover:bg-gray-50 shadow-sm"
+                style={{ color: NAVY }} title={t('dossier_titre')}>
+                <i className="ti ti-folders text-sm" /> {t('dossier_titre')}
+              </Link>
+            )}
             <span className="text-xs px-2.5 py-1 rounded-full font-semibold"
               style={estFerme
                 ? { background: '#e9f6f2', color: '#0d6b4f' }
@@ -404,7 +344,6 @@ export default function SuperviseurRapportDetailPage() {
                 <i className="ti ti-pencil text-xs" />
               </button>
             )}
-            <ProgressionRapport rapport={rapport} />
           </div>
         </div>
 
@@ -492,9 +431,6 @@ export default function SuperviseurRapportDetailPage() {
         </div>
       </div>
 
-      {rapport.batiment?.id && (
-        <EnvoiDirectBanner batimentId={rapport.batiment.id} onEnvoye={charger} />
-      )}
 
       {/* Notice superviseur sur rapport fermé */}
       {estFerme && (

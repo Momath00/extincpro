@@ -90,7 +90,7 @@ const CHAMPS_DRAIN: { champ: string; cle: string }[] = [
   { champ: 'pression_apres', cle: 'gic_apres' },
 ]
 
-const CLASSE_CHAMP = 'border border-[#0a0b0d] bg-white rounded-md px-2 py-1.5 text-sm font-bold text-[#0a0b0d] focus:outline-none focus:border-[#e11324] disabled:bg-gray-50 disabled:text-gray-500'
+const CLASSE_CHAMP = 'border-2 border-[#0a0b0d] bg-white rounded-md px-2 py-1.5 text-sm font-bold text-[#0a0b0d] focus:outline-none focus:border-[#e11324] disabled:bg-gray-50 disabled:text-gray-500'
 const CLASSE_BOUTON_SUPPRIMER = 'w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-md border border-red-200 text-red-600 hover:bg-red-50 transition-colors'
 const CLASSE_ENTETE = 'px-3 py-2 text-left text-xs text-white font-bold whitespace-nowrap'
 

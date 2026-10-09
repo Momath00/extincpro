@@ -16,6 +16,7 @@ from rest_framework.response import Response
 from accounts.models import Utilisateur
 from securiteincendie.emailing import organisation_logo_content
 
+from .dossier import lire_pieces_jointes
 from .gicleur_checklist import (
     CATEGORIES_SOUPAPE_COMMANDE,
     CATEGORIES_SOUPAPE_COMMANDE_EN,
@@ -227,6 +228,7 @@ class RapportGicleurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="envoyer-certificat")
     def envoyer_certificat(self, request, pk=None):
         rapport = self.get_object()
+        pieces_jointes = lire_pieces_jointes(request)
         if rapport.statut != RapportGicleur.Statut.FERME:
             return Response(
                 {"error": "Le rapport doit être fermé avant d'envoyer le certificat."},
@@ -238,10 +240,16 @@ class RapportGicleurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         if rapport.batiment.client.mode_livraison == Client.ModeLivraison.DIRECT:
             from .emailing import envoyer_certificats_directs_batiment
 
-            ok, message = envoyer_certificats_directs_batiment(rapport.batiment, request.user)
+            ok, message = envoyer_certificats_directs_batiment(rapport.batiment, request.user, pieces_jointes=pieces_jointes)
             if not ok:
                 return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
             return Response({"message": message})
+
+        if pieces_jointes and not (rapport.citoyen and rapport.citoyen.email):
+            return Response(
+                {"error": "Impossible de joindre des fichiers : aucun citoyen avec courriel n'est assigné à ce rapport."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         from django.utils import timezone
 
@@ -256,19 +264,20 @@ class RapportGicleurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         if rapport.citoyen and rapport.citoyen.email:
             from .emailing import envoyer_email_certificat_gicleur_disponible
 
-            envoyer_email_certificat_gicleur_disponible(rapport)
+            envoyer_email_certificat_gicleur_disponible(rapport, utilisateur=request.user, pieces_jointes=pieces_jointes)
         return Response({"message": "Certificat envoyé au citoyen."})
 
     @action(detail=True, methods=["post"], url_path="renvoyer-certificat")
     def renvoyer_certificat(self, request, pk=None):
         rapport = self.get_object()
+        pieces_jointes = lire_pieces_jointes(request)
         if not hasattr(rapport, "certificat"):
             return Response({"error": "Aucun certificat trouvé pour ce rapport."}, status=status.HTTP_404_NOT_FOUND)
 
         if rapport.batiment.client.mode_livraison == Client.ModeLivraison.DIRECT:
             from .emailing import renvoyer_document_direct
 
-            ok, message = renvoyer_document_direct(rapport, "gicleur", request.user)
+            ok, message = renvoyer_document_direct(rapport, "gicleur", request.user, pieces_jointes=pieces_jointes)
             if not ok:
                 return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
             return Response({"message": message})
@@ -287,7 +296,7 @@ class RapportGicleurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
 
         from .emailing import envoyer_email_certificat_gicleur_disponible
 
-        envoyer_email_certificat_gicleur_disponible(rapport)
+        envoyer_email_certificat_gicleur_disponible(rapport, utilisateur=request.user, pieces_jointes=pieces_jointes, type_envoi="renvoi")
         return Response({"message": "Certificat renvoyé au citoyen."})
 
     @action(detail=True, methods=["get"])

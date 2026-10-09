@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useT, useLangue } from '@/lib/i18n'
+import CertificatsNonConformes from '@/components/dashboard/CertificatsNonConformes'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const RED = '#0a0b0d'
@@ -168,6 +169,9 @@ export default function SuperviseurDashboard() {
           </div>
         </div>
       )}
+
+      {/* Certificats non conformes — les clients à relancer */}
+      <CertificatsNonConformes />
 
       {/* Rapports récents */}
       <div className="bg-white rounded-md border border-gray-100 overflow-hidden">

@@ -25,6 +25,7 @@ from .excel_utils import (
     excel_workbook,
 )
 from .pagination import PaginationSiDemandee, RapportPagination
+from .dossier import lire_pieces_jointes
 from .photos import PhotosRapportMixin, html_annexe_photos
 from .models import (
     AppelService,
@@ -744,6 +745,9 @@ class ClientViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = Client.objects.filter(organisation=self.request.user.organisation)
+        type_client = self.request.query_params.get("type")
+        if type_client in ("entreprise", "particulier"):
+            qs = qs.filter(type_client=type_client)
         q = self.request.query_params.get("q")
         if q:
             qs = qs.filter(
@@ -818,6 +822,18 @@ class BatimentViewSet(viewsets.ModelViewSet):
             return [permissions.IsAuthenticated(), EstSuperviseur()]
         return super().get_permissions()
 
+    def perform_destroy(self, instance):
+        # Le dossier du bâtiment (documents figés, preuves d'envoi) est conservé
+        # en cas de litige : un bâtiment qui en a un ne se supprime pas.
+        if instance.archives.exists() or instance.envois.exists():
+            from rest_framework.exceptions import ValidationError
+
+            raise ValidationError({
+                "error": "Ce bâtiment a un dossier d'inspection (documents archivés ou envois au client) : "
+                         "il ne peut pas être supprimé, pour conserver les preuves en cas de litige."
+            })
+        instance.delete()
+
     @action(detail=True, methods=["get"], url_path="documents-a-envoyer")
     def documents_a_envoyer(self, request, pk=None):
         from .emailing import _documents_prets_directs
@@ -841,7 +857,9 @@ class BatimentViewSet(viewsets.ModelViewSet):
         from .emailing import envoyer_certificats_directs_batiment
 
         batiment = self.get_object()
-        ok, message = envoyer_certificats_directs_batiment(batiment, request.user)
+
+        pieces_jointes = lire_pieces_jointes(request)
+        ok, message = envoyer_certificats_directs_batiment(batiment, request.user, pieces_jointes=pieces_jointes)
         if not ok:
             return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"message": message})
@@ -1371,6 +1389,7 @@ class RapportViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="envoyer-certificat")
     def envoyer_certificat(self, request, pk=None):
         rapport = self.get_object()
+        pieces_jointes = lire_pieces_jointes(request)
         if not request.user.est_superviseur():
             return Response(
                 {"error": "Seul le superviseur peut envoyer le certificat."},
@@ -1388,10 +1407,16 @@ class RapportViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         if client.mode_livraison == Client.ModeLivraison.DIRECT:
             from .emailing import envoyer_certificats_directs_batiment
 
-            ok, message = envoyer_certificats_directs_batiment(rapport.batiment, request.user)
+            ok, message = envoyer_certificats_directs_batiment(rapport.batiment, request.user, pieces_jointes=pieces_jointes)
             if not ok:
                 return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
             return Response({"message": message})
+
+        if pieces_jointes and not (rapport.citoyen and rapport.citoyen.email):
+            return Response(
+                {"error": "Impossible de joindre des fichiers : aucun citoyen avec courriel n'est assigné à ce rapport."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         from django.utils import timezone
 
@@ -1405,7 +1430,7 @@ class RapportViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         if rapport.citoyen and rapport.citoyen.email:
             from .emailing import envoyer_email_certificat_disponible
 
-            envoyer_email_certificat_disponible(rapport)
+            envoyer_email_certificat_disponible(rapport, utilisateur=request.user, pieces_jointes=pieces_jointes)
 
         return Response({"message": "Certificat envoyé au citoyen."})
 
@@ -1418,6 +1443,7 @@ class RapportViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         `certificat_envoye` à False automatiquement) plutôt que d'utiliser
         cette action."""
         rapport = self.get_object()
+        pieces_jointes = lire_pieces_jointes(request)
         if not request.user.est_superviseur():
             return Response(
                 {"error": "Seul le superviseur peut renvoyer le certificat."},
@@ -1430,7 +1456,7 @@ class RapportViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         if client.mode_livraison == Client.ModeLivraison.DIRECT:
             from .emailing import renvoyer_document_direct
 
-            ok, message = renvoyer_document_direct(rapport, "incendie", request.user)
+            ok, message = renvoyer_document_direct(rapport, "incendie", request.user, pieces_jointes=pieces_jointes)
             if not ok:
                 return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
             return Response({"message": message})
@@ -1448,7 +1474,7 @@ class RapportViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
 
         from .emailing import envoyer_email_certificat_disponible
 
-        envoyer_email_certificat_disponible(rapport)
+        envoyer_email_certificat_disponible(rapport, utilisateur=request.user, pieces_jointes=pieces_jointes, type_envoi="renvoi")
 
         return Response({"message": "Certificat renvoyé au citoyen."})
 
@@ -2062,6 +2088,7 @@ class RapportExtincteurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="envoyer-certificat")
     def envoyer_certificat(self, request, pk=None):
         rapport = self.get_object()
+        pieces_jointes = lire_pieces_jointes(request)
         if not request.user.est_superviseur():
             return Response(
                 {"error": "Seul le superviseur peut envoyer le certificat."},
@@ -2081,10 +2108,16 @@ class RapportExtincteurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         if client.mode_livraison == Client.ModeLivraison.DIRECT:
             from .emailing import envoyer_certificats_directs_batiment
 
-            ok, message = envoyer_certificats_directs_batiment(rapport.batiment, request.user)
+            ok, message = envoyer_certificats_directs_batiment(rapport.batiment, request.user, pieces_jointes=pieces_jointes)
             if not ok:
                 return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
             return Response({"message": message})
+
+        if pieces_jointes and not (rapport.citoyen and rapport.citoyen.email):
+            return Response(
+                {"error": "Impossible de joindre des fichiers : aucun citoyen avec courriel n'est assigné à ce rapport."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         from django.utils import timezone
 
@@ -2098,7 +2131,7 @@ class RapportExtincteurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         if rapport.citoyen and rapport.citoyen.email:
             from .emailing import envoyer_email_certificat_extincteur_disponible
 
-            envoyer_email_certificat_extincteur_disponible(rapport)
+            envoyer_email_certificat_extincteur_disponible(rapport, utilisateur=request.user, pieces_jointes=pieces_jointes)
 
         return Response({"message": "Certificat envoyé au citoyen."})
 
@@ -2107,6 +2140,7 @@ class RapportExtincteurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         """Renvoie un certificat déjà envoyé — voir la note équivalente sur
         `RapportViewSet.renvoyer_certificat`."""
         rapport = self.get_object()
+        pieces_jointes = lire_pieces_jointes(request)
         if not request.user.est_superviseur():
             return Response(
                 {"error": "Seul le superviseur peut renvoyer le certificat."},
@@ -2119,7 +2153,7 @@ class RapportExtincteurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         if client.mode_livraison == Client.ModeLivraison.DIRECT:
             from .emailing import renvoyer_document_direct
 
-            ok, message = renvoyer_document_direct(rapport, "extincteur", request.user)
+            ok, message = renvoyer_document_direct(rapport, "extincteur", request.user, pieces_jointes=pieces_jointes)
             if not ok:
                 return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
             return Response({"message": message})
@@ -2137,7 +2171,7 @@ class RapportExtincteurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
 
         from .emailing import envoyer_email_certificat_extincteur_disponible
 
-        envoyer_email_certificat_extincteur_disponible(rapport)
+        envoyer_email_certificat_extincteur_disponible(rapport, utilisateur=request.user, pieces_jointes=pieces_jointes, type_envoi="renvoi")
 
         return Response({"message": "Certificat renvoyé au citoyen."})
 
@@ -3250,6 +3284,7 @@ def _certificats_incendie(organisation):
             "adresse": bat.adresse_complete,
             "client_nom": bat.client.nom,
             "client_id": bat.client_id,
+            "batiment_id": bat.id,
             "rapport_id": r.id,
             "statut_rapport": r.statut,
             "url_rapport": f"/superviseur/rapports/{r.id}",
@@ -3296,6 +3331,7 @@ def _certificats_extincteur(organisation):
             "adresse": bat.adresse_complete,
             "client_nom": bat.client.nom,
             "client_id": bat.client_id,
+            "batiment_id": bat.id,
             "rapport_id": ancre.id,
             "statut_rapport": ancre.statut,
             "url_rapport": f"{urls[c.systeme_ancre]}{ancre.id}",
@@ -3326,6 +3362,7 @@ def _certificats_gicleur(organisation):
             "adresse": bat.adresse_complete,
             "client_nom": bat.client.nom,
             "client_id": bat.client_id,
+            "batiment_id": bat.id,
             "rapport_id": r.id,
             "statut_rapport": r.statut,
             "url_rapport": f"/superviseur/rapports-gicleurs/{r.id}",

@@ -415,6 +415,11 @@ def emettre(cert, utilisateur, historiser=True):
     if historiser:
         nature = "Avis de non-conformité" if cert.type_document == CertificatExtincteur.TypeDocument.AVIS else "Certificat"
         _historiser(cert, utilisateur, f"{nature} {cert.numero_affiche} émis")
+
+    # Dossier du bâtiment : copie figée de chaque document émis.
+    from .dossier import apres_emission_certificat
+
+    apres_emission_certificat(cert, utilisateur)
     return revision, True
 
 

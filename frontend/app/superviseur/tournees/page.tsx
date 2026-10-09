@@ -175,7 +175,7 @@ function ModaleRenommerSecteur({ ancienNom, onClose, onRenomme, t }: { ancienNom
           <div>
             <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('champ_secteur')}</label>
             <input value={nouveauNom} onChange={e => setNouveauNom(e.target.value)} autoFocus
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
+              className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
           </div>
 
           <p className="text-xs text-gray-400">
@@ -269,7 +269,7 @@ function ModaleCreerSecteur({ onClose, onCree, t }: { onClose: () => void; onCre
             <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('champ_secteur')}</label>
             <input value={nom} onChange={e => setNom(e.target.value)} autoFocus
               placeholder={t('nom_nouveau_secteur_placeholder')}
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
+              className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
           </div>
 
           <div>
@@ -280,7 +280,7 @@ function ModaleCreerSecteur({ onClose, onCree, t }: { onClose: () => void; onCre
               <i className="ti ti-search text-[13px] text-gray-300 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input value={recherche} onChange={e => setRecherche(e.target.value)}
                 placeholder={t('rechercher_placeholder')}
-                className="w-full border border-gray-200 rounded-md pl-8 pr-2.5 py-2 text-xs focus:outline-none focus:border-[#e11324]" />
+                className="w-full border-2 border-[#0a0b0d] rounded-md pl-8 pr-2.5 py-2 text-xs focus:outline-none focus:border-[#e11324]" />
             </div>
             {chargement ? (
               <p className="text-xs text-gray-300 italic">{t('chargement')}</p>
@@ -373,7 +373,7 @@ function ModaleAssigner({
           <div>
             <label className="text-xs font-bold uppercase tracking-widest mb-1.5 block" style={{ color: NAVY }}>{t('champ_date_tournee')}</label>
             <input type="date" value={dateInspection} onChange={e => setDateInspection(e.target.value)} required
-              className="w-full border border-gray-200 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
+              className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]" />
           </div>
 
           <div>
@@ -571,7 +571,7 @@ export default function TourneesPage() {
           <i className="ti ti-search text-[13px] text-gray-300 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input value={recherche} onChange={e => setRecherche(e.target.value)}
             placeholder={t('rechercher_placeholder')}
-            className="w-full border border-gray-200 rounded-md pl-8 pr-2.5 py-2 text-xs focus:outline-none focus:border-[#e11324]" />
+            className="w-full border-2 border-[#0a0b0d] rounded-md pl-8 pr-2.5 py-2 text-xs focus:outline-none focus:border-[#e11324]" />
         </div>
         <div className="flex gap-1 p-1 rounded-lg border border-gray-300 bg-gray-100">
           {(['', 'petit', 'moyen', 'gros'] as const).map(taille => (

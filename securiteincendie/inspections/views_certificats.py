@@ -13,6 +13,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
+from .dossier import lire_pieces_jointes
 from . import certificats as C
 from .models import (
     CertificatExtincteur,
@@ -239,11 +240,12 @@ class CertificatVisiteViewSet(viewsets.GenericViewSet):
         if refus:
             return refus
         cert = self.get_object()
+        pieces_jointes = lire_pieces_jointes(request)
         if cert.statut != "emis":
             return Response({"error": "Le certificat doit d'abord être émis."}, status=status.HTTP_400_BAD_REQUEST)
         from .emailing import renvoyer_document_direct
 
-        ok, message = renvoyer_document_direct(cert, "visite", request.user)
+        ok, message = renvoyer_document_direct(cert, "visite", request.user, pieces_jointes=pieces_jointes)
         if not ok:
             return Response({"error": message}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"message": message})

@@ -22,6 +22,39 @@ def _bandeau_organisation(organisation, langue: str = "fr") -> str:
     )
 
 
+def _envoyer_et_conserver(
+    batiment, destinataire, sujet, html_body, *, type_envoi, mode="plateforme",
+    rapports=(), utilisateur=None, documents=None, pieces_jointes=None, destinataire_nom="",
+    langue="fr", cycle=None, message="",
+):
+    """Envoie le courriel puis en garde la preuve dans le dossier du bâtiment
+    (texte exact, fichiers joints exacts, résultat de l'envoi). `documents` :
+    rapports/certificats générés ; `pieces_jointes` : fichiers ajoutés par
+    l'expéditeur (facture…). Chaque fichier : (nom, octets, type MIME)."""
+    from .dossier import enregistrer_envoi
+
+    documents = list(documents or [])
+    pieces_jointes = list(pieces_jointes or [])
+    if pieces_jointes:
+        titre = "Fichiers joints par l'expéditeur" if langue != "en" else "Files attached by the sender"
+        noms = "".join(f"<li>{nom}</li>" for nom, _c, _m in pieces_jointes)
+        html_body += (
+            f'<div style="margin-top:18px;padding:12px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">'
+            f'<p style="margin:0 0 4px;color:#102a43;font-size:12px;font-weight:700;">📎 {titre}</p>'
+            f'<ul style="margin:0;padding-left:18px;color:#475569;font-size:12px;">{noms}</ul></div>'
+        )
+    corps = html_template(html_body)
+    resultat = envoyer_email(destinataire, sujet, corps, attachments=documents + pieces_jointes)
+    if not isinstance(destinataire, str):
+        destinataire = ", ".join(destinataire)
+    envoi = enregistrer_envoi(
+        batiment, type_envoi, destinataire, sujet, corps, mode=mode, utilisateur=utilisateur,
+        rapports=rapports, documents=documents, ajouts=pieces_jointes, resultat=resultat,
+        destinataire_nom=destinataire_nom, cycle=cycle, message=message,
+    )
+    return {**resultat, "envoi": envoi}
+
+
 def envoyer_email_reparations_requises(rapport) -> None:
     """Avertit le citoyen que des réparations sont requises avant que son
     certificat ne soit conforme — envoyé à la fermeture du rapport."""
@@ -63,14 +96,14 @@ def envoyer_email_reparations_requises(rapport) -> None:
 </div>
 {f'<p style="margin:24px 0 0;text-align:center;"><a href="{lien}" style="display:inline-block;background:#e11324;color:#fff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">{et("voir_rapport_btn", langue)}</a></p>' if lien else ''}"""
 
-    envoyer_email(
-        citoyen.email,
-        f"{organisation.nom} — {et('reparations_sujet_court', langue)}",
-        html_template(html_body),
+    _envoyer_et_conserver(
+        bat, citoyen.email, f"{organisation.nom} — {et('reparations_sujet_court', langue)}", html_body,
+        type_envoi="reparations", rapports=[rapport], utilisateur=None,
+        destinataire_nom=citoyen.get_full_name() or citoyen.username, langue=langue,
     )
 
 
-def envoyer_email_certificat_disponible(rapport) -> None:
+def envoyer_email_certificat_disponible(rapport, utilisateur=None, pieces_jointes=None, type_envoi="notification") -> None:
     """Avertit le citoyen que son rapport/certificat est disponible sur la
     plateforme — envoyé automatiquement quand le superviseur l'envoie."""
     citoyen = rapport.citoyen
@@ -111,14 +144,14 @@ def envoyer_email_certificat_disponible(rapport) -> None:
 </table>
 {f'<p style="margin:0;text-align:center;"><a href="{lien}" style="display:inline-block;background:#e11324;color:#fff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">{et("voir_mon_rapport_btn", langue)}</a></p>' if lien else ''}"""
 
-    envoyer_email(
-        citoyen.email,
-        f"{organisation.nom} — {et('certificat_dispo_sujet_court', langue)}",
-        html_template(html_body),
+    _envoyer_et_conserver(
+        bat, citoyen.email, f"{organisation.nom} — {et('certificat_dispo_sujet_court', langue)}", html_body,
+        type_envoi=type_envoi, rapports=[rapport], utilisateur=utilisateur, pieces_jointes=pieces_jointes,
+        destinataire_nom=citoyen.get_full_name() or citoyen.username, langue=langue,
     )
 
 
-def envoyer_email_certificat_extincteur_disponible(rapport) -> None:
+def envoyer_email_certificat_extincteur_disponible(rapport, utilisateur=None, pieces_jointes=None, type_envoi="notification") -> None:
     """Avertit le citoyen que le certificat de vérification des extincteurs
     portatifs est disponible — envoyé quand le superviseur l'envoie."""
     citoyen = rapport.citoyen
@@ -149,14 +182,14 @@ def envoyer_email_certificat_extincteur_disponible(rapport) -> None:
 </table>
 {f'<p style="margin:0;text-align:center;"><a href="{lien}" style="display:inline-block;background:#e11324;color:#fff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">{et("voir_mon_rapport_btn", langue)}</a></p>' if lien else ''}"""
 
-    envoyer_email(
-        citoyen.email,
-        f"{organisation.nom} — {et('certificat_extincteur_sujet_court', langue)}",
-        html_template(html_body),
+    _envoyer_et_conserver(
+        bat, citoyen.email, f"{organisation.nom} — {et('certificat_extincteur_sujet_court', langue)}", html_body,
+        type_envoi=type_envoi, rapports=[rapport], utilisateur=utilisateur, pieces_jointes=pieces_jointes,
+        destinataire_nom=citoyen.get_full_name() or citoyen.username, langue=langue,
     )
 
 
-def envoyer_email_certificat_gicleur_disponible(rapport) -> None:
+def envoyer_email_certificat_gicleur_disponible(rapport, utilisateur=None, pieces_jointes=None, type_envoi="notification") -> None:
     """Avertit le citoyen que le certificat du système de gicleurs est
     disponible — envoyé quand le superviseur l'envoie."""
     citoyen = rapport.citoyen
@@ -187,14 +220,14 @@ def envoyer_email_certificat_gicleur_disponible(rapport) -> None:
 </table>
 {f'<p style="margin:0;text-align:center;"><a href="{lien}" style="display:inline-block;background:#e11324;color:#fff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">{et("voir_mon_rapport_btn", langue)}</a></p>' if lien else ''}"""
 
-    envoyer_email(
-        citoyen.email,
-        f"{organisation.nom} — {et('certificat_gicleur_sujet_court', langue)}",
-        html_template(html_body),
+    _envoyer_et_conserver(
+        bat, citoyen.email, f"{organisation.nom} — {et('certificat_gicleur_sujet_court', langue)}", html_body,
+        type_envoi=type_envoi, rapports=[rapport], utilisateur=utilisateur, pieces_jointes=pieces_jointes,
+        destinataire_nom=citoyen.get_full_name() or citoyen.username, langue=langue,
     )
 
 
-def envoyer_email_documents_directs(batiment, elements: list[dict]) -> None:
+def envoyer_email_documents_directs(batiment, elements: list[dict], utilisateur=None, pieces_jointes=None, type_envoi="documents") -> dict:
     """Mode « direct » (clients sans espace dédié) : UN SEUL courriel regroupant
     tous les documents prêts pour ce bâtiment — chaque élément de `elements`
     apporte son rapport complet + son certificat en pièce jointe, pour que le
@@ -244,7 +277,19 @@ def envoyer_email_documents_directs(batiment, elements: list[dict]) -> None:
 
     sujet = f"{organisation.nom} — {et('direct_sujet_court', langue)} ({adresse})"
 
-    envoyer_email(client.contact_email, sujet, html_template(html_body), attachments=attachments)
+    from .certificats import rapports_couverts
+
+    rapports = []
+    for el in elements:
+        if el.get("_cert") is not None:
+            rapports.extend(rapports_couverts(el["_cert"]).values())
+        else:
+            rapports.append(el["_obj"])
+    return _envoyer_et_conserver(
+        batiment, client.contact_email, sujet, html_body, type_envoi=type_envoi, mode="direct",
+        rapports=rapports, utilisateur=utilisateur, documents=attachments, pieces_jointes=pieces_jointes,
+        destinataire_nom=destinataire_nom, langue=langue,
+    )
 
 
 def _documents_prets_directs(batiment) -> list[dict]:
@@ -367,7 +412,7 @@ def _element_gicleur(rapport) -> dict:
     }
 
 
-def envoyer_certificats_directs_batiment(batiment, utilisateur) -> tuple[bool, str]:
+def envoyer_certificats_directs_batiment(batiment, utilisateur, pieces_jointes=None) -> tuple[bool, str]:
     """Regroupe TOUS les documents prêts de ce bâtiment (voir
     `_documents_prets_directs`) et les envoie en un seul courriel —
     déclenché depuis la fiche du bâtiment, peu importe quel rapport a été
@@ -384,7 +429,7 @@ def envoyer_certificats_directs_batiment(batiment, utilisateur) -> tuple[bool, s
     if not elements:
         return False, "Aucun rapport fermé à envoyer pour ce bâtiment."
 
-    envoyer_email_documents_directs(batiment, elements)
+    envoyer_email_documents_directs(batiment, elements, utilisateur=utilisateur, pieces_jointes=pieces_jointes)
 
     for el in elements:
         _marquer_envoye_direct(el.get("_cert") or el["_obj"].certificat, client.contact_email)
@@ -400,7 +445,7 @@ def envoyer_certificats_directs_batiment(batiment, utilisateur) -> tuple[bool, s
     )
 
 
-def renvoyer_document_direct(rapport, type_rapport: str, utilisateur) -> tuple[bool, str]:
+def renvoyer_document_direct(rapport, type_rapport: str, utilisateur, pieces_jointes=None) -> tuple[bool, str]:
     """Renvoie UN SEUL document déjà envoyé (mode direct), sans toucher aux
     autres documents du bâtiment — contrairement à
     `envoyer_certificats_directs_batiment`, qui n'envoie que ce qui n'a
@@ -424,7 +469,9 @@ def renvoyer_document_direct(rapport, type_rapport: str, utilisateur) -> tuple[b
         "gicleur": _element_gicleur,
     }
     element = constructeurs[type_rapport](rapport)
-    envoyer_email_documents_directs(batiment, [element])
+    envoyer_email_documents_directs(
+        batiment, [element], utilisateur=utilisateur, pieces_jointes=pieces_jointes, type_envoi="renvoi",
+    )
 
     _marquer_envoye_direct(element.get("_cert") or rapport.certificat, client.contact_email)
     rapport = element["_obj"]
@@ -503,7 +550,14 @@ def envoyer_rappel_inspection(destinataire_email: str, destinataire_nom: str, es
 </p>"""
 
     sujet = et('rappel_sujet_gabarit', langue).format(jours=jours_avant)
-    envoyer_email(destinataire_email, sujet, html_template(html_body))
+    if est_superviseur:
+        # Rappel interne à l'équipe : pas une communication au client.
+        envoyer_email(destinataire_email, sujet, html_template(html_body))
+        return
+    _envoyer_et_conserver(
+        batiment, destinataire_email, sujet, html_body, type_envoi="rappel",
+        destinataire_nom=destinataire_nom, langue=langue,
+    )
 
 
 def envoyer_confirmation_planification(citoyen_email: str, citoyen_nom: str, label: str, batiment, date_inspection, langue: str) -> None:
@@ -563,7 +617,10 @@ def envoyer_confirmation_planification(citoyen_email: str, citoyen_nom: str, lab
   {et('confirmation_conseil', langue)}
 </p>"""
 
-    envoyer_email(citoyen_email, et('confirmation_sujet', langue), html_template(html_body))
+    _envoyer_et_conserver(
+        batiment, citoyen_email, et('confirmation_sujet', langue), html_body, type_envoi="planification",
+        destinataire_nom=citoyen_nom, langue=langue,
+    )
 
 
 def envoyer_avis_changement_date(citoyen_email: str, citoyen_nom: str, label: str, batiment, ancienne_date, nouvelle_date, langue: str) -> None:
@@ -624,4 +681,7 @@ def envoyer_avis_changement_date(citoyen_email: str, citoyen_nom: str, label: st
   {et('changement_conseil', langue)}
 </p>"""
 
-    envoyer_email(citoyen_email, et('changement_sujet', langue), html_template(html_body))
+    _envoyer_et_conserver(
+        batiment, citoyen_email, et('changement_sujet', langue), html_body, type_envoi="planification",
+        destinataire_nom=citoyen_nom, langue=langue,
+    )

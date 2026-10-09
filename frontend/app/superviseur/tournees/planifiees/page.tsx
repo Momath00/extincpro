@@ -227,7 +227,7 @@ export default function VisitesPlanifieesPage() {
           <i className="ti ti-search text-[13px] text-gray-300 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input value={recherche} onChange={e => setRecherche(e.target.value)}
             placeholder={t('rechercher_placeholder')}
-            className="w-full border border-gray-200 rounded-md pl-8 pr-2.5 py-2 text-xs focus:outline-none focus:border-[#e11324]" />
+            className="w-full border-2 border-[#0a0b0d] rounded-md pl-8 pr-2.5 py-2 text-xs focus:outline-none focus:border-[#e11324]" />
         </div>
       )}
 

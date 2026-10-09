@@ -7,39 +7,12 @@ import { Suspense } from 'react'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 import Pagination from '@/components/dashboard/Pagination'
 import { useT } from '@/lib/i18n'
-import Legende from '@/components/rapports/Legende'
 
 const PAGE_SIZE = 25
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ORANGE = '#e11324'
-
-function ProgressDots({ r }: { r: any }) {
-  const e1Done = !!(r.fiche_e1 && (r.fiche_e1.fonctionnement_une_etape !== null || r.fiche_e1.reseau_fonctionnel !== null))
-  const e2Done = !!(r.fiche_e2 && Object.keys(r.fiche_e2.details || {}).length > 0)
-  const e3Done = (r.sections || []).reduce((s: number, sec: any) => s + (sec.dispositifs?.length || 0), 0) > 0
-  const ferme = r.statut === 'ferme'
-  const certDone = !!r.certificat
-
-  return (
-    <div className="flex items-center gap-1">
-      {[
-        { label: 'E1', done: e1Done, color: '#9a4a13' },
-        { label: 'E2', done: e2Done, color: '#0d6b4f' },
-        { label: 'E3', done: e3Done, color: '#4b2f8c' },
-        { label: 'Fermé', done: ferme, color: NAVY },
-        { label: 'Certificat', done: certDone, color: ORANGE },
-      ].map((d, i, arr) => (
-        <div key={d.label} className="flex items-center gap-1">
-          <div title={d.label} className="w-2.5 h-2.5 rounded-full flex-shrink-0 transition-colors duration-300"
-            style={{ background: d.done ? d.color : '#e2e8f0' }} />
-          {i < arr.length - 1 && <div className="w-2 h-px flex-shrink-0" style={{ background: '#e2e8f0' }} />}
-        </div>
-      ))}
-    </div>
-  )
-}
 
 function RapportsListContent() {
   const router = useRouter()
@@ -257,11 +230,10 @@ function RapportsListContent() {
       ) : (
         <div className="bg-white rounded-md border border-gray-100 overflow-hidden shadow-sm">
           {/* En-tête tableau — desktop */}
-          <div className="hidden md:grid grid-cols-[2fr_1.5fr_1.5fr_auto_auto] gap-4 px-5 py-3 border-b border-gray-100 bg-slate-50 text-xs font-black uppercase tracking-widest text-gray-500">
+          <div className="hidden md:grid grid-cols-[2fr_1.5fr_1.5fr_auto] gap-4 px-5 py-3 border-b border-gray-100 bg-slate-50 text-xs font-black uppercase tracking-widest text-gray-500">
             <span>{t('adresse')}</span>
             <span>{t('client')}</span>
             <span>{t('techniciens_col')}</span>
-            <span>{t('progression')}</span>
             <span>{t('statut')}</span>
           </div>
 
@@ -272,7 +244,7 @@ function RapportsListContent() {
                 <Link
                   key={r.id}
                   href={`/superviseur/rapports/${r.id}${ferme ? '#certificat' : ''}`}
-                  className="flex flex-col md:grid md:grid-cols-[2fr_1.5fr_1.5fr_auto_auto] gap-2 md:gap-4 px-5 py-4 hover:bg-gray-50 transition-colors items-start md:items-center group"
+                  className="flex flex-col md:grid md:grid-cols-[2fr_1.5fr_1.5fr_auto] gap-2 md:gap-4 px-5 py-4 hover:bg-gray-50 transition-colors items-start md:items-center group"
                 >
                   {/* Adresse */}
                   <div className="flex items-center gap-3 min-w-0 w-full md:w-auto">
@@ -352,11 +324,6 @@ function RapportsListContent() {
                     )}
                   </div>
 
-                  {/* Progression */}
-                  <div className="flex-shrink-0">
-                    <ProgressDots r={r} />
-                  </div>
-
                   {/* Statut */}
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-xs px-2.5 py-1 rounded-full font-semibold whitespace-nowrap"
@@ -407,25 +374,6 @@ function RapportsListContent() {
           </div>
         </div>
       )}
-
-      {/* Légende progression */}
-      <div className="mt-4">
-        <Legende
-          titre={t('legende_progression')}
-          icone="ti-progress"
-          compacte
-          elements={[
-            { label: 'E1', color: '#9a4a13' },
-            { label: 'E2', color: '#0d6b4f' },
-            { label: 'E3', color: '#4b2f8c' },
-            { label: t('ferme'), color: NAVY },
-            { label: t('certificat'), color: ORANGE },
-          ].map(d => ({
-            libelle: d.label,
-            pastille: <span className="w-3.5 h-3.5 rounded-full flex-shrink-0" style={{ background: d.color }} />,
-          }))}
-        />
-      </div>
     </div>
   )
 }
