@@ -18,7 +18,7 @@ export const DICT: Dict = {
   nav_contact: { fr: "Contact", en: "Contact" },
   nav_mentions_legales: { fr: "Mentions légales", en: "Legal notice" },
   nav_confidentialite: { fr: "Politique de confidentialité", en: "Privacy policy" },
-  essai_gratuit_1_mois: { fr: "Essai gratuit 1 mois", en: "Free 1-month trial" },
+  essai_gratuit_1_mois: { fr: "Réserver une démo", en: "Book a demo" },
   ouvrir_menu: { fr: "Ouvrir le menu", en: "Open menu" },
 
   // ── Footer ───────────────────────────────────────────────────────────
@@ -43,12 +43,12 @@ export const DICT: Dict = {
     fr: "centralise l'inspection incendie, les rapports et la conformité de vos systèmes de sécurité incendie — extincteurs, éclairage d'urgence, système de cuisine et gicleurs — du technicien sur le terrain jusqu'à la direction.",
     en: "centralizes fire inspections, reports, and compliance for your fire safety systems — extinguishers, emergency lighting, and kitchen suppression — from the field technician to management.",
   },
-  hero_essai_btn: { fr: "Essai gratuit — 1 mois", en: "Free trial — 1 month" },
+  hero_essai_btn: { fr: "Réserver une démo", en: "Book a demo" },
   decouvrir_plateforme: { fr: "Découvrir la plateforme", en: "Discover the platform" },
   hero_bilingue: { fr: "Disponible en français et en anglais", en: "Available in French and English" },
   abonnement_annuel_note: {
-    fr: "Abonnement annuel · Aucune carte de crédit requise pour l'essai",
-    en: "Annual subscription · No credit card required for the trial",
+    fr: "Abonnement annuel, payable en une fois ou par mois · Démo personnalisée sur rendez-vous",
+    en: "Annual subscription, payable at once or monthly · Personalized demo by appointment",
   },
   systemes_couverts_kicker: { fr: "Systèmes couverts", en: "Systems covered" },
   systemes_titre: {
@@ -144,10 +144,10 @@ export const DICT: Dict = {
     en: "Ready to modernize your fire extinguisher inspections?",
   },
   cta_texte: {
-    fr: "Essayez ExtincPro gratuitement pendant 1 mois. Aucune carte de crédit requise.",
-    en: "Try ExtincPro free for 1 month. No credit card required.",
+    fr: "Réservez une démonstration personnalisée : nous vous présentons la plateforme en direct, sur des cas concrets liés à vos inspections.",
+    en: "Book a personalized demo: we walk you through the platform live, using real cases from your inspections.",
   },
-  demarrer_essai_gratuit: { fr: "Démarrer l'essai gratuit", en: "Start the free trial" },
+  demarrer_essai_gratuit: { fr: "Réserver une démo", en: "Book a demo" },
   product_preview_alt: {
     fr: "Rapport d'inspection d'extincteurs ExtincPro, avec détection automatique des anomalies",
     en: "ExtincPro fire extinguisher inspection report, with automatic anomaly detection",
@@ -181,12 +181,15 @@ export const DICT: Dict = {
     en: "One module per system, one annual subscription",
   },
   tarifs_hero_texte: {
-    fr: "se souscrit module par module — système d'alarme, extincteurs, éclairage d'urgence, gicleurs — selon ce que votre entreprise inspecte réellement. Chaque module est facturé annuellement, avec 1 mois d'essai gratuit, sans carte de crédit.",
-    en: "is subscribed to module by module — fire alarm system, extinguishers, emergency lighting, sprinklers — based on what your company actually inspects. Each module is billed annually, with a 1-month free trial, no credit card required.",
+    fr: "se souscrit module par module — système d'alarme, extincteurs, éclairage d'urgence, gicleurs — selon ce que votre entreprise inspecte réellement. Chaque module est facturé annuellement — en un seul paiement ou en mensualités. Une démonstration personnalisée vous présente la plateforme avant de vous abonner.",
+    en: "is subscribed to module by module — fire alarm system, extinguishers, emergency lighting, sprinklers — based on what your company actually inspects. Each module is billed annually — in a single payment or in monthly instalments. A personalized demo walks you through the platform before you subscribe.",
   },
-  un_mois_essai_gratuit: { fr: "1 mois d'essai gratuit", en: "1-month free trial" },
+  un_mois_essai_gratuit: { fr: "Démo personnalisée sur rendez-vous", en: "Personalized demo by appointment" },
   par_mois: { fr: "/ mois", en: "/ month" },
-  facture_annuellement: { fr: "Facturé annuellement", en: "Billed annually" },
+  facture_annuellement: {
+    fr: "Abonnement annuel — payable en une fois ou par mois",
+    en: "Annual subscription — pay at once or monthly",
+  },
   soit_par_jour_prefix: { fr: "Soit", en: "That's" },
   soit_par_jour_suffix: { fr: "$ par jour", en: "$ per day" },
   tarifs_note_combinaison: {
@@ -219,11 +222,14 @@ export const DICT: Dict = {
   nous_contacter: { fr: "Nous contacter", en: "Contact us" },
 
   // ── Contact ──────────────────────────────────────────────────────────
-  contact_hero_titre: { fr: "Démarrez votre essai gratuit d'un mois", en: "Start your 1-month free trial" },
+  contact_hero_titre: { fr: "Réservez votre démonstration", en: "Book your demo" },
   contact_hero_texte: {
-    fr: "Écrivez-nous ou appelez-nous pour discuter de vos besoins. Notre équipe vous présente la plateforme et configure votre essai gratuit, sans engagement et sans carte de crédit.",
-    en: "Write or call us to discuss your needs. Our team will walk you through the platform and set up your free trial, no commitment and no credit card required.",
+    fr: "Parlez-nous de votre entreprise et de vos besoins. Notre équipe vous présente la plateforme en direct, sur des cas concrets, sans engagement.",
+    en: "Tell us about your company and your needs. Our team will walk you through the platform live, using real cases, no commitment required.",
   },
+  neq_label: { fr: "NEQ (numéro d'entreprise du Québec)", en: "NEQ (Québec enterprise number)" },
+  site_web_label: { fr: "Site web de l'entreprise", en: "Company website" },
+  nb_techniciens_label: { fr: "Nombre de techniciens", en: "Number of technicians" },
   telephone_label_vitrine: { fr: "Téléphone", en: "Phone" },
   courriel_label: { fr: "Courriel", en: "Email" },
   region_desservie_label: { fr: "Région desservie", en: "Service area" },
@@ -281,8 +287,8 @@ export const DICT: Dict = {
     en: "This information is used only by the",
   },
   utilisation_donnees_texte_b: {
-    fr: "pour vous contacter au sujet de votre demande d'essai gratuit ou de démonstration. Elles ne sont ni vendues ni partagées avec des tiers à des fins commerciales.",
-    en: "team to contact you regarding your free trial or demo request. It is never sold or shared with third parties for commercial purposes.",
+    fr: "pour vous contacter au sujet de votre demande de démonstration. Elles ne sont ni vendues ni partagées avec des tiers à des fins commerciales.",
+    en: "team to contact you regarding your demo request. It is never sold or shared with third parties for commercial purposes.",
   },
   vos_droits_titre: { fr: "Vos droits", en: "Your rights" },
   vos_droits_texte: {

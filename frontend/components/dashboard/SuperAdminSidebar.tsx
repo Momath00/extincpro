@@ -18,7 +18,7 @@ const NAV_GROUPS = [
     label: 'Plateforme',
     items: [
       { href: '/super-admin/organisations', label: 'Organisations', icon: 'ti-building-skyscraper' },
-      { href: '/super-admin/demandes', label: "Demandes d'essai", icon: 'ti-inbox', badgeKey: 'demandes' },
+      { href: '/super-admin/demandes', label: 'Demandes de démo', icon: 'ti-inbox', badgeKey: 'demandes' },
     ],
   },
 ]

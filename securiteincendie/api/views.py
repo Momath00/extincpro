@@ -16,6 +16,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from django.conf import settings
 
+from accounts.authentication import motif_blocage
 from accounts.models import CodeVerification
 from organisations.models import DemandeEssai
 from .serializers import (
@@ -32,17 +33,16 @@ Utilisateur = get_user_model()
 
 # ── Connexion ────────────────────────────────────────────────────────────
 class CustomTokenObtainPairView(TokenObtainPairView):
-    """Bloque la connexion si le compte a été désactivé par le superviseur."""
+    """Bloque la connexion si le compte a été désactivé par le superviseur ou
+    si l'organisation est suspendue."""
 
     def post(self, request, *args, **kwargs):
         username = request.data.get("username")
         try:
-            user = Utilisateur.objects.get(username=username)
-            if not user.est_actif:
-                return Response(
-                    {"error": "Votre compte est désactivé. Contactez votre superviseur."},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
+            user = Utilisateur.objects.select_related("organisation").get(username=username)
+            motif = motif_blocage(user)
+            if motif:
+                return Response({"error": motif}, status=status.HTTP_403_FORBIDDEN)
         except Utilisateur.DoesNotExist:
             pass
         from rest_framework.exceptions import AuthenticationFailed
@@ -320,6 +320,9 @@ class ContactView(APIView):
             entreprise=entreprise,
             email=data["email"],
             telephone=telephone,
+            neq=data.get("neq", ""),
+            site_web=data.get("site_web", ""),
+            nb_techniciens=data.get("nb_techniciens"),
             message=data["message"],
         )
 
@@ -339,6 +342,12 @@ class ContactView(APIView):
         lignes.append(("Email", data["email"]))
         if telephone:
             lignes.append(("Téléphone", telephone))
+        if data.get("neq"):
+            lignes.append(("NEQ", data["neq"]))
+        if data.get("site_web"):
+            lignes.append(("Site web", data["site_web"]))
+        if data.get("nb_techniciens") is not None:
+            lignes.append(("Techniciens", str(data["nb_techniciens"])))
 
         # 1. Notifie l'équipe — répondre à ce courriel répond directement au visiteur
         message_html = data["message"].replace("\n", "<br>")
@@ -347,7 +356,7 @@ class ContactView(APIView):
             for i, (label, valeur) in enumerate(lignes)
         )
         html_equipe = f"""
-<h2 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#0a0b0d;">Nouveau message de contact</h2>
+<h2 style="margin:0 0 6px;font-size:20px;font-weight:700;color:#0a0b0d;">Nouvelle demande de démo</h2>
 <p style="margin:0 0 20px;color:#64748b;font-size:14px;line-height:1.6;">
   Reçu via le formulaire de contact du site public.
 </p>
@@ -359,7 +368,7 @@ class ContactView(APIView):
 
         _envoyer_email(
             getattr(settings, "CONTACT_EMAIL", "info@extincpro.com"),
-            f"Nouveau message de contact — {nom_complet}",
+            f"Nouvelle demande de démo — {nom_complet}",
             _html_template(html_equipe),
             reply_to=data["email"],
         )

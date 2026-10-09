@@ -173,7 +173,7 @@ export default function DemandesEssaiPage() {
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: NAVY }}>Demandes d&apos;essai</h1>
+          <h1 className="text-2xl font-bold" style={{ color: NAVY }}>Demandes de démo</h1>
           <p className="text-gray-400 text-sm mt-1">
             {demandes.length} demande{demandes.length !== 1 ? 's' : ''} reçue{demandes.length !== 1 ? 's' : ''} via le site vitrine
             {nbNouvelles > 0 && (
@@ -231,6 +231,14 @@ export default function DemandesEssaiPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold" style={{ color: NAVY }}>{d.nom_complet}</p>
                       {d.entreprise && <span className="text-sm text-gray-400">· {d.entreprise}</span>}
+                      {d.courriel_gratuit && (
+                        <span
+                          className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-amber-50 text-amber-700"
+                          title="Adresse Gmail, Hotmail, etc. : vérifiez qu'il s'agit bien d'une entreprise d'inspection avant la démo."
+                        >
+                          <i className="ti ti-alert-triangle mr-1" />Courriel personnel
+                        </span>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-gray-400">
                       <a href={`mailto:${d.email}`} className="hover:underline" style={{ color: ACCENT }}>
@@ -238,6 +246,20 @@ export default function DemandesEssaiPage() {
                       </a>
                       {d.telephone && (
                         <span><i className="ti ti-phone mr-1" />{d.telephone}</span>
+                      )}
+                      {d.neq && <span><i className="ti ti-id mr-1" />NEQ {d.neq}</span>}
+                      {d.site_web && (
+                        <a
+                          href={/^https?:\/\//.test(d.site_web) ? d.site_web : `https://${d.site_web}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:underline"
+                        >
+                          <i className="ti ti-world mr-1" />{d.site_web}
+                        </a>
+                      )}
+                      {d.nb_techniciens != null && (
+                        <span><i className="ti ti-users mr-1" />{d.nb_techniciens} technicien{d.nb_techniciens !== 1 ? 's' : ''}</span>
                       )}
                       <span>
                         <i className="ti ti-clock mr-1" />

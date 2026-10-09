@@ -29,6 +29,13 @@ class EstSuperAdmin(permissions.BasePermission):
         return bool(request.user and request.user.is_authenticated and request.user.est_super_admin())
 
 
+MESSAGE_GEREE_PAR_MS_SOLUTION = (
+    "Cette organisation est liée à MS Solution : l'accès, les modules et la fin d'essai "
+    "se gèrent depuis la fiche du client dans MS Solution."
+)
+CHAMPS_GERES_PAR_MS_SOLUTION = ("est_active", "date_fin_essai")
+
+
 class OrganisationViewSet(viewsets.ModelViewSet):
     """Gestion des organisations clientes de la plateforme — réservée au super admin."""
 
@@ -49,6 +56,8 @@ class OrganisationViewSet(viewsets.ModelViewSet):
 
     def partial_update(self, request, *args, **kwargs):
         organisation = self.get_object()
+        if organisation.geree_par_ms_solution and any(c in request.data for c in CHAMPS_GERES_PAR_MS_SOLUTION):
+            return Response({"error": MESSAGE_GEREE_PAR_MS_SOLUTION}, status=status.HTTP_409_CONFLICT)
         champs = []
         if "est_active" in request.data:
             organisation.est_active = bool(request.data["est_active"])
@@ -224,6 +233,8 @@ class OrganisationViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="modules/(?P<code>[^/.]+)/toggle")
     def toggle_module(self, request, pk=None, code=None):
         organisation = self.get_object()
+        if organisation.geree_par_ms_solution:
+            return Response({"error": MESSAGE_GEREE_PAR_MS_SOLUTION}, status=status.HTTP_409_CONFLICT)
         module = Module.objects.filter(code=code).first()
         if module is None:
             return Response({"error": "Module inconnu."}, status=status.HTTP_404_NOT_FOUND)

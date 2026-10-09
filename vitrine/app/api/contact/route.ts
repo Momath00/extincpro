@@ -39,6 +39,9 @@ export async function POST(request: Request) {
       message: body.message,
       entreprise: body.company || "",
       telephone: body.phone || "",
+      neq: typeof body.neq === "string" ? body.neq.trim() : "",
+      site_web: typeof body.site_web === "string" ? body.site_web.trim() : "",
+      nb_techniciens: body.nb_techniciens ? Number(body.nb_techniciens) : null,
     }),
   }).catch(() => null);
 

@@ -66,8 +66,10 @@ class OrganisationSerializer(serializers.ModelSerializer):
             "date_creation",
             "modules",
             "nb_utilisateurs",
+            "ms_client_id",
+            "geree_par_ms_solution",
         ]
-        read_only_fields = ["slug", "date_creation"]
+        read_only_fields = ["slug", "date_creation", "ms_client_id", "geree_par_ms_solution"]
 
     def get_modules(self, obj):
         liens = obj.organisationmodule_set.select_related("module").order_by("module__nom")
@@ -145,6 +147,10 @@ class DemandeEssaiSerializer(serializers.ModelSerializer):
             "entreprise",
             "email",
             "telephone",
+            "neq",
+            "site_web",
+            "nb_techniciens",
+            "courriel_gratuit",
             "message",
             "statut",
             "organisation_creee",
@@ -153,7 +159,7 @@ class DemandeEssaiSerializer(serializers.ModelSerializer):
             "date_creation",
             "date_maj",
         ]
-        read_only_fields = ["date_creation", "date_maj", "organisation_creee_nom"]
+        read_only_fields = ["date_creation", "date_maj", "organisation_creee_nom", "courriel_gratuit"]
 
 
 class DemandeEssaiCreateSerializer(serializers.ModelSerializer):

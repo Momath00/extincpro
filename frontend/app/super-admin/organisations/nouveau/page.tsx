@@ -8,12 +8,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
 const ACCENT = '#e11324'
 
-function dateDansNJours(n: number) {
-  const d = new Date()
-  d.setDate(d.getDate() + n)
-  return d.toISOString().slice(0, 10)
-}
-
 export default function NouvelleOrganisationPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -21,7 +15,7 @@ export default function NouvelleOrganisationPage() {
 
   const [nom, setNom] = useState('')
   const [adresse, setAdresse] = useState('')
-  const [dateFinEssai, setDateFinEssai] = useState(dateDansNJours(30))
+  const [dateFinEssai, setDateFinEssai] = useState('')
   const [demandeNom, setDemandeNom] = useState('')
   const [erreur, setErreur] = useState('')
   const [envoi, setEnvoi] = useState(false)
@@ -83,7 +77,7 @@ export default function NouvelleOrganisationPage() {
         <div className="mb-4 flex items-center gap-2.5 px-4 py-3 rounded-md border text-sm" style={{ background: '#eff6ff', borderColor: '#bfdbfe' }}>
           <i className="ti ti-inbox flex-shrink-0" style={{ color: '#2563eb' }} />
           <span style={{ color: NAVY }}>
-            Pré-rempli à partir de la demande d'essai de <strong>{demandeNom || `#${demandeId}`}</strong>.
+            Pré-rempli à partir de la demande de démo de <strong>{demandeNom || `#${demandeId}`}</strong>.
           </span>
         </div>
       )}

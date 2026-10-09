@@ -101,6 +101,48 @@ export function ContactForm() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <div>
+          <label htmlFor="neq" className="text-sm font-medium text-ink">
+            {t("neq_label")}
+          </label>
+          <input
+            id="neq"
+            name="neq"
+            type="text"
+            inputMode="numeric"
+            maxLength={20}
+            className="mt-1.5 w-full rounded-md border border-line bg-paper px-3.5 py-2.5 text-sm text-ink outline-none focus:border-red"
+          />
+        </div>
+        <div>
+          <label htmlFor="site_web" className="text-sm font-medium text-ink">
+            {t("site_web_label")}
+          </label>
+          <input
+            id="site_web"
+            name="site_web"
+            type="text"
+            maxLength={200}
+            placeholder="www.exemple.com"
+            className="mt-1.5 w-full rounded-md border border-line bg-paper px-3.5 py-2.5 text-sm text-ink outline-none focus:border-red"
+          />
+        </div>
+        <div>
+          <label htmlFor="nb_techniciens" className="text-sm font-medium text-ink">
+            {t("nb_techniciens_label")}
+          </label>
+          <input
+            id="nb_techniciens"
+            name="nb_techniciens"
+            type="number"
+            min={0}
+            max={10000}
+            className="mt-1.5 w-full rounded-md border border-line bg-paper px-3.5 py-2.5 text-sm text-ink outline-none focus:border-red"
+          />
+        </div>
+      </div>
+
       <div>
         <label htmlFor="message" className="text-sm font-medium text-ink">
           {t("message_label")}

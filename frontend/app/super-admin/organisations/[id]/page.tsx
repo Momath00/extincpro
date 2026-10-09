@@ -326,6 +326,8 @@ export default function OrganisationDetailPage() {
   }
 
   const nbModulesActifs = organisation.modules.filter((m: any) => m.actif).length
+  // Liée à un client MS Solution : la facturation pilote l'accès, les modules et l'essai.
+  const gereeParMs = !!organisation.geree_par_ms_solution
 
   return (
     <div className="max-w-3xl">
@@ -403,6 +405,18 @@ export default function OrganisationDetailPage() {
         </div>
       </div>
 
+      {gereeParMs && (
+        <div className="rounded-xl border border-gray-100 bg-gray-50 px-5 py-4 mb-5 flex items-start gap-3">
+          <i className="ti ti-link text-base mt-0.5" style={{ color: ACCENT }} />
+          <div>
+            <p className="text-sm font-semibold" style={{ color: NAVY }}>Géré par MS Solution (client n° {organisation.ms_client_id})</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              L&apos;accès à la plateforme, les modules et la fin d&apos;essai suivent la facturation : ils se modifient depuis la fiche du client dans MS Solution.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Statut global */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 mb-5 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -416,7 +430,7 @@ export default function OrganisationDetailPage() {
             </p>
           </div>
         </div>
-        <Switch actif={organisation.est_active} onClick={toggleStatutOrganisation} busy={busyStatut} />
+        <Switch actif={organisation.est_active} onClick={toggleStatutOrganisation} busy={busyStatut || gereeParMs} />
       </div>
 
       {/* Essai gratuit */}
@@ -447,7 +461,7 @@ export default function OrganisationDetailPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
+              {!gereeParMs && <div className="flex items-center gap-2 flex-shrink-0">
                 <input
                   type="date"
                   value={dateFinEssai}
@@ -472,7 +486,7 @@ export default function OrganisationDetailPage() {
                     Marquer payant
                   </button>
                 )}
-              </div>
+              </div>}
             </div>
           </div>
         )
@@ -535,7 +549,7 @@ export default function OrganisationDetailPage() {
                   <p className="text-xs text-gray-400 mt-0.5">{m.actif ? 'Activé pour cette organisation' : 'Désactivé — inaccessible pour cette organisation'}</p>
                 </div>
               </div>
-              <Switch actif={m.actif} onClick={() => toggleModule(m.code)} busy={busyModule === m.code} />
+              <Switch actif={m.actif} onClick={() => toggleModule(m.code)} busy={busyModule === m.code || gereeParMs} />
             </div>
           ))}
         </div>

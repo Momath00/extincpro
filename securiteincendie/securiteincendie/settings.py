@@ -50,6 +50,11 @@ EMAIL_LOGO_URL = config(
 # Adresse qui reçoit les messages du formulaire de contact public
 CONTACT_EMAIL = config('CONTACT_EMAIL', default='info@extincpro.com')
 
+# Clé partagée avec MS Solution Informatique (société mère), qui pilote la
+# facturation : modules, fin d'essai et blocage des organisations passent par
+# /api/integration/ms-solution/. Vide = API d'intégration désactivée.
+MS_SOLUTION_API_KEY = config('MS_SOLUTION_API_KEY', default='')
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -221,11 +226,12 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'AUTH_HEADER_TYPES': ('Bearer',),
+    'USER_AUTHENTICATION_RULE': 'accounts.authentication.regle_authentification',
 }
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'accounts.authentication.JWTAuthentificationVerifiee',
     ),
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
