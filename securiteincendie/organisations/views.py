@@ -3,6 +3,7 @@ import string
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -33,7 +34,7 @@ class OrganisationViewSet(viewsets.ModelViewSet):
 
     permission_classes = [permissions.IsAuthenticated, EstSuperAdmin]
     queryset = Organisation.objects.all()
-    http_method_names = ["get", "post", "patch", "head", "options"]
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_serializer_class(self):
         if self.action == "create":
@@ -76,6 +77,40 @@ class OrganisationViewSet(viewsets.ModelViewSet):
         if champs:
             organisation.save(update_fields=champs)
         return Response(OrganisationSerializer(organisation).data)
+
+    def destroy(self, request, *args, **kwargs):
+        """Supprime définitivement l'organisation et toutes ses données
+        (utilisateurs, clients, bâtiments, rapports, dossiers archivés).
+        Le nom exact doit être renvoyé dans `confirmation` pour éviter une
+        suppression accidentelle."""
+        organisation = self.get_object()
+        if (request.data.get("confirmation") or "").strip() != organisation.nom:
+            return Response(
+                {"error": "Saisir le nom exact de l'organisation pour confirmer la suppression."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from inspections.models import Batiment, Tournee
+        from inspections.models_dossier import ArchiveDocument, EnvoiPieceJointe, FichierArchive
+
+        with transaction.atomic():
+            batiments = Batiment.objects.filter(client__organisation=organisation)
+            fichier_ids = set(
+                ArchiveDocument.objects.filter(batiment__in=batiments).values_list("fichier_id", flat=True)
+            ) | set(
+                EnvoiPieceJointe.objects.filter(envoi__batiment__in=batiments).values_list("fichier_id", flat=True)
+            )
+            # Les rapports, tournées et appels de service protègent leurs
+            # créateurs (PROTECT) et les bâtiments protègent leur client :
+            # on les retire avant que la cascade n'atteigne les utilisateurs.
+            Tournee.objects.filter(organisation=organisation).delete()
+            batiments.delete()
+            organisation.delete()
+            FichierArchive.objects.filter(
+                pk__in=fichier_ids, archives__isnull=True, pieces_jointes__isnull=True
+            ).delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["get"], url_path="utilisateurs")
     def utilisateurs(self, request, pk=None):
