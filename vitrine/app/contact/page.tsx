@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { ContactContent } from "@/components/ContactContent";
 
 export const metadata: Metadata = {
-  title: "Contact — Démarrez votre essai gratuit",
+  title: "Contact — Réservez votre démonstration",
   description:
-    "Contactez l'équipe ExtincPro pour démarrer votre essai gratuit d'un mois ou obtenir une démo de la plateforme d'inspection d'extincteurs.",
+    "Contactez l'équipe ExtincPro pour réserver une démonstration personnalisée de la plateforme d'inspection d'extincteurs.",
   alternates: { canonical: "/contact" },
 };
 

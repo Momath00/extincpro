@@ -62,17 +62,17 @@ const modules = [
 
 const faq = [
   {
-    q: { fr: "Pourquoi un abonnement annuel plutôt que mensuel ?", en: "Why an annual subscription instead of monthly?" },
+    q: { fr: "L'abonnement est annuel : puis-je payer chaque mois ?", en: "The subscription is annual: can I pay monthly?" },
     a: {
-      fr: "L'abonnement annuel simplifie la gestion budgétaire de nos clients et nous permet d'offrir un tarif plus avantageux, sans surprises en cours d'année.",
-      en: "The annual subscription simplifies budget management for our clients and lets us offer a better rate, with no surprises during the year.",
+      fr: "Oui. L'abonnement est annuel, mais vous choisissez comment le payer : en un seul versement, ou en mensualités grâce à un plan de paiement établi à la signature. Dans les deux cas, aucune surprise en cours d'année.",
+      en: "Yes. The subscription is annual, but you choose how to pay: in a single payment, or in monthly instalments through a payment plan set at signing. Either way, no surprises during the year.",
     },
   },
   {
-    q: { fr: "Comment fonctionne l'essai gratuit d'un mois ?", en: "How does the 1-month free trial work?" },
+    q: { fr: "Puis-je voir la plateforme avant de m'abonner ?", en: "Can I see the platform before subscribing?" },
     a: {
-      fr: "Vous avez accès au module choisi pendant 1 mois, sans carte de crédit. Vous pouvez inviter votre équipe et tester la plateforme sur vos vrais bâtiments avant de vous engager.",
-      en: "You get access to the chosen module for 1 month, no credit card required. You can invite your team and test the platform on your real buildings before committing.",
+      fr: "Oui. Nous vous offrons une démonstration personnalisée en visioconférence : nous vous présentons le module qui vous intéresse sur des cas concrets et répondons à toutes vos questions avant que vous vous engagiez.",
+      en: "Yes. We offer a personalized video demo: we walk you through the module you're interested in, using real cases, and answer all your questions before you commit.",
     },
   },
   {

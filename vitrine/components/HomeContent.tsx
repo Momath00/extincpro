@@ -193,7 +193,7 @@ const features = [
 const stats = [
   { value: { fr: "100 %", en: "100%" }, label: { fr: "Rapports numérisés", en: "Digitized reports" } },
   { value: { fr: "24/7", en: "24/7" }, label: { fr: "Accès à vos données", en: "Access to your data" } },
-  { value: { fr: "1 mois", en: "1 month" }, label: { fr: "D'essai gratuit", en: "Free trial" } },
+  { value: { fr: "Démo", en: "Demo" }, label: { fr: "Personnalisée", en: "Personalized" } },
   { value: { fr: "Annuel", en: "Annual" }, label: { fr: "Abonnement simple", en: "Simple subscription" } },
 ];
 

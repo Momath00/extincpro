@@ -132,3 +132,6 @@ class ContactSerializer(serializers.Serializer):
     )
     entreprise = serializers.CharField(max_length=150, required=False, allow_blank=True)
     telephone = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    neq = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    site_web = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    nb_techniciens = serializers.IntegerField(min_value=0, max_value=10000, required=False, allow_null=True)
