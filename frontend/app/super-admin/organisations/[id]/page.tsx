@@ -61,6 +61,11 @@ export default function OrganisationDetailPage() {
   const [formEnvoi, setFormEnvoi] = useState(false)
   const [resultat, setResultat] = useState<{ username: string; mdp: string } | null>(null)
 
+  const [suppressionOuverte, setSuppressionOuverte] = useState(false)
+  const [confirmationNom, setConfirmationNom] = useState('')
+  const [suppressionErreur, setSuppressionErreur] = useState('')
+  const [suppressionEnCours, setSuppressionEnCours] = useState(false)
+
   function token() {
     return localStorage.getItem('access_token')
   }
@@ -281,6 +286,34 @@ export default function OrganisationDetailPage() {
     } catch {
       setFormErreur('Erreur réseau.')
       setFormEnvoi(false)
+    }
+  }
+
+  function ouvrirSuppression() {
+    setConfirmationNom(''); setSuppressionErreur('')
+    setSuppressionOuverte(true)
+  }
+
+  async function supprimerOrganisation(e: React.FormEvent) {
+    e.preventDefault()
+    setSuppressionErreur('')
+    setSuppressionEnCours(true)
+    try {
+      const res = await fetch(`${API_URL}/api/organisations/${id}/`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ confirmation: confirmationNom.trim() }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setSuppressionErreur(data.error || 'Erreur lors de la suppression.')
+        setSuppressionEnCours(false)
+        return
+      }
+      router.push('/super-admin/organisations')
+    } catch {
+      setSuppressionErreur('Erreur réseau.')
+      setSuppressionEnCours(false)
     }
   }
 
@@ -588,6 +621,74 @@ export default function OrganisationDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Zone dangereuse */}
+      <div className="bg-white rounded-xl border border-red-100 shadow-sm p-5 mt-5 flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#fef2f2' }}>
+            <i className="ti ti-trash text-base" style={{ color: ACCENT }} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: NAVY }}>Supprimer l'organisation</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Efface définitivement l'organisation, ses utilisateurs, clients, bâtiments, rapports et dossiers archivés.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={ouvrirSuppression}
+          className="text-xs font-bold px-3 py-2 rounded-md text-white hover:opacity-90 transition-opacity flex-shrink-0"
+          style={{ background: ACCENT }}
+        >
+          Supprimer
+        </button>
+      </div>
+
+      {/* Modal suppression */}
+      {suppressionOuverte && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => !suppressionEnCours && setSuppressionOuverte(false)}>
+          <form onSubmit={supprimerOrganisation} className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 flex flex-col gap-3" onClick={e => e.stopPropagation()}>
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto bg-red-50">
+              <i className="ti ti-alert-triangle text-xl" style={{ color: ACCENT }} />
+            </div>
+            <h3 className="text-base font-bold text-center" style={{ color: NAVY }}>Supprimer « {organisation.nom} » ?</h3>
+            <p className="text-xs text-gray-500 text-center">
+              Cette action est irréversible : {utilisateurs.length} utilisateur{utilisateurs.length !== 1 ? 's' : ''} et
+              toutes les données de l'organisation seront effacés. Pour suspendre l'accès sans rien perdre, utilisez plutôt le coupe-circuit.
+            </p>
+            <label className="text-xs text-gray-500 mt-1">
+              Saisissez <strong style={{ color: NAVY }}>{organisation.nom}</strong> pour confirmer :
+            </label>
+            <input
+              type="text" value={confirmationNom} onChange={e => setConfirmationNom(e.target.value)} autoFocus
+              className="border-2 border-[#0a0b0d] rounded-md px-3 py-2 text-sm focus:outline-none focus:border-[#e11324]"
+            />
+            {suppressionErreur && (
+              <p className="text-xs text-red-600 flex items-center gap-1.5">
+                <i className="ti ti-alert-triangle" /> {suppressionErreur}
+              </p>
+            )}
+            <div className="flex gap-2 mt-1">
+              <button
+                type="button"
+                onClick={() => setSuppressionOuverte(false)}
+                disabled={suppressionEnCours}
+                className="flex-1 border border-gray-200 py-2.5 rounded-md text-sm font-bold text-gray-500 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={suppressionEnCours || confirmationNom.trim() !== organisation.nom}
+                className="flex-1 text-white py-2.5 rounded-md text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-40"
+                style={{ background: ACCENT }}
+              >
+                {suppressionEnCours ? 'Suppression…' : 'Supprimer définitivement'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Modal création superviseur */}
       {modalOuvert && (
