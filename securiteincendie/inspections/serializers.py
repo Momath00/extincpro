@@ -18,16 +18,6 @@ from .models import (
     FicheE1,
     FicheE2,
     FicheLegende,
-    GicleurAmelioration,
-    GicleurCommentaireSection,
-    GicleurEssaiEcoulement,
-    GicleurIdentificationSysteme,
-    GicleurInstallationSpeciale,
-    GicleurPointBas,
-    GicleurReponseChecklist,
-    GicleurReponseNegative,
-    GicleurSoupapeCommande,
-    GicleurValveEtageSupervise,
     HistoriqueAppelService,
     HistoriqueRapport,
     HistoriqueRapportCuisine,
@@ -43,6 +33,7 @@ from .models import (
     RapportGicleur,
     ResumeSommaire,
     SectionDispositif,
+    SousRapportGicleur,
     Tournee,
     TourneeBatiment,
 )
@@ -96,6 +87,8 @@ class BatimentSerializer(serializers.ModelSerializer):
     client_nom = serializers.CharField(source="client.nom", read_only=True)
     client_mode_livraison = serializers.CharField(source="client.mode_livraison", read_only=True)
     client_contact_email = serializers.CharField(source="client.contact_email", read_only=True)
+    client_contact_nom = serializers.CharField(source="client.contact_nom", read_only=True)
+    client_contact_telephone = serializers.CharField(source="client.contact_telephone", read_only=True)
     proprietaire = UtilisateurSerializer(read_only=True)
     proprietaire_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
     taille = serializers.CharField(read_only=True)
@@ -104,6 +97,7 @@ class BatimentSerializer(serializers.ModelSerializer):
         model = Batiment
         fields = [
             "id", "client", "client_nom", "client_mode_livraison", "client_contact_email",
+            "client_contact_nom", "client_contact_telephone",
             "numero_civique", "rue", "ville", "code_postal",
             "adresse_complete", "fabricant_reseau", "modele_systeme", "direction",
             "type_application", "proprietaire", "proprietaire_id", "taille", "date_creation",
@@ -758,95 +752,6 @@ class TourneeCreateSerializer(serializers.ModelSerializer):
 
 # ── Rapport gicleur ──────────────────────────────────────────────────────────
 
-class GicleurReponseChecklistSerializer(serializers.ModelSerializer):
-    label_en = serializers.SerializerMethodField()
-
-    def get_label_en(self, obj):
-        from .gicleur_checklist import LABELS_EN
-        return LABELS_EN.get(obj.code_item, obj.label)
-
-    class Meta:
-        model = GicleurReponseChecklist
-        fields = [
-            "id", "rapport", "section", "ordre", "code_item", "label", "label_en",
-            "type_reponse", "reponse", "valeur_texte",
-        ]
-        read_only_fields = ["rapport", "section", "ordre", "code_item", "label", "type_reponse"]
-
-
-class GicleurEssaiEcoulementSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = GicleurEssaiEcoulement
-        fields = [
-            "id", "rapport", "ordre", "pression_systeme", "localisation_drain", "dimension_tuyau",
-            "pression_statique", "pression_residuelle", "pression_apres",
-            "etat_marche_arret", "heure_marche_arret",
-        ]
-        read_only_fields = ["rapport", "ordre"]
-
-
-class GicleurIdentificationSystemeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = GicleurIdentificationSysteme
-        fields = [
-            "id", "rapport", "numero", "systeme", "zone_protegee", "marque", "modele",
-            "annee", "diametre", "lieu_robinet_essai", "pompe_surpression",
-            "compresseur_air", "plaque_signaletique", "identification_complete",
-        ]
-        read_only_fields = ["rapport", "numero"]
-
-
-class GicleurSoupapeCommandeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = GicleurSoupapeCommande
-        fields = [
-            "id", "rapport", "ordre", "categorie", "nombre", "type_texte",
-            "ouvertes", "protegees", "identifiees", "condition", "localisation",
-        ]
-        read_only_fields = ["rapport", "ordre", "categorie"]
-
-
-class GicleurValveEtageSuperviseSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = GicleurValveEtageSupervise
-        fields = ["id", "rapport", "ordre", "texte"]
-        read_only_fields = ["rapport"]
-
-
-class GicleurInstallationSpecialeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = GicleurInstallationSpeciale
-        fields = ["id", "rapport", "ordre", "degre_temperature", "localisation"]
-        read_only_fields = ["rapport", "ordre"]
-
-
-class GicleurPointBasSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = GicleurPointBas
-        fields = ["id", "rapport", "position", "description", "vidange"]
-        read_only_fields = ["rapport", "position"]
-
-
-class GicleurReponseNegativeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = GicleurReponseNegative
-        fields = ["id", "rapport", "ordre", "texte"]
-        read_only_fields = ["rapport"]
-
-
-class GicleurAmeliorationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = GicleurAmelioration
-        fields = ["id", "rapport", "ordre", "texte"]
-        read_only_fields = ["rapport"]
-
-
-class GicleurCommentaireSectionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = GicleurCommentaireSection
-        fields = ["section", "texte"]
-
-
 class PhotoAnomalieSerializer(serializers.ModelSerializer):
     ajoutee_par_nom = serializers.SerializerMethodField()
 
@@ -856,8 +761,72 @@ class PhotoAnomalieSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PhotoAnomalie
-        fields = ["id", "emplacement", "description", "ordre", "date_ajout", "ajoutee_par_nom", "section"]
-        read_only_fields = ["ordre", "date_ajout", "section"]
+        fields = [
+            "id", "emplacement", "description", "ordre", "date_ajout", "ajoutee_par_nom", "section",
+            "sous_rapport_gicleur", "section_fiche",
+        ]
+        read_only_fields = ["ordre", "date_ajout", "section", "sous_rapport_gicleur", "section_fiche"]
+
+
+class SousRapportGicleurSerializer(serializers.ModelSerializer):
+    """Fiche d'un système. En modification, `reponses` et `remarques` sont
+    FUSIONNÉES avec l'existant (seules les clés envoyées changent ; une
+    valeur nulle ou vide efface la clé) — chaque champ du formulaire
+    s'enregistre seul, y compris depuis la file hors ligne."""
+
+    deficiences = serializers.SerializerMethodField()
+
+    def get_deficiences(self, obj):
+        return obj.deficiences()
+
+    class Meta:
+        model = SousRapportGicleur
+        fields = ["id", "rapport", "type_fiche", "numero_systeme", "ordre", "reponses", "remarques", "deficiences"]
+        read_only_fields = ["rapport", "ordre"]
+
+    def validate(self, attrs):
+        from .gicleur_fiches import champs_de_la_fiche, sections_avec_deficiences, valider_valeur
+
+        type_fiche = attrs.get("type_fiche") or getattr(self.instance, "type_fiche", None)
+        if self.instance is not None and "type_fiche" in attrs and attrs["type_fiche"] != self.instance.type_fiche:
+            raise serializers.ValidationError({"type_fiche": "Le type d'une fiche ne peut pas être changé."})
+        champs = champs_de_la_fiche(type_fiche) if type_fiche else {}
+        sections = sections_avec_deficiences(type_fiche) if type_fiche else set()
+
+        for cle in ("reponses", "remarques"):
+            valeurs = attrs.get(cle)
+            if valeurs is None:
+                continue
+            if not isinstance(valeurs, dict):
+                raise serializers.ValidationError({cle: "Objet attendu."})
+            for code, valeur in valeurs.items():
+                if cle == "remarques":
+                    # Déficiences d'une section : {code de section: texte}.
+                    if code not in sections or (valeur not in (None, "") and (not isinstance(valeur, str) or len(valeur) > 3000)):
+                        raise serializers.ValidationError({cle: f"Déficiences invalides : {code}."})
+                    continue
+                champ = champs.get(code)
+                if champ is None:
+                    raise serializers.ValidationError({cle: f"Champ inconnu : {code}."})
+                try:
+                    valider_valeur(champ, valeur)
+                except ValueError as e:
+                    raise serializers.ValidationError({cle: f"{code} : {e}"})
+        return attrs
+
+    def update(self, instance, validated_data):
+        for cle in ("reponses", "remarques"):
+            nouvelles = validated_data.pop(cle, None)
+            if nouvelles is None:
+                continue
+            fusion = dict(getattr(instance, cle) or {})
+            for code, valeur in nouvelles.items():
+                if valeur in (None, "", []):
+                    fusion.pop(code, None)
+                else:
+                    fusion[code] = valeur
+            setattr(instance, cle, fusion)
+        return super().update(instance, validated_data)
 
 
 class CertificatGicleurSerializer(serializers.ModelSerializer):
@@ -895,28 +864,44 @@ class RapportGicleurListSerializer(serializers.ModelSerializer):
             return None
         return {"numero": cert.numero, "certificat_envoye": cert.certificat_envoye}
 
+    fiches = serializers.SerializerMethodField()
+
+    def get_fiches(self, obj):
+        """Résumé des sous-rapports pour le tableau des rapports (lignes
+        imbriquées sous chaque rapport) — sans les réponses."""
+        from .gicleur_fiches import progression_sous_rapport
+
+        resume = []
+        for sr in obj.sous_rapports.all():
+            repondus, total = progression_sous_rapport(sr)
+            resume.append({
+                "id": sr.id, "type_fiche": sr.type_fiche, "numero_systeme": sr.numero_systeme,
+                "nb_deficiences": len(sr.deficiences()), "repondus": repondus, "total": total,
+            })
+        return resume
+
+    resume_debits_valves = serializers.SerializerMethodField()
+
+    def get_resume_debits_valves(self, obj):
+        """null si la section n'est pas ajoutée."""
+        from .gicleur_fiches import deficiences_debits_valves
+
+        if obj.debits_valves is None:
+            return None
+        return {"nb_lignes": len(obj.debits_valves.get("lignes", [])), "nb_deficiences": len(deficiences_debits_valves(obj))}
+
     class Meta:
         model = RapportGicleur
         fields = [
             "id", "batiment", "techniciens", "citoyen", "numero_job", "statut", "statut_display", "cycle",
             "date_inspection", "date_derniere_sauvegarde", "date_fermeture", "prochaine_inspection",
-            "date_creation", "identification_systeme", "local_gicleur", "type_systeme",
-            "frequence_inspection", "compagnie_installatrice", "certificat",
+            "date_creation", "frequence_inspection", "certificat", "fiches", "resume_debits_valves",
         ]
 
 
 class RapportGicleurDetailSerializer(RapportGicleurListSerializer):
     cree_par = UtilisateurSerializer(read_only=True)
-    reponses_checklist = GicleurReponseChecklistSerializer(many=True, read_only=True)
-    identifications_systemes = GicleurIdentificationSystemeSerializer(many=True, read_only=True)
-    soupapes_commande = GicleurSoupapeCommandeSerializer(many=True, read_only=True)
-    essais_ecoulement = GicleurEssaiEcoulementSerializer(many=True, read_only=True)
-    installations_speciales = GicleurInstallationSpecialeSerializer(many=True, read_only=True)
-    points_bas = GicleurPointBasSerializer(many=True, read_only=True)
-    reponses_negatives = GicleurReponseNegativeSerializer(many=True, read_only=True)
-    ameliorations = GicleurAmeliorationSerializer(many=True, read_only=True)
-    valves_etage_supervise = GicleurValveEtageSuperviseSerializer(many=True, read_only=True)
-    commentaires_sections = GicleurCommentaireSectionSerializer(many=True, read_only=True)
+    sous_rapports = SousRapportGicleurSerializer(many=True, read_only=True)
     photos = PhotoAnomalieSerializer(many=True, read_only=True)
     historique = HistoriqueRapportGicleurSerializer(many=True, read_only=True)
     certificat = CertificatGicleurSerializer(read_only=True)
@@ -924,11 +909,7 @@ class RapportGicleurDetailSerializer(RapportGicleurListSerializer):
 
     class Meta(RapportGicleurListSerializer.Meta):
         fields = RapportGicleurListSerializer.Meta.fields + [
-            "cree_par", "recommandations", "ajustements_effectues", "est_conforme",
-            "reponses_checklist", "identifications_systemes", "soupapes_commande",
-            "essais_ecoulement", "installations_speciales", "points_bas",
-            "reponses_negatives", "ameliorations", "valves_etage_supervise",
-            "commentaires_sections", "photos", "historique",
+            "cree_par", "est_conforme", "identification", "sous_rapports", "debits_valves", "photos", "historique",
         ]
 
 
@@ -948,8 +929,32 @@ class RapportGicleurCreateSerializer(serializers.ModelSerializer):
         model = RapportGicleur
         fields = [
             "id", "batiment", "techniciens", "citoyen", "numero_job", "date_inspection",
-            "prochaine_inspection", "identification_systeme", "local_gicleur",
-            "type_systeme", "frequence_inspection", "compagnie_installatrice",
-            "recommandations", "ajustements_effectues",
+            "prochaine_inspection", "frequence_inspection", "debits_valves", "identification",
         ]
         read_only_fields = ["id"]
+
+    def validate_identification(self, valeur):
+        from .gicleur_fiches import valider_identification
+
+        try:
+            valider_identification(valeur)
+        except ValueError as e:
+            raise serializers.ValidationError(str(e))
+        return valeur
+
+    def update(self, instance, validated_data):
+        # Identification : fusion clé par clé — chaque champ s'enregistre seul.
+        if "identification" in validated_data:
+            from .gicleur_fiches import fusionner_identification
+
+            validated_data["identification"] = fusionner_identification(instance.identification, validated_data["identification"])
+        return super().update(instance, validated_data)
+
+    def validate_debits_valves(self, valeur):
+        from .gicleur_fiches import valider_debits_valves
+
+        try:
+            valider_debits_valves(valeur)
+        except ValueError as e:
+            raise serializers.ValidationError(str(e))
+        return valeur

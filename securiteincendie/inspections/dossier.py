@@ -537,13 +537,16 @@ def _deficiences_rapport(module, rapport) -> list[dict]:
             if getattr(rapport, champ, None) is False:
                 ajout(_norm(champ), libelle, "Système de cuisine", "Non conforme")
     elif module == "gicleur":
-        from .gicleur_checklist import CODES_HORS_CONFORMITE
+        from .gicleur_fiches import libelle_sous_rapport
 
-        for r in rapport.reponses_checklist.filter(reponse="non").exclude(code_item__in=CODES_HORS_CONFORMITE):
-            ajout(_norm(r.code_item), r.label, f"Point {r.code_item}", "Réponse « Non »")
-        for neg in rapport.reponses_negatives.all():
-            if (neg.texte or "").strip():
-                ajout(_norm("neg", neg.texte[:80]), "Réponse négative", "Gicleurs", neg.texte)
+        for sr in rapport.sous_rapports.all():
+            for d in sr.deficiences():
+                ajout(_norm(sr.type_fiche, sr.numero_systeme, d["section"]), d["section_fr"],
+                      libelle_sous_rapport(sr), d["remarque"])
+        from .gicleur_fiches import deficiences_debits_valves, deficiences_identification
+
+        for d in deficiences_identification(rapport) + deficiences_debits_valves(rapport):
+            ajout(_norm(d["section"]), d["section_fr"], "Système de gicleurs", d["remarque"])
     return out
 
 

@@ -3,8 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import FormulaireGicleur from '@/components/rapports-gicleurs/FormulaireGicleur'
 import SectionPhotos from '@/components/rapports/SectionPhotos'
+import FichesGicleur from '@/components/rapports-gicleurs/FichesGicleur'
+import OngletDeficiencesGicleur from '@/components/rapports-gicleurs/OngletDeficiencesGicleur'
+import type { DebitsValves } from '@/components/rapports-gicleurs/SectionDebitsValves'
+import { deficiencesSousRapport, nbDeficiencesIdentification, useFichesGicleur, type Identification, type SousRapport } from '@/lib/gicleurFiches'
+import { resilientMutate } from '@/lib/offline/resilientFetch'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 import ModuleBadge from '@/components/dashboard/ModuleBadge'
 import { downloadHtml } from '@/lib/download'
@@ -136,7 +140,7 @@ function CertificatTab({
   )
 }
 
-type OngletType = 'formulaire' | 'certificat' | 'historique'
+type OngletType = 'formulaire' | 'deficiences' | 'certificat' | 'historique'
 
 export default function SuperviseurRapportGicleurDetailPage() {
   const router = useRouter()
@@ -153,6 +157,24 @@ export default function SuperviseurRapportGicleurDetailPage() {
   const [modalMode, setModalMode] = useState<'technicien' | 'citoyen' | 'date' | null>(null)
   const [horsLigne, setHorsLigne] = useState(false)
   const [horsLigneDepuis, setHorsLigneDepuis] = useState<number | null>(null)
+  const fiches = useFichesGicleur()
+  const sousRapports: SousRapport[] = rapport?.sous_rapports || []
+  const debitsValves: DebitsValves | null = rapport?.debits_valves ?? null
+  const nbDeficiences = sousRapports.reduce((n, sr) => n + deficiencesSousRapport(fiches?.[sr.type_fiche], sr).length, 0)
+    + ((debitsValves?.deficiences || '').trim() ? 1 : 0)
+    + nbDeficiencesIdentification(rapport?.identification)
+  const identification: Identification = {
+    reponses: rapport?.identification?.reponses || {}, remarques: rapport?.identification?.remarques || {},
+  }
+  const majIdentification = (i: Identification) => setRapport((r: any) => ({ ...r, identification: i }))
+  /** Bon de travail / type d'inspection, modifiés depuis l'identification. */
+  async function majEntete(champ: 'numero_job' | 'frequence_inspection', valeur: string) {
+    setRapport((r: any) => ({ ...r, [champ]: valeur }))
+    await resilientMutate('PATCH', `${API_URL}/api/rapports-gicleurs/${rapport.id}/`, { [champ]: valeur })
+  }
+  const majDebitsValves = (v: DebitsValves | null) => setRapport((r: any) => ({ ...r, debits_valves: v }))
+  const majSousRapports = (f: (liste: SousRapport[]) => SousRapport[]) =>
+    setRapport((r: any) => ({ ...r, sous_rapports: f(r?.sous_rapports || []) }))
 
   async function charger() {
     const token = localStorage.getItem('access_token')
@@ -236,6 +258,7 @@ export default function SuperviseurRapportGicleurDetailPage() {
 
   const onglets: { key: OngletType; label: string; shortLabel: string }[] = [
     { key: 'formulaire', label: t('gic_onglet_inspection'), shortLabel: t('gic_onglet_inspection') },
+    { key: 'deficiences' as OngletType, label: `${t('onglet_deficiences')} (${nbDeficiences})`, shortLabel: `${t('onglet_deficiences')} (${nbDeficiences})` },
     ...(estFerme ? [{ key: 'certificat' as OngletType, label: `🏆 ${t('certificat')}`, shortLabel: '🏆' }] : []),
     { key: 'historique', label: `${t('historique')} (${rapport.historique?.length || 0})`, shortLabel: `${t('historique')} (${rapport.historique?.length || 0})` },
   ]
@@ -270,12 +293,12 @@ export default function SuperviseurRapportGicleurDetailPage() {
             <h1 className="text-xl sm:text-2xl font-bold" style={{ color: NAVY }}>
               {rapport.batiment?.adresse_complete}
             </h1>
-            {rapport.batiment?.id && (
-              <Link href={`/superviseur/batiments/${rapport.batiment.id}`}
-                className="h-8 inline-flex items-center gap-1.5 px-2.5 rounded-md text-xs font-bold border-2 border-[#0a0b0d] bg-white hover:bg-gray-50 shadow-sm"
-                style={{ color: NAVY }} title={t('dossier_titre')}>
-                <i className="ti ti-folders text-sm" /> {t('dossier_titre')}
-              </Link>
+            {rapport.batiment?.id && (
+              <Link href={`/superviseur/batiments/${rapport.batiment.id}`}
+                className="h-8 inline-flex items-center gap-1.5 px-2.5 rounded-md text-xs font-bold border-2 border-[#0a0b0d] bg-white hover:bg-gray-50 shadow-sm"
+                style={{ color: NAVY }} title={t('dossier_titre')}>
+                <i className="ti ti-folders text-sm" /> {t('dossier_titre')}
+              </Link>
             )}
             <span className="text-xs px-2.5 py-1 rounded-full font-semibold"
               style={estFerme
@@ -452,10 +475,26 @@ export default function SuperviseurRapportGicleurDetailPage() {
 
       {onglet === 'formulaire' && (
         <div className="flex flex-col gap-5">
-          <FormulaireGicleur rapport={rapport} readOnly={false} onErreur={msg => showToast(msg, 'error')} />
+          <FichesGicleur rapportId={rapport.id} sousRapports={sousRapports} majSousRapports={majSousRapports}
+            debitsValves={debitsValves} onDebitsValves={majDebitsValves}
+            identification={identification} onIdentification={majIdentification} onEntete={majEntete}
+            entete={{
+              client: rapport.batiment?.client_nom || '', adresse: rapport.batiment?.adresse_complete || '',
+              contact: rapport.batiment?.client_contact_nom || '',
+              infosContact: [rapport.batiment?.client_contact_telephone, rapport.batiment?.client_contact_email].filter(Boolean).join(' · '),
+              inspecteurs: (rapport.techniciens || []).map((x: any) => [x.first_name, x.last_name].filter(Boolean).join(' ') || x.username).join(', '),
+              date: rapport.date_inspection ? new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' }) : '',
+              numeroJob: rapport.numero_job || '', frequence: rapport.frequence_inspection || '',
+            }}
+            readOnly={false} onErreur={msg => showToast(msg, 'error')} />
+          {/* Photos rattachées au rapport seulement (hors fiche). */}
           <SectionPhotos photosUrl={`${API_URL}/api/rapports-gicleurs/${rapport.id}/photos/`} readOnly={false}
-            suggestionsEmplacement={[rapport.local_gicleur, ...(rapport.soupapes_commande || []).map((s: any) => s.localisation)]} />
+            filtre={{ sous_rapport: 'aucune' }} titre={t('gic_autres_photos')} />
         </div>
+      )}
+
+      {onglet === 'deficiences' && (
+        <OngletDeficiencesGicleur rapport={rapport} sousRapports={sousRapports} debitsValves={debitsValves} identification={identification} />
       )}
 
       {onglet === 'certificat' && estFerme && (

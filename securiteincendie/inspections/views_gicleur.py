@@ -1,11 +1,17 @@
-"""Module « Rapport gicleur » — inspection annuelle du système de gicleurs
-(NFPA 13), porté du projet Préventex. Module autonome : sa propre page de
-création, son propre certificat (CERT-GIC-…), son propre envoi au client.
+"""Module « Rapport gicleur » — rapport de la visite du système de gicleurs.
+Module autonome : sa propre page de création, son propre certificat
+(CERT-GIC-…), son propre envoi au client.
+
+L'ancien formulaire Préventex (checklist à sections fixes) a été retiré ;
+les fiches d'inspection (sous eau, sous air, préaction…) viendront se
+rattacher à ce rapport.
 
 Séparé de `views.py` (déjà très long) ; réutilise ses helpers partagés
 (permissions, recherche, compteurs, traductions des documents)."""
 
-from django.db.models import F
+from types import SimpleNamespace
+
+from django.db.models import F, Max
 from django.http import HttpResponse
 from django.utils.html import escape
 from rest_framework import permissions, status, viewsets
@@ -17,47 +23,16 @@ from accounts.models import Utilisateur
 from securiteincendie.emailing import organisation_logo_content
 
 from .dossier import lire_pieces_jointes
-from .gicleur_checklist import (
-    CATEGORIES_SOUPAPE_COMMANDE,
-    CATEGORIES_SOUPAPE_COMMANDE_EN,
-    CHAMP_TEXTE_COMPLEMENTAIRE,
-    CHAMP_TEXTE_COMPLEMENTAIRE_EN,
-    SECTIONS,
-    label_item,
-    titre_section,
-)
-from .models import (
-    Batiment,
-    Client,
-    GicleurAmelioration,
-    GicleurCommentaireSection,
-    GicleurEssaiEcoulement,
-    GicleurIdentificationSysteme,
-    GicleurInstallationSpeciale,
-    GicleurPointBas,
-    GicleurReponseChecklist,
-    GicleurReponseNegative,
-    GicleurSoupapeCommande,
-    GicleurValveEtageSupervise,
-    RapportGicleur,
-)
+from .gicleur_fiches import DEBITS_VALVES, FICHE_IDENTIFICATION, FICHES, est_visible, identification_reprise, libelle_sous_rapport
+from .models import Batiment, Client, RapportGicleur, SousRapportGicleur
 from .pagination import RapportPagination
 from .photos import PhotosRapportMixin, html_annexe_photos
 from .serializers import (
-    GicleurAmeliorationSerializer,
-    GicleurCommentaireSectionSerializer,
-    GicleurEssaiEcoulementSerializer,
-    GicleurIdentificationSystemeSerializer,
-    GicleurInstallationSpecialeSerializer,
-    GicleurPointBasSerializer,
-    GicleurReponseChecklistSerializer,
-    GicleurReponseNegativeSerializer,
-    GicleurSoupapeCommandeSerializer,
-    GicleurValveEtageSuperviseSerializer,
     HistoriqueRapportGicleurSerializer,
     RapportGicleurCreateSerializer,
     RapportGicleurDetailSerializer,
     RapportGicleurListSerializer,
+    SousRapportGicleurSerializer,
 )
 from .views import (
     EstSuperviseur,
@@ -86,8 +61,8 @@ class EstModuleRapportGicleurActif(permissions.BasePermission):
 
 def _creer_rapports_jumeaux(rapport_gicleur, utilisateur, request_data):
     """Cases « Avec système d'alarme / extincteurs / éclairage d'urgence » de
-    la page « Nouveau rapport gicleur » (comme dans Préventex) — voir les
-    fonctions communes `_creer_rapport_*_lie` dans views.py."""
+    la page « Nouveau rapport gicleur » — voir les fonctions communes
+    `_creer_rapport_*_lie` dans views.py."""
     libelle = "gicleur"
     _creer_rapport_alarme_lie(rapport_gicleur, utilisateur, request_data, libelle)
     if _creer_rapport_extincteur_lie(rapport_gicleur, utilisateur, request_data, libelle) is None:
@@ -112,7 +87,7 @@ class RapportGicleurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         user = self.request.user
         qs = RapportGicleur.objects.select_related(
             "batiment", "batiment__client", "cree_par", "citoyen"
-        ).prefetch_related("techniciens").filter(batiment__client__organisation=user.organisation)
+        ).prefetch_related("techniciens", "sous_rapports").filter(batiment__client__organisation=user.organisation)
 
         if user.est_citoyen():
             qs = qs.filter(citoyen=user)
@@ -122,6 +97,11 @@ class RapportGicleurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         client_id = self.request.query_params.get("client")
         if client_id:
             qs = qs.filter(batiment__client_id=client_id)
+        # ?fiche=eau : rapports qui contiennent au moins une fiche de ce type
+        # (sous-menus « Système sous eau / sous air » du menu Gicleurs).
+        fiche = self.request.query_params.get("fiche")
+        if fiche:
+            qs = qs.filter(sous_rapports__type_fiche=fiche).distinct()
         return qs
 
     def get_queryset(self):
@@ -135,11 +115,12 @@ class RapportGicleurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         return qs.distinct().order_by(F("date_inspection").desc(nulls_last=True), "-id")
 
     def get_permissions(self):
-        if self.action in ["create", "destroy", "reassigner", "rouvrir", "fermer", "envoyer_certificat", "renvoyer_certificat"]:
+        if self.action in ["create", "destroy", "reassigner", "rouvrir", "envoyer_certificat", "renvoyer_certificat"]:
             return [permissions.IsAuthenticated(), EstSuperviseur(), EstModuleRapportGicleurActif()]
-        if self.action in ["update", "partial_update"]:
-            # Le technicien remplit aussi l'en-tête (type de système, local,
-            # recommandations…) — pas seulement les lignes de checklist.
+        # Le technicien ferme son rapport une fois l'inspection finie (comme
+        # pour la cuisine) ; seul le superviseur peut le rouvrir.
+        if self.action in ["update", "partial_update", "fermer"]:
+            # Le technicien remplit aussi l'en-tête (fréquence, bon de travail…).
             return [permissions.IsAuthenticated(), EstSuperviseurOuTechnicien(), EstModuleRapportGicleurActif()]
         return super().get_permissions()
 
@@ -148,8 +129,33 @@ class RapportGicleurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         return Response(_compteurs_statuts(self._queryset_de_base()))
 
     def perform_create(self, serializer):
+        # Fiches choisies à la création : toutes les compagnies ne font pas
+        # tous les systèmes à chaque inspection. [{"type_fiche": "eau",
+        # "numero_systeme": "1"}, …] — d'autres peuvent s'ajouter ensuite.
+        fiches = self.request.data.get("fiches") or []
+        if not isinstance(fiches, list) or any(
+            not isinstance(f, dict) or f.get("type_fiche") not in FICHES for f in fiches
+        ):
+            raise ValidationError({"fiches": "Liste de fiches invalide."})
+        if len(fiches) > 50:
+            raise ValidationError({"fiches": "50 fiches au maximum."})
+
         rapport = serializer.save(cree_par=self.request.user)
-        rapport.creer_structure_par_defaut()
+        # Infos du bâtiment (panneau, mots de passe, code de porte…) reprises
+        # du rapport précédent de ce bâtiment.
+        if not (rapport.identification or {}).get("reponses"):
+            rapport.identification = identification_reprise(rapport.batiment, sauf=rapport)
+            rapport.save(update_fields=["identification"])
+        if self.request.data.get("avec_debits_valves") and rapport.debits_valves is None:
+            rapport.debits_valves = {"lignes": [], "deficiences": ""}
+            rapport.save(update_fields=["debits_valves"])
+        SousRapportGicleur.objects.bulk_create([
+            SousRapportGicleur(
+                rapport=rapport, type_fiche=f["type_fiche"], ordre=i,
+                numero_systeme=str(f.get("numero_systeme") or "")[:50],
+            )
+            for i, f in enumerate(fiches, start=1)
+        ])
         rapport.historiser(self.request.user, "Rapport créé")
         _creer_rapports_jumeaux(rapport, self.request.user, self.request.data)
         _envoyer_confirmation_planification_si_applicable(rapport, LABEL_GICLEUR)
@@ -304,75 +310,34 @@ class RapportGicleurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         rapport = self.get_object()
         return Response(HistoriqueRapportGicleurSerializer(rapport.historique.all(), many=True).data)
 
-    # ── Lignes ajoutables (tableaux extensibles et listes libres) ─────────
+    # ── Fiches d'inspection (sous-rapports) ──────────────────────────────
 
-    def _ajouter_ligne(self, request, serializer_class, related_name, champ_ordre, libelle):
+    @action(detail=False, methods=["get"])
+    def fiches(self, request):
+        """Description des fiches (sections, champs, libellés FR/EN) — le
+        formulaire écran est construit à partir d'elle."""
+        return Response(FICHES)
+
+    @action(detail=False, methods=["get"], url_path="fiche-identification")
+    def fiche_identification(self, request):
+        """Description des « Infos et identification du bâtiment »."""
+        return Response(FICHE_IDENTIFICATION)
+
+    @action(detail=True, methods=["post"], url_path="sous-rapports")
+    def sous_rapports(self, request, pk=None):
         rapport = self.get_object()
-        lignes = getattr(rapport, related_name)
-        if request.method == "GET":
-            return Response(serializer_class(lignes.all(), many=True).data)
-
         user = request.user
         if not (user.est_superviseur() or user.est_technicien()):
             return Response({"error": "Vous ne pouvez pas modifier ce rapport."}, status=status.HTTP_403_FORBIDDEN)
         if rapport.statut == RapportGicleur.Statut.FERME and not user.est_superviseur():
             return Response({"error": "Ce rapport est fermé."}, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = serializer_class(data=request.data)
+        serializer = SousRapportGicleurSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        valeur = lignes.count() + 1
-        serializer.save(rapport=rapport, **{champ_ordre: str(valeur) if champ_ordre == "position" else valeur})
-        rapport.historiser(user, f"{libelle} ajouté(e)")
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    @action(detail=True, methods=["get", "post"], url_path="identifications-systemes")
-    def identifications_systemes(self, request, pk=None):
-        return self._ajouter_ligne(request, GicleurIdentificationSystemeSerializer, "identifications_systemes", "numero", "Système")
-
-    @action(detail=True, methods=["get", "post"], url_path="essais-ecoulement")
-    def essais_ecoulement(self, request, pk=None):
-        return self._ajouter_ligne(request, GicleurEssaiEcoulementSerializer, "essais_ecoulement", "ordre", "Essai d'écoulement")
-
-    @action(detail=True, methods=["get", "post"], url_path="installations-speciales")
-    def installations_speciales(self, request, pk=None):
-        return self._ajouter_ligne(request, GicleurInstallationSpecialeSerializer, "installations_speciales", "ordre", "Installation spéciale")
-
-    @action(detail=True, methods=["get", "post"], url_path="points-bas")
-    def points_bas(self, request, pk=None):
-        return self._ajouter_ligne(request, GicleurPointBasSerializer, "points_bas", "position", "Point bas")
-
-    @action(detail=True, methods=["get", "post"], url_path="reponses-negatives")
-    def reponses_negatives(self, request, pk=None):
-        return self._ajouter_ligne(request, GicleurReponseNegativeSerializer, "reponses_negatives", "ordre", "Réponse négative")
-
-    @action(detail=True, methods=["get", "post"])
-    def ameliorations(self, request, pk=None):
-        return self._ajouter_ligne(request, GicleurAmeliorationSerializer, "ameliorations", "ordre", "Amélioration")
-
-    @action(detail=True, methods=["get", "post"], url_path="valves-etage-supervise")
-    def valves_etage_supervise(self, request, pk=None):
-        return self._ajouter_ligne(request, GicleurValveEtageSuperviseSerializer, "valves_etage_supervise", "ordre", "Valve d'étage supervisé")
-
-    @action(detail=True, methods=["put"], url_path="commentaires-sections")
-    def commentaires_sections(self, request, pk=None):
-        """Enregistre le commentaire d'une section : {"section": "5", "texte": "…"}.
-        Un texte vide supprime le commentaire."""
-        rapport = self.get_object()
-        user = request.user
-        if not (user.est_superviseur() or user.est_technicien()):
-            return Response({"error": "Vous ne pouvez pas modifier ce rapport."}, status=status.HTTP_403_FORBIDDEN)
-        if rapport.statut == RapportGicleur.Statut.FERME and not user.est_superviseur():
-            return Response({"error": "Ce rapport est fermé."}, status=status.HTTP_400_BAD_REQUEST)
-
-        section = str(request.data.get("section", "")).strip()
-        if section not in GicleurCommentaireSection.SECTIONS_AVEC_COMMENTAIRE:
-            return Response({"error": "Section invalide."}, status=status.HTTP_400_BAD_REQUEST)
-        texte = (request.data.get("texte") or "").strip()
-        if texte:
-            GicleurCommentaireSection.objects.update_or_create(rapport=rapport, section=section, defaults={"texte": texte})
-        else:
-            GicleurCommentaireSection.objects.filter(rapport=rapport, section=section).delete()
-        return Response(GicleurCommentaireSectionSerializer(rapport.commentaires_sections.all(), many=True).data)
+        ordre = (rapport.sous_rapports.aggregate(m=Max("ordre"))["m"] or 0) + 1
+        sous_rapport = serializer.save(rapport=rapport, ordre=ordre)
+        rapport.historiser(user, f"Fiche ajoutée : {libelle_sous_rapport(sous_rapport)}"[:300])
+        return Response(SousRapportGicleurSerializer(sous_rapport).data, status=status.HTTP_201_CREATED)
 
     # ── Documents ────────────────────────────────────────────────────────
 
@@ -388,29 +353,32 @@ class RapportGicleurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], url_path="telecharger")
     def telecharger(self, request, pk=None):
         rapport = self.get_object()
-        return HttpResponse(html_rapport_gicleur_complet(rapport), content_type="text/html; charset=utf-8")
+        # ?sous_rapport=<id> : le rapport d'un seul système (sous-rapport
+        # indépendant). Pas ?fiche= : c'est le filtre par type de la liste.
+        fiche = None
+        if request.query_params.get("sous_rapport"):
+            fiche = rapport.sous_rapports.filter(pk=request.query_params["sous_rapport"]).first()
+            if fiche is None:
+                return Response({"error": "Fiche introuvable pour ce rapport."}, status=status.HTTP_404_NOT_FOUND)
+        return HttpResponse(html_rapport_gicleur_complet(rapport, fiche=fiche), content_type="text/html; charset=utf-8")
 
 
-# ── Lignes individuelles (PATCH direct depuis le formulaire) ─────────────
-
-def _lignes_de_l_organisation(model, user):
-    qs = model.objects.select_related("rapport").filter(rapport__batiment__client__organisation=user.organisation)
-    if user.est_technicien():
-        qs = qs.filter(rapport__techniciens=user)
-    return qs.distinct()
-
-
-class _LigneGicleurViewSet(viewsets.ModelViewSet):
-    """Base commune : lecture/modification/suppression d'une ligne, bloquée
-    pour le technicien une fois le rapport fermé. La création passe par les
-    actions du rapport (voir `RapportGicleurViewSet._ajouter_ligne`)."""
+class SousRapportGicleurViewSet(viewsets.ModelViewSet):
+    """Lecture / modification / suppression d'une fiche. La création passe
+    par `POST rapports-gicleurs/<id>/sous-rapports/`."""
 
     http_method_names = ["get", "patch", "delete", "head", "options"]
     permission_classes = [permissions.IsAuthenticated, EstSuperviseurOuTechnicien, EstModuleRapportGicleurActif]
-    model = None
+    serializer_class = SousRapportGicleurSerializer
 
     def get_queryset(self):
-        return _lignes_de_l_organisation(self.model, self.request.user)
+        user = self.request.user
+        qs = SousRapportGicleur.objects.select_related("rapport").filter(
+            rapport__batiment__client__organisation=user.organisation
+        )
+        if user.est_technicien():
+            qs = qs.filter(rapport__techniciens=user)
+        return qs.distinct()
 
     def _verifier_ouvert(self, instance):
         if instance.rapport.statut == RapportGicleur.Statut.FERME and not self.request.user.est_superviseur():
@@ -422,55 +390,10 @@ class _LigneGicleurViewSet(viewsets.ModelViewSet):
 
     def perform_destroy(self, instance):
         self._verifier_ouvert(instance)
+        rapport = instance.rapport
+        libelle = libelle_sous_rapport(instance)
         instance.delete()
-
-
-class GicleurReponseChecklistViewSet(_LigneGicleurViewSet):
-    # Les questions sont fixes : on ne supprime jamais une ligne de checklist.
-    http_method_names = ["get", "patch", "head", "options"]
-    serializer_class = GicleurReponseChecklistSerializer
-    model = GicleurReponseChecklist
-
-
-class GicleurSoupapeCommandeViewSet(_LigneGicleurViewSet):
-    http_method_names = ["get", "patch", "head", "options"]
-    serializer_class = GicleurSoupapeCommandeSerializer
-    model = GicleurSoupapeCommande
-
-
-class GicleurIdentificationSystemeViewSet(_LigneGicleurViewSet):
-    serializer_class = GicleurIdentificationSystemeSerializer
-    model = GicleurIdentificationSysteme
-
-
-class GicleurEssaiEcoulementViewSet(_LigneGicleurViewSet):
-    serializer_class = GicleurEssaiEcoulementSerializer
-    model = GicleurEssaiEcoulement
-
-
-class GicleurInstallationSpecialeViewSet(_LigneGicleurViewSet):
-    serializer_class = GicleurInstallationSpecialeSerializer
-    model = GicleurInstallationSpeciale
-
-
-class GicleurPointBasViewSet(_LigneGicleurViewSet):
-    serializer_class = GicleurPointBasSerializer
-    model = GicleurPointBas
-
-
-class GicleurReponseNegativeViewSet(_LigneGicleurViewSet):
-    serializer_class = GicleurReponseNegativeSerializer
-    model = GicleurReponseNegative
-
-
-class GicleurAmeliorationViewSet(_LigneGicleurViewSet):
-    serializer_class = GicleurAmeliorationSerializer
-    model = GicleurAmelioration
-
-
-class GicleurValveEtageSuperviseViewSet(_LigneGicleurViewSet):
-    serializer_class = GicleurValveEtageSuperviseSerializer
-    model = GicleurValveEtageSupervise
+        rapport.historiser(self.request.user, f"Fiche supprimée : {libelle}"[:300])
 
 
 # ── Documents imprimables (certificat + rapport complet) ─────────────────
@@ -479,86 +402,45 @@ I18N_GICLEUR = {
     "systeme_gicleurs": {"fr": "Système de gicleurs", "en": "Sprinkler system"},
     "rapport_gicleur": {"fr": "Rapport d'inspection — système de gicleurs", "en": "Inspection report — sprinkler system"},
     "norme": {"fr": "Norme", "en": "Standard"},
-    "verification_no": {"fr": "Vérification n°", "en": "Inspection no."},
     "au_soin_de": {"fr": "Au soin de", "en": "Attention"},
-    "localisation": {"fr": "Localisation", "en": "Location"},
-    "compagnie": {"fr": "Compagnie", "en": "Company"},
-    "representant": {"fr": "Représentant", "en": "Representative"},
-    "verificateur": {"fr": "Vérificateur", "en": "Inspector"},
-    "type_systeme": {"fr": "Type de système", "en": "System type"},
     "frequence": {"fr": "Fréquence des inspections", "en": "Inspection frequency"},
-    "compagnie_installatrice": {"fr": "Compagnie installatrice", "en": "Installing company"},
-    "identification_systeme": {"fr": "Identification du système", "en": "System identification"},
-    "systeme_n": {"fr": "Système", "en": "System"},
-    "question": {"fr": "Question", "en": "Question"},
-    "oui": {"fr": "Oui", "en": "Yes"},
-    "non": {"fr": "Non", "en": "No"},
-    "so": {"fr": "S.O.", "en": "N/A"},
-    "commentaire": {"fr": "Commentaire", "en": "Comment"},
-    "categorie": {"fr": "Catégorie", "en": "Category"},
-    "nombre": {"fr": "Nombre", "en": "Number"},
-    "type": {"fr": "Type", "en": "Type"},
-    "ouvertes": {"fr": "Ouvertes", "en": "Open"},
-    "protegees": {"fr": "Protégées", "en": "Secured"},
-    "identifiees": {"fr": "Identifiées", "en": "Identified"},
-    "condition": {"fr": "Condition", "en": "Condition"},
-    "essais_hydrauliques": {"fr": "Essais d'écoulement", "en": "Flow tests"},
-    "pression_systeme": {"fr": "Pression système (lbs)", "en": "System pressure (lbs)"},
-    "localisation_drain": {"fr": "Localisation drain", "en": "Drain location"},
-    "dimension_tuyau": {"fr": "Dim. tuyau", "en": "Pipe size"},
-    "pression_statique": {"fr": "Pression statique", "en": "Static pressure"},
-    "pression_residuelle": {"fr": "Pression résiduelle", "en": "Residual pressure"},
-    "pression_apres": {"fr": "Pression après", "en": "Pressure after"},
-    "pompe_surpression": {"fr": "Pompe de surpression", "en": "Jockey pump"},
-    "marche": {"fr": "Marche", "en": "On"},
-    "arret": {"fr": "Arrêt", "en": "Off"},
-    "installation_speciale_detail": {"fr": "Installation spéciale — détail", "en": "Special installation — details"},
-    "degre_temperature": {"fr": "Degré de température", "en": "Temperature rating"},
-    "points_bas": {"fr": "Localisation des points bas", "en": "Low point locations"},
-    "description": {"fr": "Description", "en": "Description"},
-    "vidange": {"fr": "Vidange", "en": "Drained"},
-    "valves_etage": {"fr": "Valve d'étage supervisé", "en": "Supervised floor valve"},
-    "modifications_recentes": {
-        "fr": "Modifications récentes de l'affectation des locaux ou du matériel d'incendie",
-        "en": "Recent changes in occupancy or fire protection equipment",
-    },
-    "ajustements": {"fr": "Ajustements ou corrections effectués lors de notre visite", "en": "Adjustments or corrections made during our visit"},
-    "reponses_negatives": {"fr": "Réponses négatives", "en": "Negative answers"},
-    "ameliorations": {"fr": "Améliorations souhaitées", "en": "Recommended improvements"},
-    "aucune": {"fr": "Aucune", "en": "None"},
+    "bon_de_travail": {"fr": "Bon de travail", "en": "Work order"},
     "photos_anomalies": {"fr": "Photos des anomalies", "en": "Deficiency photos"},
     "suite": {"fr": "suite", "en": "continued"},
     "inspection_gicleurs": {
-        "fr": "Le système de gicleurs a été inspecté conformément à la norme NFPA 13.",
-        "en": "The sprinkler system was inspected in accordance with NFPA 13.",
+        "fr": "Le système de gicleurs a été inspecté conformément à la norme NFPA 25.",
+        "en": "The sprinkler system was inspected in accordance with NFPA 25.",
     },
     "footer_certificat_gicleur": {"fr": "Certificat de conformité — système de gicleurs", "en": "Certificate of compliance — sprinkler system"},
     "footer_rapport_gicleur": {"fr": "Rapport d'inspection — système de gicleurs", "en": "Inspection report — sprinkler system"},
     "prochaine_inspection": {"fr": "Prochaine inspection", "en": "Next inspection"},
-    "depart": {"fr": "Départ", "en": "Start"},
-    "heure_depart": {"fr": "Heure départ", "en": "Start time"},
-    "heure_arret": {"fr": "Heure arrêt", "en": "Stop time"},
-    "compresseur": {"fr": "Compresseur", "en": "Compressor"},
-    "entree_principale": {"fr": "Localisation de l'avertisseur de garde : entrée principale", "en": "Supervisory alarm location: main entrance"},
-    "a": {"fr": "Système", "en": "System"},
-    "b": {"fr": "Zone protégée", "en": "Protected area"},
-    "c": {"fr": "Marque", "en": "Brand"},
-    "d": {"fr": "Modèle", "en": "Model"},
-    "e": {"fr": "Année", "en": "Year"},
-    "f": {"fr": "Diamètre", "en": "Diameter"},
-    "g": {"fr": "Lieu du robinet d'essai", "en": "Test valve location"},
-    "h": {"fr": "Pompe de surpression", "en": "Jockey pump"},
-    "i": {"fr": "Compresseur à air", "en": "Air compressor"},
-    "j": {"fr": "Plaque signalétique", "en": "Nameplate"},
-    "k": {"fr": "Identification complète", "en": "Complete identification"},
-}
-
-TYPES_SYSTEME_I18N = {
-    "eau": {"fr": "Sous eau", "en": "Wet-pipe"},
-    "air": {"fr": "Sous air", "en": "Dry-pipe"},
-    "deluge": {"fr": "Déluge", "en": "Deluge"},
-    "preaction": {"fr": "Préaction", "en": "Pre-action"},
-    "combine": {"fr": "Combiné", "en": "Combined"},
+    "oui": {"fr": "Oui", "en": "Yes"},
+    "non": {"fr": "Non", "en": "No"},
+    "so": {"fr": "S.O.", "en": "N/A"},
+    "question": {"fr": "Question", "en": "Question"},
+    "deficiences": {"fr": "Sommaire des déficiences", "en": "Deficiency summary"},
+    "aucune_deficience": {"fr": "Aucune déficience — tous les points inspectés sont conformes.", "en": "No deficiencies — all inspected items are compliant."},
+    "remarque_deficiences": {
+        "fr": "Le rapport comprend des recommandations et signale des déficiences :",
+        "en": "This report includes recommendations and reports deficiencies:",
+    },
+    "fiche": {"fr": "Fiche", "en": "Sheet"},
+    "contact": {"fr": "Contact", "en": "Contact"},
+    "infos_contact": {"fr": "Infos contact", "en": "Contact details"},
+    "soumis_a": {"fr": "Rapport soumis à", "en": "Report submitted to"},
+    "soumis_adresse": {"fr": "Adresse (rapport soumis à)", "en": "Address (submitted to)"},
+    "type_inspection": {"fr": "Type d'inspection", "en": "Inspection type"},
+    "inspecteur": {"fr": "Inspecteur", "en": "Inspector"},
+    "fiches_inspectees": {"fr": "Systèmes inspectés", "en": "Inspected systems"},
+    "rapport_inspection": {"fr": "Rapport d'inspection", "en": "Inspection report"},
+    "numero_systeme": {"fr": "N° de système", "en": "System no."},
+    "rapport_inspection_sous_titre": {"fr": "Système d'extincteurs automatiques — rapport d'inspection", "en": "Automatic sprinkler system — inspection report"},
+    "section": {"fr": "Section", "en": "Section"},
+    "deficiences_section": {"fr": "Déficiences", "en": "Deficiencies"},
+    "deficience": {"fr": "Déficience", "en": "Deficiency"},
+    "aucune_fiche": {"fr": "Aucune fiche d'inspection n'a été ajoutée à ce rapport.", "en": "No inspection sheet has been added to this report."},
+    "min": {"fr": "min", "en": "min"},
+    "sec": {"fr": "s", "en": "s"},
 }
 
 FREQUENCES_I18N = {
@@ -566,13 +448,8 @@ FREQUENCES_I18N = {
     "semestrielle": {"fr": "Semestrielle", "en": "Semi-annual"},
     "trimestrielle": {"fr": "Trimestrielle", "en": "Quarterly"},
     "mensuelle": {"fr": "Mensuelle", "en": "Monthly"},
+    "bimensuelle": {"fr": "Bi-mensuelle", "en": "Bi-monthly"},
 }
-
-CHAMPS_IDENTIFICATION = [
-    ("a", "systeme"), ("b", "zone_protegee"), ("c", "marque"), ("d", "modele"), ("e", "annee"),
-    ("f", "diametre"), ("g", "lieu_robinet_essai"), ("h", "pompe_surpression"), ("i", "compresseur_air"),
-    ("j", "plaque_signaletique"), ("k", "identification_complete"),
-]
 
 
 def _tg(langue, cle):
@@ -586,16 +463,6 @@ def _choix(dico, code, langue):
         return "—"
     entree = dico.get(code)
     return entree.get(langue, entree["fr"]) if entree else code
-
-
-def _categorie_soupape(code, langue):
-    if langue == "en":
-        return CATEGORIES_SOUPAPE_COMMANDE_EN.get(code, code)
-    return dict(CATEGORIES_SOUPAPE_COMMANDE).get(code, code)
-
-
-def _v(valeur):
-    return escape(valeur) if valeur else "—"
 
 
 def html_certificat_gicleur(rapport) -> str:
@@ -626,8 +493,7 @@ def html_certificat_gicleur(rapport) -> str:
     )
     ligne_systeme = (
         f"<tr><td class='bold'><span style='display:inline-flex;align-items:center;gap:8px;'>"
-        f"{icone_badge(ICONE_GICLEUR)}<span>{t('systeme_gicleurs')}"
-        f"{' — ' + _choix(TYPES_SYSTEME_I18N, rapport.type_systeme, langue) if rapport.type_systeme else ''}</span></span></td>"
+        f"{icone_badge(ICONE_GICLEUR)}<span>{t('systeme_gicleurs')}</span></span></td>"
         f"<td class='center'>{case(est_conforme, '#16a34a')}</td>"
         f"<td class='center'>{case(not est_conforme, '#e11324')}</td>"
         f"<td class='center'>{case(False)}</td>"
@@ -709,52 +575,302 @@ def html_certificat_gicleur(rapport) -> str:
 
 
 CSS_RAPPORT_GICLEUR = """
-  .gic-sec{ display:flex; align-items:center; gap:10px; margin:20px 0 8px; padding-bottom:6px; border-bottom:2px solid #0a0b0d; break-after:avoid; page-break-after:avoid; }
-  .gic-num{ display:inline-flex; align-items:center; justify-content:center; min-width:24px; height:24px; padding:0 6px; border-radius:100px; background:#0a0b0d; color:#fff; font-size:9pt; font-weight:900; }
-  .gic-titre{ font-size:10pt; font-weight:900; text-transform:uppercase; letter-spacing:1px; color:#0a0b0d; }
-  .gic-sous{ font-size:8.5pt; font-weight:800; color:#0a0b0d; margin:10px 0 4px; }
-  .gic-table{ width:100%; border-collapse:collapse; border:1px solid #d1d5db; border-radius:6px; overflow:hidden; font-size:8.8pt; }
-  .gic-table th{ background:linear-gradient(135deg,#0a0b0d,#232733); color:#fff; font-size:7.5pt; font-weight:800; text-transform:uppercase; letter-spacing:0.6px; padding:6px 8px; text-align:left; }
-  .gic-table th.c, .gic-table td.c{ text-align:center; }
-  .gic-table td{ padding:6px 8px; border-top:1px solid #e5e7eb; color:#0a0b0d; font-weight:700; vertical-align:middle; }
-  .gic-table tbody tr:nth-child(even) td{ background:#f8fafc; }
-  .gic-table tr{ break-inside:avoid; page-break-inside:avoid; }
-  .gic-table td.gic-lettre{ color:#e11324; font-weight:900; width:26px; }
-  .gic-rep{ width:46px; text-align:center; }
-  .gic-texte{ font-weight:800; }
-  .gic-vide{ color:#9ca3af; font-weight:400; }
-  .gic-note{ font-size:7.8pt; font-weight:600; color:#374151; margin-top:2px; }
-  .gic-cases{ display:flex; flex-wrap:wrap; gap:6px 22px; border:1px solid #d1d5db; border-radius:6px; padding:8px 12px; margin:6px 0; font-size:8.8pt; font-weight:700; color:#0a0b0d; }
-  .gic-cases span{ display:inline-flex; align-items:center; gap:6px; }
-  .gic-commentaire{ border-left:3px solid #0a0b0d; background:#f8fafc; padding:6px 10px; margin:6px 0 4px; font-size:8.8pt; font-weight:600; color:#0a0b0d; }
-  .gic-commentaire strong{ font-weight:900; text-transform:uppercase; font-size:7.5pt; letter-spacing:0.8px; margin-right:4px; }
-  .gic-bloc{ font-size:9pt; font-weight:700; color:#0a0b0d; line-height:1.5; white-space:pre-line; border:1px solid #e5e7eb; border-radius:6px; padding:8px 12px; }
-  .gic-liste{ list-style:none; border:1px solid #e5e7eb; border-radius:6px; overflow:hidden; }
-  .gic-liste li{ padding:6px 12px; font-size:9pt; font-weight:700; color:#0a0b0d; border-top:1px solid #f1f5f9; }
-  .gic-liste li:first-child{ border-top:none; }
-  .gic-liste li:before{ content:"•"; color:#e11324; font-weight:900; margin-right:8px; }
   .gic-infos{ display:grid; grid-template-columns:1fr 1fr; gap:0; border:1px solid #d1d5db; border-radius:6px; overflow:hidden; }
   .gic-infos div{ padding:6px 10px; border-top:1px solid #e5e7eb; font-size:8.8pt; }
   .gic-infos div:nth-child(-n+2){ border-top:none; }
   .gic-infos div:nth-child(odd){ border-right:1px solid #e5e7eb; }
   .gic-infos span{ display:block; font-size:7pt; font-weight:800; text-transform:uppercase; letter-spacing:0.8px; color:#6b7280; }
   .gic-infos b{ font-size:9pt; color:#0a0b0d; }
+  .gic-saut{ break-before:page; page-break-before:always; padding-top:4px; }
+  .gic-ident{ display:grid; grid-template-columns:1fr 2fr 0.8fr; border:1px solid #d1d5db; border-radius:6px; overflow:hidden; margin:10px 0 10px; }
+  .gic-ident div{ padding:6px 10px; font-size:8.8pt; }
+  .gic-ident div + div{ border-left:1px solid #e5e7eb; }
+  .gic-ident span{ display:block; font-size:6.8pt; font-weight:800; text-transform:uppercase; letter-spacing:0.7px; color:#6b7280; }
+  .gic-ident b{ font-size:9.5pt; color:#0a0b0d; }
+  .gic-sec{ display:flex; align-items:center; gap:8px; margin:14px 0 6px; padding-bottom:5px; border-bottom:2px solid #0a0b0d; break-after:avoid; page-break-after:avoid; }
+  .gic-num{ display:inline-flex; align-items:center; justify-content:center; min-width:22px; height:22px; padding:0 6px; border-radius:100px; background:#0a0b0d; color:#fff; font-size:8.5pt; font-weight:900; }
+  .gic-titre{ font-size:9.5pt; font-weight:900; text-transform:uppercase; letter-spacing:0.8px; color:#0a0b0d; }
+  .gic-table{ width:100%; border-collapse:collapse; border:1px solid #d1d5db; font-size:8.6pt; }
+  .gic-table th{ background:#0a0b0d; color:#fff; font-size:7.2pt; font-weight:800; text-transform:uppercase; letter-spacing:0.6px; padding:5px 8px; text-align:left; }
+  .gic-table th.c, .gic-table td.c{ text-align:center; }
+  .gic-table td{ padding:5px 8px; border-top:1px solid #e5e7eb; color:#0a0b0d; font-weight:700; vertical-align:middle; }
+  .gic-table tbody tr:nth-child(even) td{ background:#f8fafc; }
+  .gic-table tr{ break-inside:avoid; page-break-inside:avoid; }
+  .gic-rep{ width:40px; text-align:center; }
+  .gic-note{ font-size:7.8pt; font-weight:600; color:#374151; margin-top:2px; }
+  .gic-note-section{ font-size:8.4pt; font-weight:700; font-style:italic; color:#0a0b0d; margin:4px 0 8px; }
+  .gic-tab2{ width:100%; border-collapse:collapse; border:1.5px solid #0a0b0d; table-layout:fixed; font-size:8.6pt; margin-bottom:6px; }
+  .gic-tab2 td{ border:1px solid #9ca3af; padding:5px 8px; vertical-align:middle; color:#0a0b0d; }
+  .gic-tab2 tr{ break-inside:avoid; page-break-inside:avoid; }
+  .gic-tab2 .gic-lib{ font-weight:800; margin-right:8px; }
+  .gic-tab2 .gic-val{ font-weight:700; }
+  .gic-def{ font-size:8.8pt; font-weight:700; color:#0a0b0d; line-height:1.45; white-space:pre-line; margin-top:6px; padding:7px 12px; border:1px solid #d1d5db; border-left:4px solid #e11324; border-radius:6px; break-inside:avoid; page-break-inside:avoid; }
+  .gic-def span{ display:block; font-size:7pt; font-weight:900; text-transform:uppercase; letter-spacing:0.8px; color:#e11324; margin-bottom:2px; }
+  .gic-vide{ color:#9ca3af; font-weight:400; }
+  .gic-grille{ display:grid; grid-template-columns:1fr 1fr; border:1px solid #d1d5db; margin-bottom:6px; }
+  .gic-grille div{ padding:5px 10px; border-top:1px solid #e5e7eb; font-size:8.6pt; }
+  .gic-grille div:nth-child(-n+2){ border-top:none; }
+  .gic-grille div:nth-child(odd){ border-right:1px solid #e5e7eb; }
+  .gic-grille div.plein{ grid-column:1 / -1; border-right:none; }
+  .gic-grille span{ display:block; font-size:6.8pt; font-weight:800; text-transform:uppercase; letter-spacing:0.7px; color:#6b7280; }
+  .gic-grille b{ font-size:8.8pt; color:#0a0b0d; }
+  .gic-bloc{ font-size:8.8pt; font-weight:700; color:#0a0b0d; line-height:1.5; white-space:pre-line; border:1px solid #e5e7eb; border-radius:6px; padding:8px 12px; }
+  .gic-remarque{ display:flex; align-items:center; gap:10px; border:1px solid #d1d5db; border-radius:6px; padding:8px 12px; margin:12px 0; font-size:8.8pt; font-weight:800; color:#0a0b0d; }
+  .gic-remarque span{ display:inline-flex; align-items:center; gap:5px; }
 """
 
 
 def _coche(actif: bool) -> str:
     """Case noire cochée / case vide — aucune couleur dans le rapport."""
     if actif:
-        return ("<span style='display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;"
-                "border-radius:3px;background:#0a0b0d;color:#fff;font-size:10px;font-weight:900;line-height:1;'>&#10003;</span>")
-    return "<span style='display:inline-block;width:15px;height:15px;border-radius:3px;border:1.5px solid #9ca3af;'></span>"
+        return ("<span style='display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;"
+                "border-radius:3px;background:#0a0b0d;color:#fff;font-size:9px;font-weight:900;line-height:1;'>&#10003;</span>")
+    return "<span style='display:inline-block;width:14px;height:14px;border-radius:3px;border:1.5px solid #9ca3af;'></span>"
 
 
-def html_rapport_gicleur_complet(rapport) -> str:
-    """Rapport technique complet — même structure que le formulaire à
-    l'écran (repris de Préventex), présentation sobre en noir : réponses
-    cochées dans les colonnes Oui / S.O. / Non, sans code couleur."""
-    from .gicleur_checklist import CODES_CASES_A_COCHER
+def _html_fiche(sous_rapport, langue, t, sections=None) -> str:
+    """Une fiche (sous eau, sous air…) : chaque section avec ses questions
+    (cases Oui / S.O. / Non) et ses valeurs, dans l'ordre de l'Excel."""
+    reponses = sous_rapport.reponses or {}
+    remarques = sous_rapport.remarques or {}
+    lib = lambda d: d["en" if langue == "en" else "fr"]
+
+    def vide():
+        return "<span class='gic-vide'>—</span>"
+
+    def valeur_texte(champ, valeur):
+        if valeur in (None, "", [], {}):
+            return vide()
+        genre = champ["type"]
+        if genre == "oui_non":
+            return t(valeur)
+        if genre == "choix":
+            choisies = valeur if isinstance(valeur, list) else [valeur]
+            return "&nbsp;&nbsp;".join(
+                f"<span style='display:inline-flex;align-items:center;gap:4px;'>{_coche(o['v'] in choisies)} {escape(lib(o))}</span>"
+                for o in champ["options"]
+            )
+        if genre == "duree":
+            morceaux = [f"{escape(str(valeur[k]))} {t(k)}" for k in ("min", "sec") if valeur.get(k) not in (None, "")]
+            return " ".join(morceaux) or vide()
+        unite = f" {escape(champ['unite'])}" if champ.get("unite") else ""
+        return f"{escape(str(valeur))}{unite}"
+
+    def cases_oui_non(champ, rep):
+        options = ["oui", "na", "non"] if champ["type"] == "question" and champ.get("na") else ["oui", "non"]
+        return "&nbsp;&nbsp;".join(
+            f"<span style='display:inline-flex;align-items:center;gap:4px;'>{_coche(rep == o)} {t('so' if o == 'na' else o)}</span>"
+            for o in options
+        )
+
+    def tableau_excel(champs):
+        """Section « tableau » : deux colonnes comme dans l'Excel, chaque
+        case = intitulé + réponse sur la même ligne."""
+        lignes, ligne = [], []
+        for c in champs:
+            if c["type"] in ("question", "oui_non"):
+                valeur = cases_oui_non(c, reponses.get(c["code"], ""))
+            else:
+                valeur = valeur_texte(c, reponses.get(c["code"]))
+            case = f"<span class='gic-lib'>{escape(lib(c))}</span><span class='gic-val'>{valeur}</span>"
+            if c.get("plein") or (c["type"] == "choix" and c.get("multiple")):
+                if ligne:
+                    lignes.append(ligne)
+                    ligne = []
+                lignes.append([case, None])
+                continue
+            ligne.append(case)
+            if len(ligne) == 2:
+                lignes.append(ligne)
+                ligne = []
+        if ligne:
+            lignes.append(ligne + [""])
+        rangees = "".join(
+            f"<tr><td colspan='2'>{l[0]}</td></tr>" if l[1] is None else f"<tr><td>{l[0]}</td><td>{l[1]}</td></tr>"
+            for l in lignes
+        )
+        return f"<table class='gic-tab2'><tbody>{rangees}</tbody></table>"
+
+    html = ""
+    numero = 0
+    for section in (sections or FICHES[sous_rapport.type_fiche]["sections"]):
+        champs = [c for c in section["champs"] if est_visible(c, reponses)]
+        if section["code"] in ("notes", "dar_observation", "id_notes") and not reponses.get(section["champs"][0]["code"]):
+            continue
+        numero += 1
+        corps = ""
+
+        if section.get("disposition") == "tableau":
+            corps += tableau_excel(champs)
+
+        questions = [c for c in champs if c["type"] == "question"]
+        if questions and section.get("disposition") != "tableau":
+            lignes = ""
+            for q in questions:
+                rep = reponses.get(q["code"], "")
+                note = ""
+                if q.get("complement"):
+                    comp = q["complement"]
+                    valeur = reponses.get(comp["code"])
+                    if valeur:
+                        note = f"<div class='gic-note'>{escape(lib(comp))} {escape(str(valeur))} {escape(comp.get('unite', ''))}</div>"
+                so = f"<td class='gic-rep'>{_coche(rep == 'na')}</td>" if q.get("na") else "<td class='gic-rep gic-vide'>—</td>"
+                lignes += (
+                    f"<tr><td>{escape(lib(q))}{note}</td>"
+                    f"<td class='gic-rep'>{_coche(rep == 'oui')}</td>{so}<td class='gic-rep'>{_coche(rep == 'non')}</td></tr>"
+                )
+            corps += (
+                f"<table class='gic-table'><thead><tr><th>{t('question')}</th><th class='c'>{t('oui')}</th>"
+                f"<th class='c'>{t('so')}</th><th class='c'>{t('non')}</th></tr></thead><tbody>{lignes}</tbody></table>"
+            )
+
+        valeurs = [c for c in champs if c["type"] in ("texte", "oui_non", "choix", "duree")]
+        if valeurs and section.get("disposition") != "tableau":
+            cases = "".join(
+                f"<div class='{'plein' if c.get('plein') or c['type'] == 'choix' else ''}'><span>{escape(lib(c))}</span>"
+                f"<b>{valeur_texte(c, reponses.get(c['code']))}</b></div>"
+                for c in valeurs
+            )
+            corps = f"<div class='gic-grille'>{cases}</div>" + corps
+
+        for c in champs:
+            if c["type"] == "liste":
+                items = [x for x in reponses.get(c["code"], []) if x]
+                lignes = "".join(f"<tr><td class='c' style='width:32px;'>{i}</td><td>{escape(x)}</td></tr>" for i, x in enumerate(items, start=1))
+                corps += (
+                    f"<table class='gic-table'><thead><tr><th class='c'>#</th><th>{escape(lib(c))}</th></tr></thead>"
+                    f"<tbody>{lignes or f'<tr><td colspan=2 class=gic-vide>—</td></tr>'}</tbody></table>"
+                )
+            elif c["type"] == "texte_long":
+                corps += f"<div class='gic-bloc'>{escape(reponses.get(c['code'], ''))}</div>"
+
+        note = section.get(f"note_{langue}") or section.get("note_fr")
+        if note:
+            corps += f"<div class='gic-note-section'>{escape(note)}</div>"
+        deficiences = (remarques.get(section["code"]) or "").strip()
+        if deficiences:
+            corps += f"<div class='gic-def'><span>{t('deficiences_section')}</span>{escape(deficiences)}</div>"
+        html += f"<div class='gic-sec'><span class='gic-num'>{numero}</span><span class='gic-titre'>{escape(lib(section))}</span></div>{corps}"
+
+    return html
+
+
+def _titre_pdf(sous_rapport, langue) -> str:
+    """Nom de la fiche dans le PDF (ex. « Gicleur à eau »), comme le nom de
+    l'onglet de l'Excel — le n° de système est dans le bloc d'identification."""
+    fiche = FICHES[sous_rapport.type_fiche]
+    return fiche.get(f"titre_pdf_{langue}") or fiche.get("titre_pdf_fr") or fiche["en" if langue == "en" else "fr"]
+
+
+def _html_deficiences_fiche(sous_rapport, langue, t) -> str:
+    """« Le rapport comprend … des déficiences : Oui / Non » (comme sur chaque
+    onglet de l'Excel), puis la liste des déficiences de CETTE fiche."""
+    lib = lambda d: d["section_en" if langue == "en" else "section_fr"]
+    deficiences = sous_rapport.deficiences()
+    oui_non = f"<span>{_coche(bool(deficiences))} {t('oui')}</span><span>{_coche(not deficiences)} {t('non')}</span>"
+    entete = f"<div class='gic-remarque'>{t('remarque_deficiences')} {oui_non}</div>"
+    if not deficiences:
+        return entete
+    lignes = "".join(
+        f"<tr><td style='width:32%;'>{escape(lib(d))}</td><td style='white-space:pre-line;'>{escape(d['remarque'])}</td></tr>"
+        for d in deficiences
+    )
+    return entete + (
+        f"<table class='gic-table'><thead><tr><th>{t('section')}</th><th>{t('deficience')}</th></tr></thead>"
+        f"<tbody>{lignes}</tbody></table>"
+    )
+
+
+def _html_rapport_fiche(rapport, sous_rapport, langue, t, contexte, saut_de_page=True) -> str:
+    """Une fiche présentée comme un rapport INDÉPENDANT (un onglet de
+    l'Excel) : son en-tête, son titre, son résultat, ses sections, ses
+    déficiences et ses photos — sur ses propres pages."""
+    from .pdf_design import entete
+
+    titre = f"{t('rapport_inspection')} — {_titre_pdf(sous_rapport, langue)}"
+    entete_html = entete(
+        contexte["logo"], contexte["organisation"], escape(titre),
+        t("certificat_no"), contexte["certificat"], t("date_inspection"), contexte["date"], t("technicien_s"), contexte["techniciens"],
+    )
+    photos = rapport.photos.filter(sous_rapport_gicleur=sous_rapport)
+    return f"""<div class="gic-rapport-fiche{' gic-saut' if saut_de_page else ''}">
+{entete_html}
+<div class="title-banner">
+  <h2>{escape(titre)}</h2>
+  <div style="width:140px;height:1.5px;background:linear-gradient(90deg, transparent, #e11324, transparent);margin:6px auto;"></div>
+  <p>{t("rapport_inspection_sous_titre")}</p>
+</div>
+<div class="gic-ident">
+  <div><span>{t("client")}</span><b>{escape(contexte["client"])}</b></div>
+  <div><span>{t("adresse")}</span><b>{escape(contexte["adresse"])}</b></div>
+  <div><span>{t("numero_systeme")}</span><b>{escape(sous_rapport.numero_systeme) or "—"}</b></div>
+</div>
+{_html_deficiences_fiche(sous_rapport, langue, t)}
+{_html_fiche(sous_rapport, langue, t)}
+{html_annexe_photos(rapport, f"{t('photos_anomalies')} — {escape(_titre_pdf(sous_rapport, langue))}", t("suite"), photos=photos)}
+</div>"""
+
+
+def _html_debits_valves(rapport, langue, t, contexte) -> str:
+    """Section « Débits et valves » sur ses propres pages : le tableau de
+    l'Excel (Zone, Endroit protégé, … Signal O/N, Temps), ses déficiences
+    et ses photos."""
+    from .pdf_design import entete
+
+    lib = lambda d: d["en" if langue == "en" else "fr"]
+    titre = lib(DEBITS_VALVES)
+    colonnes = DEBITS_VALVES["colonnes"]
+    section = rapport.debits_valves or {}
+    lignes = [l for l in section.get("lignes", []) if any(l.get(c["code"]) for c in colonnes)]
+
+    def cellule(ligne, colonne):
+        valeur = ligne.get(colonne["code"], "")
+        if colonne.get("type") == "oui_non":
+            return f"<td class='c'>{_coche(valeur == 'oui')}</td><td class='c'>{_coche(valeur == 'non')}</td>"
+        return f"<td>{escape(valeur) if valeur else '<span class=gic-vide>—</span>'}</td>"
+
+    entetes = "".join(
+        f"<th class='c' colspan='2'>{escape(lib(c))}<br>{t('oui')[0]} / {t('non')[0]}</th>" if c.get("type") == "oui_non"
+        else f"<th>{escape(lib(c))}</th>"
+        for c in colonnes
+    )
+    corps = "".join("<tr>" + "".join(cellule(l, c) for c in colonnes) + "</tr>" for l in lignes)
+    nb_colonnes = len(colonnes) + 1
+    tableau = (
+        f"<table class='gic-table'><thead><tr>{entetes}</tr></thead>"
+        f"<tbody>{corps or f'<tr><td colspan={nb_colonnes} class=gic-vide>—</td></tr>'}</tbody></table>"
+    )
+    deficiences = (section.get("deficiences") or "").strip()
+    oui_non = f"<span>{_coche(bool(deficiences))} {t('oui')}</span><span>{_coche(not deficiences)} {t('non')}</span>"
+    bloc_def = f"<div class='gic-def'><span>{t('deficiences_section')}</span>{escape(deficiences)}</div>" if deficiences else ""
+    photos = rapport.photos.filter(sous_rapport_gicleur__isnull=True, section_fiche=DEBITS_VALVES["code"])
+    entete_html = entete(
+        contexte["logo"], contexte["organisation"], escape(titre), t("certificat_no"), contexte["certificat"],
+        t("date_inspection"), contexte["date"], t("technicien_s"), contexte["techniciens"],
+    )
+    return f"""<div class="gic-rapport-fiche gic-saut">
+{entete_html}
+<div class="title-banner">
+  <h2>{escape(titre)}</h2>
+  <div style="width:140px;height:1.5px;background:linear-gradient(90deg, transparent, #e11324, transparent);margin:6px auto;"></div>
+</div>
+<div class="gic-ident">
+  <div><span>{t("client")}</span><b>{escape(contexte["client"])}</b></div>
+  <div><span>{t("adresse")}</span><b>{escape(contexte["adresse"])}</b></div>
+  <div><span>&nbsp;</span><b>&nbsp;</b></div>
+</div>
+<div class='gic-remarque'>{t('remarque_deficiences')} {oui_non}</div>
+{tableau}
+{bloc_def}
+{html_annexe_photos(rapport, f"{t('photos_anomalies')} — {escape(titre)}", t("suite"), photos=photos)}
+</div>"""
+
+
+def html_rapport_gicleur_complet(rapport, fiche=None) -> str:
+    """Rapport gicleur : une page de garde (visite + liste des systèmes),
+    puis chaque fiche comme un rapport indépendant sur ses propres pages,
+    puis les photos rattachées au rapport seulement. `fiche` : uniquement
+    ce sous-rapport (PDF d'un seul système)."""
     from .pdf_design import CSS_DOCUMENT, entete, pied_de_page
 
     bat = rapport.batiment
@@ -764,196 +880,64 @@ def html_rapport_gicleur_complet(rapport) -> str:
     t = lambda cle: _tg(langue, cle)
 
     adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
-    date_insp = _date_fr(rapport.date_inspection)
-    tech_noms = ", ".join(t2.get_full_name() or t2.username for t2 in rapport.techniciens.all()) or "—"
     cert = getattr(rapport, "certificat", None)
-
-    def val(valeur):
-        return f"<span class='gic-texte'>{escape(valeur)}</span>" if valeur else "<span class='gic-vide'>—</span>"
-
-    def oui_non(valeur):
-        return {"oui": t("oui"), "non": t("non"), "na": t("so")}.get(valeur) or "<span class='gic-vide'>—</span>"
-
-    def section(numero, titre):
-        return f"<div class='gic-sec'><span class='gic-num'>{numero}</span><span class='gic-titre'>{titre}</span></div>"
-
-    commentaires = {c.section: c.texte for c in rapport.commentaires_sections.all()}
-
-    def commentaire(code):
-        texte = commentaires.get(code)
-        if not texte:
-            return ""
-        return f"<div class='gic-commentaire'><strong>{t('commentaire')} :</strong>{escape(texte)}</div>"
-
-    reponses = {r.code_item: r for r in rapport.reponses_checklist.all()}
-    par_section = {}
-    for r in rapport.reponses_checklist.all():
-        par_section.setdefault(r.section, []).append(r)
-
-    entete_questions = (
-        f"<thead><tr><th></th><th>{t('question')}</th><th class='c'>{t('oui')}</th>"
-        f"<th class='c'>{t('so')}</th><th class='c'>{t('non')}</th></tr></thead>"
-    )
-
-    def ligne_question(r, code_section):
-        lettre = r.code_item[len(code_section):] or r.code_item
-        label = escape(label_item(r.code_item, r.label, langue))
-        libelle_extra = (CHAMP_TEXTE_COMPLEMENTAIRE_EN if langue == "en" else CHAMP_TEXTE_COMPLEMENTAIRE).get(r.code_item)
-        note = ""
-        if libelle_extra and r.valeur_texte:
-            note = f"<div class='gic-note'>{libelle_extra} {escape(r.valeur_texte)}</div>"
-        if r.code_item == "11d":
-            etat = {"marche": t("depart"), "arret": t("arret")}.get(r.valeur_texte, "")
-            heures = [reponses.get(c).valeur_texte for c in ("11d1", "11d2") if reponses.get(c) and reponses.get(c).valeur_texte]
-            morceaux = [m for m in [etat, f"{t('heure_depart')} {heures[0]}" if len(heures) > 0 else "",
-                                    f"{t('heure_arret')} {heures[1]}" if len(heures) > 1 else ""] if m]
-            if morceaux:
-                note = f"<div class='gic-note'>{t('compresseur')} : {' · '.join(escape(m) for m in morceaux)}</div>"
-        if r.type_reponse == "choix":
-            cases = "".join(f"<td class='gic-rep'>{_coche(r.reponse == v)}</td>" for v in ("oui", "na", "non"))
-            return f"<tr><td class='gic-lettre'>{lettre})</td><td>{label}{note}</td>{cases}</tr>"
-        return f"<tr><td class='gic-lettre'>{lettre})</td><td>{label}</td><td colspan='3'>{val(r.valeur_texte)}</td></tr>"
-
-    def table_questions(code, filtre=lambda r: True):
-        lignes = [
-            r for r in par_section.get(code, [])
-            if r.code_item not in CODES_CASES_A_COCHER and r.code_item not in ("11d1", "11d2") and filtre(r)
-        ]
-        if not lignes:
-            return ""
-        return f"<table class='gic-table'>{entete_questions}<tbody>{''.join(ligne_question(r, code) for r in lignes)}</tbody></table>"
-
-    def cases_a_cocher(codes, libelles=None):
-        morceaux = []
-        for code in codes:
-            r = reponses.get(code)
-            if r is None:
-                continue
-            libelle = (libelles or {}).get(code) or escape(label_item(r.code_item, r.label, langue))
-            morceaux.append(f"<span>{_coche(r.reponse == 'oui')} {libelle}</span>")
-        return f"<div class='gic-cases'>{''.join(morceaux)}</div>" if morceaux else ""
-
-    # ── Informations générales ──────────────────────────────────────────
-    infos = [
-        (t("au_soin_de"), client.contact_nom),
-        (t("localisation"), rapport.local_gicleur),
-        (t("identification_systeme"), rapport.identification_systeme),
-        (t("type_systeme"), _choix(TYPES_SYSTEME_I18N, rapport.type_systeme, langue) if rapport.type_systeme else ""),
-        (t("frequence"), _choix(FREQUENCES_I18N, rapport.frequence_inspection, langue) if rapport.frequence_inspection else ""),
-        (t("compagnie_installatrice"), rapport.compagnie_installatrice),
-        (t("norme"), "NFPA 13"),
-    ]
-    infos_html = "<div class='gic-infos'>" + "".join(
-        f"<div><span>{label}</span><b>{escape(v) if v else '—'}</b></div>" for label, v in infos
-    ) + "</div>"
-
-    # ── 1. Identification ───────────────────────────────────────────────
-    identification_html = ""
-    for ident in rapport.identifications_systemes.all():
-        lignes = "".join(
-            f"<tr><td class='gic-lettre'>{lettre})</td><td style='width:42%;'>{t(lettre)}</td><td>{val(getattr(ident, champ))}</td></tr>"
-            for lettre, champ in CHAMPS_IDENTIFICATION
-        )
-        identification_html += (
-            f"<div class='gic-sous'>{t('systeme_n')} {ident.numero}</div>"
-            f"<table class='gic-table'><tbody>{lignes}</tbody></table>"
-        )
-
-    # ── 2. Soupapes de commande ─────────────────────────────────────────
-    soupapes_html = (
-        f"<table class='gic-table'><thead><tr><th>{t('categorie')}</th><th>{t('nombre')}</th><th>{t('type')}</th>"
-        f"<th class='c'>{t('ouvertes')}</th><th class='c'>{t('protegees')}</th><th class='c'>{t('identifiees')}</th>"
-        f"<th>{t('condition')}</th><th>{t('localisation')}</th></tr></thead><tbody>"
-        + "".join(
-            f"<tr><td>{escape(_categorie_soupape(s.categorie, langue))}</td><td>{val(s.nombre)}</td><td>{val(s.type_texte)}</td>"
-            f"<td class='c'>{oui_non(s.ouvertes)}</td><td class='c'>{oui_non(s.protegees)}</td><td class='c'>{oui_non(s.identifiees)}</td>"
-            f"<td>{val(s.condition)}</td><td>{val(s.localisation)}</td></tr>"
-            for s in rapport.soupapes_commande.all()
-        )
-        + "</tbody></table>"
-    )
-
-    # ── 3. Alimentation en eau ──────────────────────────────────────────
-    essais = list(rapport.essais_ecoulement.all())
-    pompe = {"marche": t("depart"), "arret": t("arret")}
-    essais_html = (
-        f"<div class='gic-sous'>{t('essais_hydrauliques')}</div>"
-        f"<table class='gic-table'><thead><tr><th class='c'>#</th><th>{t('pression_systeme')}</th><th>{t('localisation_drain')}</th>"
-        f"<th>{t('dimension_tuyau')}</th><th>{t('pression_statique')}</th><th>{t('pression_residuelle')}</th>"
-        f"<th>{t('pression_apres')}</th><th>{t('pompe_surpression')}</th></tr></thead><tbody>"
-        + "".join(
-            f"<tr><td class='c'>{e.ordre}</td><td>{val(e.pression_systeme)}</td><td>{val(e.localisation_drain)}</td>"
-            f"<td>{val(e.dimension_tuyau)}</td><td>{val(e.pression_statique)}</td><td>{val(e.pression_residuelle)}</td>"
-            f"<td>{val(e.pression_apres)}</td>"
-            f"<td>{val(' '.join(x for x in [pompe.get(e.etat_marche_arret, ''), e.heure_marche_arret] if x))}</td></tr>"
-            for e in essais
-        )
-        + "</tbody></table>"
-    )
-
-    # ── 10. Installations antigel ───────────────────────────────────────
-    installations_html = (
-        f"<div class='gic-sous'>{t('installation_speciale_detail')}</div>"
-        f"<table class='gic-table'><thead><tr><th class='c'>#</th><th>{t('degre_temperature')}</th><th>{t('localisation')}</th></tr></thead><tbody>"
-        + "".join(
-            f"<tr><td class='c' style='width:30px;'>{i.ordre}</td><td>{val(i.degre_temperature)}</td><td>{val(i.localisation)}</td></tr>"
-            for i in rapport.installations_speciales.all()
-        )
-        + "</tbody></table>"
-    )
-
-    # ── 11. Points bas (point i) ────────────────────────────────────────
-    points_bas_html = (
-        f"<div class='gic-sous'><span style='color:#e11324;'>i)</span> {t('points_bas')}</div>"
-        f"<table class='gic-table'><tbody>"
-        + ("".join(
-            f"<tr><td class='c' style='width:30px;'>{escape(p.position)}</td><td>{val(p.description)}</td></tr>"
-            for p in rapport.points_bas.all()
-        ) or f"<tr><td class='gic-vide'>—</td></tr>")
-        + "</tbody></table>"
-    )
-
-    contenu = {
-        "2": soupapes_html + table_questions("2"),
-        "3": table_questions("3") + cases_a_cocher(["3b", "3c", "3d"]) + essais_html,
-        "8": table_questions("8") + cases_a_cocher(["8c1", "8c2", "8d"], {"8d": escape(t("entree_principale"))}),
-        "10": table_questions("10") + installations_html,
-        "11": table_questions("11", lambda r: r.code_item <= "11h") + points_bas_html
-              + table_questions("11", lambda r: r.code_item > "11h"),
+    contexte = {
+        "logo": organisation_logo_content(organisation, 46), "organisation": organisation.nom,
+        "certificat": cert.numero if cert else "—", "date": _date_fr(rapport.date_inspection),
+        "techniciens": ", ".join(t2.get_full_name() or t2.username for t2 in rapport.techniciens.all()) or "—",
+        "client": client.nom, "adresse": adresse,
     }
 
-    sections_html = ""
-    for code, _titre in SECTIONS:
-        corps = contenu.get(code, table_questions(code))
-        sections_html += section(code, titre_section(code, langue)) + corps + commentaire(code)
+    if fiche is not None:
+        corps = _html_rapport_fiche(rapport, fiche, langue, t, contexte, saut_de_page=False)
+        titre_document = f"{t('rapport_inspection')} — {_titre_pdf(fiche, langue)} — {adresse}"
+    else:
+        sous_rapports = list(rapport.sous_rapports.all())
+        ident = rapport.identification or {}
+        ident_rep = ident.get("reponses") or {}
+        contact_infos = " · ".join(x for x in (client.contact_telephone if hasattr(client, "contact_telephone") else "", client.contact_email) if x)
+        infos = [
+            (t("contact"), client.contact_nom),
+            (t("infos_contact"), contact_infos),
+            (t("soumis_a"), " — ".join(x for x in (ident_rep.get("id_soumis_contact"), ident_rep.get("id_soumis_infos")) if x)),
+            (t("soumis_adresse"), ident_rep.get("id_soumis_adresse", "")),
+            (t("type_inspection"), _choix(FREQUENCES_I18N, rapport.frequence_inspection, langue) if rapport.frequence_inspection else ""),
+            (t("inspecteur"), contexte["techniciens"]),
+            (t("bon_de_travail"), rapport.numero_job),
+            (t("norme"), "NFPA 25"),
+        ]
+        infos_html = "<div class='gic-infos'>" + "".join(
+            f"<div><span>{label}</span><b>{escape(v) if v else '—'}</b></div>" for label, v in infos
+        ) + "</div>"
 
-    def liste(qs):
-        items = "".join(f"<li>{escape(x.texte)}</li>" for x in qs if x.texte)
-        return f"<ul class='gic-liste'>{items}</ul>" if items else f"<div class='gic-bloc gic-vide'>{t('aucune')}</div>"
+        lignes = "".join(
+            f"<tr><td class='c' style='width:32px;'>{i}</td><td>{escape(_titre_pdf(sr, langue))}</td>"
+            f"<td class='c'>{escape(sr.numero_systeme) or '—'}</td>"
+            f"<td class='c'>{len(sr.deficiences()) or '—'}</td></tr>"
+            for i, sr in enumerate(sous_rapports, start=1)
+        )
+        if rapport.debits_valves is not None:
+            nb_dv = len(rapport.deficiences()) - sum(len(sr.deficiences()) for sr in sous_rapports)
+            lignes += (
+                f"<tr><td class='c'>{len(sous_rapports) + 1}</td><td>{escape(DEBITS_VALVES['en' if langue == 'en' else 'fr'])}</td>"
+                f"<td class='c'>—</td><td class='c'>{nb_dv or '—'}</td></tr>"
+            )
+        sommaire = (
+            f"<table class='gic-table'><thead><tr><th class='c'>#</th><th>{t('fiche')}</th><th class='c'>{t('numero_systeme')}</th>"
+            f"<th class='c'>{t('deficiences_section')}</th></tr></thead><tbody>{lignes}</tbody></table>"
+            if lignes else f"<div class='gic-bloc gic-vide'>{t('aucune_fiche')}</div>"
+        )
+        hors_fiche = rapport.photos.filter(sous_rapport_gicleur__isnull=True).exclude(section_fiche="debits_valves")
+        photos_hors_fiche = html_annexe_photos(rapport, t("photos_anomalies"), t("suite"), photos=hors_fiche)
+        entete_html = entete(
+            contexte["logo"], organisation.nom, t("rapport_gicleur"), t("certificat_no"), contexte["certificat"],
+            t("date_inspection"), contexte["date"], t("technicien_s"), contexte["techniciens"],
+        )
+        fiches_html = "".join(_html_rapport_fiche(rapport, sr, langue, t, contexte) for sr in sous_rapports)
+        if rapport.debits_valves is not None:
+            fiches_html += _html_debits_valves(rapport, langue, t, contexte)
 
-    def bloc_texte(texte):
-        return f"<div class='gic-bloc'>{escape(texte)}</div>" if texte else "<div class='gic-bloc gic-vide'>—</div>"
-
-    entete_html = entete(
-        organisation_logo_content(organisation, 46), organisation.nom, t("rapport_gicleur"),
-        t("certificat_no"), (cert.numero if cert else "—"),
-        t("date_inspection"), date_insp, t("technicien_s"), tech_noms,
-    )
-
-    return f"""<!DOCTYPE html>
-<html lang="{langue}">
-<head>
-<meta charset="UTF-8">
-<title>{t("rapport_gicleur")} — {escape(adresse)}</title>
-<style>{CSS_DOCUMENT}</style>
-<style>{CSS_RAPPORT_GICLEUR}</style>
-</head>
-<body>
-<div class="no-print" style="text-align:right;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
-  <button onclick="window.print()" style="background:#0a0b0d;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">{t("imprimer_pdf")}</button>
-</div>
-<div style="padding:16px 20px;">
-{entete_html}
+        corps = f"""{entete_html}
 <div class="title-banner">
   <h2>{t("rapport_verification")} — {t("systeme_gicleurs")}</h2>
   <div style="width:140px;height:1.5px;background:linear-gradient(90deg, transparent, #e11324, transparent);margin:6px auto;"></div>
@@ -966,22 +950,28 @@ def html_rapport_gicleur_complet(rapport) -> str:
   <div class="card-title">{t("adresse")}</div>
   <div class="card-main" style="font-size:14pt;">{escape(adresse)}</div>
 </div>
-{section('<i style="font-style:normal;">i</i>', t("informations_systeme"))}
 {infos_html}
-{section("1", titre_section("1", langue))}
-{identification_html}{commentaire("1")}
-{sections_html}
-{section("12", t("modifications_recentes"))}
-{bloc_texte(rapport.recommandations)}
-{section("13", t("ajustements"))}
-{bloc_texte(rapport.ajustements_effectues)}
-{section("14", t("reponses_negatives"))}
-{liste(rapport.reponses_negatives.all())}
-{section("15", t("ameliorations"))}
-{liste(rapport.ameliorations.all())}
-{section("16", t("valves_etage"))}
-{liste(rapport.valves_etage_supervise.all())}
-{html_annexe_photos(rapport, t("photos_anomalies"), t("suite"))}
+{_html_fiche(SimpleNamespace(reponses=ident_rep, remarques=ident.get('remarques') or {}), langue, t, sections=FICHE_IDENTIFICATION['sections'][1:])}
+<div class='gic-sec'><span class='gic-num'>#</span><span class='gic-titre'>{t("fiches_inspectees")}</span></div>
+{sommaire}
+{fiches_html}
+{photos_hors_fiche}"""
+        titre_document = f"{t('rapport_gicleur')} — {adresse}"
+
+    return f"""<!DOCTYPE html>
+<html lang="{langue}">
+<head>
+<meta charset="UTF-8">
+<title>{escape(titre_document)}</title>
+<style>{CSS_DOCUMENT}</style>
+<style>{CSS_RAPPORT_GICLEUR}</style>
+</head>
+<body>
+<div class="no-print" style="text-align:right;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e5e7eb;">
+  <button onclick="window.print()" style="background:#0a0b0d;color:#fff;border:none;padding:8px 20px;border-radius:4px;font-weight:700;cursor:pointer;font-size:10pt;">{t("imprimer_pdf")}</button>
+</div>
+<div style="padding:16px 20px;">
+{corps}
 {pied_de_page(organisation.nom, t("footer_rapport_gicleur"))}
 </div>
 </body>

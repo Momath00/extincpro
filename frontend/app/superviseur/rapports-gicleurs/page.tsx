@@ -5,8 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 import Pagination from '@/components/dashboard/Pagination'
-import { useLangue, useT } from '@/lib/i18n'
-import { TYPES_SYSTEME } from '@/components/rapports-gicleurs/FormulaireGicleur'
+import { useT } from '@/lib/i18n'
+import { FICHES_MENU, ICONES_FICHES } from '@/lib/gicleurFiches'
+import LignesFiches from '@/components/rapports-gicleurs/LignesFiches'
 
 const PAGE_SIZE = 25
 
@@ -18,13 +19,15 @@ function RapportsGicleursListContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const t = useT()
-  const langue = useLangue()
   const [rapports, setRapports] = useState<any[]>([])
   const [count, setCount] = useState(0)
   const [compteurs, setCompteurs] = useState({ tous: 0, ouvert: 0, ferme: 0 })
   const [loading, setLoading] = useState(true)
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date())
 
+  // ?fiche=eau : sous-menu « Système sous eau » du menu Gicleurs.
+  const fiche = searchParams.get('fiche') || ''
+  const ficheMenu = FICHES_MENU.find(f => f.code === fiche)
   const initialFiltre = (searchParams.get('f') as 'tous' | 'ouvert' | 'ferme') || 'tous'
   const [filtre, setFiltre] = useState<'tous' | 'ouvert' | 'ferme'>(initialFiltre)
   const [page, setPage] = useState(Number(searchParams.get('page')) || 1)
@@ -59,7 +62,7 @@ function RapportsGicleursListContent() {
 
   function chargerCompteurs() {
     const token = localStorage.getItem('access_token')
-    fetch(`${API_URL}/api/rapports-gicleurs/compteurs/`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_URL}/api/rapports-gicleurs/compteurs/${fiche ? `?fiche=${fiche}` : ''}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => (res.ok ? res.json() : null))
       .then(data => { if (data) setCompteurs(data) })
       .catch(() => {})
@@ -72,6 +75,7 @@ function RapportsGicleursListContent() {
     const params = new URLSearchParams({ page: String(page) })
     if (filtre !== 'tous') params.set('statut', filtre)
     if (rechercheDebouncee.trim()) params.set('q', rechercheDebouncee.trim())
+    if (fiche) params.set('fiche', fiche)
     fetch(`${API_URL}/api/rapports-gicleurs/?${params}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => {
         if (res.status === 401) { router.push('/login'); return null }
@@ -93,7 +97,7 @@ function RapportsGicleursListContent() {
     charger()
     timerRef.current = setInterval(() => charger(true), 30000)
     return () => { if (timerRef.current) clearInterval(timerRef.current) }
-  }, [page, filtre, rechercheDebouncee])
+  }, [page, filtre, rechercheDebouncee, fiche])
 
   useEffect(() => {
     const f = searchParams.get('f') as 'tous' | 'ouvert' | 'ferme' | null
@@ -112,7 +116,7 @@ function RapportsGicleursListContent() {
   useEffect(() => {
     if (premierRendu.current) { premierRendu.current = false; return }
     setPage(1)
-  }, [filtre, rechercheDebouncee])
+  }, [filtre, rechercheDebouncee, fiche])
 
   const filtered = rapports
   const nbOuverts = compteurs.ouvert
@@ -151,7 +155,14 @@ function RapportsGicleursListContent() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: NAVY }}>{t('titre_rapport_gicleur')}</h1>
+          <h1 className="text-2xl font-bold flex items-center gap-2 flex-wrap" style={{ color: NAVY }}>
+            {t('titre_rapport_gicleur')}
+            {ficheMenu && (
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full text-white" style={{ background: ORANGE }}>
+                <i className={`ti ${ICONES_FICHES[ficheMenu.code]}`} /> {t(ficheMenu.cle)}
+              </span>
+            )}
+          </h1>
           <div className="flex items-center gap-2 mt-0.5">
             <p className="text-gray-500 text-sm">{compteurs.tous} {compteurs.tous !== 1 ? t('rapports_pluriel') : t('rapport_singulier')}</p>
             <span className="text-gray-200">·</span>
@@ -229,22 +240,21 @@ function RapportsGicleursListContent() {
         </div>
       ) : (
         <div className="bg-white rounded-md border border-gray-100 overflow-hidden shadow-sm">
-          <div className="hidden md:grid grid-cols-[2fr_1.5fr_1.5fr_auto_auto] gap-4 px-5 py-3 border-b border-gray-100 bg-slate-50 text-xs font-black uppercase tracking-widest text-gray-500">
+          <div className="hidden md:grid grid-cols-[2fr_1.5fr_1.5fr_auto] gap-4 px-5 py-3 border-b border-gray-100 bg-slate-50 text-xs font-black uppercase tracking-widest text-gray-500">
             <span>{t('adresse')}</span>
             <span>{t('client')}</span>
             <span>{t('techniciens_col')}</span>
-            <span>{t('gic_type_systeme')}</span>
             <span>{t('statut')}</span>
           </div>
 
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-gray-100">
             {filtered.map(r => {
               const ferme = r.statut === 'ferme'
               return (
+                <div key={r.id}>
                 <Link
-                  key={r.id}
                   href={`/superviseur/rapports-gicleurs/${r.id}`}
-                  className="flex flex-col md:grid md:grid-cols-[2fr_1.5fr_1.5fr_auto_auto] gap-2 md:gap-4 px-5 py-4 hover:bg-gray-50 transition-colors items-start md:items-center group"
+                  className="flex flex-col md:grid md:grid-cols-[2fr_1.5fr_1.5fr_auto] gap-2 md:gap-4 px-5 py-4 hover:bg-gray-50 transition-colors items-start md:items-center group"
                 >
                   <div className="flex items-center gap-3 min-w-0 w-full md:w-auto">
                     <div className="w-8 h-8 rounded-md flex-shrink-0 items-center justify-center hidden md:flex"
@@ -321,7 +331,6 @@ function RapportsGicleursListContent() {
                     )}
                   </div>
 
-                  <span className="hidden md:inline text-xs text-gray-400">{TYPES_SYSTEME.find(o => o.value === r.type_systeme)?.[langue] || '—'}</span>
 
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className="text-xs px-2.5 py-1 rounded-full font-semibold whitespace-nowrap"
@@ -346,6 +355,8 @@ function RapportsGicleursListContent() {
                     </button>
                   </div>
                 </Link>
+                <LignesFiches fiches={r.fiches || []} debitsValves={r.resume_debits_valves} lienRapport={`/superviseur/rapports-gicleurs/${r.id}`} filtre={fiche} />
+                </div>
               )
             })}
           </div>

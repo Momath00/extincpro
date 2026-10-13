@@ -12,6 +12,9 @@ type Photo = {
   emplacement: string
   description: string
   section: number | null
+  // Rapport gicleur : fiche et section de la photo.
+  sous_rapport_gicleur?: number | null
+  section_fiche?: string
 }
 
 /** Photos d'anomalies affichées dans l'onglet Déficiences (lecture seule) —
@@ -20,9 +23,15 @@ type Photo = {
 export default function PhotosDeficiences({
   photosUrl,
   sections,
+  libelle,
+  ordre,
 }: {
   photosUrl: string // ex. `${API_URL}/api/rapports/12/photos/`
   sections?: { id: number; nom: string }[]
+  /** Libellé affiché au-dessus de l'emplacement (ex. fiche gicleur + section). */
+  libelle?: (photo: Photo) => string | undefined
+  /** Rang de tri d'une photo (plus petit = avant). */
+  ordre?: (photo: Photo) => number
 }) {
   const t = useT()
   const [photos, setPhotos] = useState<Photo[] | null>(null)
@@ -58,7 +67,9 @@ export default function PhotosDeficiences({
     const i = sections?.findIndex(s => s.id === id) ?? -1
     return i < 0 ? Number.MAX_SAFE_INTEGER : i
   }
-  const triees = [...photos].sort((a, b) => ordreSection(a.section) - ordreSection(b.section))
+  const rang = (p: Photo) => (ordre ? ordre(p) : ordreSection(p.section))
+  const triees = [...photos].sort((a, b) => rang(a) - rang(b))
+  const etiquette = (p: Photo) => (libelle ? libelle(p) : nomSection(p.section))
   const photoAgrandie = agrandie !== null ? triees[agrandie] : null
 
   return (
@@ -75,7 +86,7 @@ export default function PhotosDeficiences({
       </div>
       <div className="p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {triees.map((p, i) => {
-          const sec = nomSection(p.section)
+          const sec = etiquette(p)
           return (
             <button key={p.id} type="button" onClick={() => setAgrandie(i)}
               className="text-left rounded-lg border border-gray-100 overflow-hidden hover:border-[#e11324] transition-colors bg-white">
@@ -100,7 +111,7 @@ export default function PhotosDeficiences({
           </div>
           <div className="text-center text-white mt-3" onClick={e => e.stopPropagation()}>
             <p className="text-sm font-bold">
-              {[nomSection(photoAgrandie.section), photoAgrandie.emplacement].filter(Boolean).join(' — ')}
+              {[etiquette(photoAgrandie), photoAgrandie.emplacement].filter(Boolean).join(' — ')}
             </p>
             {photoAgrandie.description && <p className="text-xs text-white/70 mt-0.5">{photoAgrandie.description}</p>}
             <p className="text-[11px] text-white/50 mt-1">{(agrandie ?? 0) + 1} / {triees.length}</p>

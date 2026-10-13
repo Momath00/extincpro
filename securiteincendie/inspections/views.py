@@ -303,14 +303,16 @@ def _creer_rapport_eclairage_seul(source, utilisateur, request_data, libelle_sou
 
 
 def _creer_rapport_gicleur_lie(source, utilisateur, request_data, libelle_source):
-    """`avec_gicleur` → rapport gicleur (checklist complète, propre certificat)."""
+    """`avec_gicleur` → rapport gicleur (propre certificat)."""
     if not _module_demande(utilisateur, request_data, "avec_gicleur", "rapport_gicleur"):
         return None
+    from .gicleur_fiches import identification_reprise
+
     rapport = RapportGicleur.objects.create(
         batiment=source.batiment, cree_par=utilisateur,
         citoyen=getattr(source, "citoyen", None), date_inspection=source.date_inspection,
+        identification=identification_reprise(source.batiment),
     )
-    rapport.creer_structure_par_defaut()
     _copier_visite(source, rapport, utilisateur, libelle_source)
     return rapport
 

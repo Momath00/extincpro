@@ -1695,14 +1695,9 @@ class TourneeBatiment(models.Model):
         return f"{self.tournee} — {self.batiment.adresse_complete} (#{self.ordre})"
 
 # ─────────────────────────────────────────────────────────────────────────
-# Rapport Gicleur — inspection annuelle du système de gicleurs (NFPA 13),
-# module autonome avec son propre certificat (porté du projet Préventex).
-#
-# Contrairement à un rapport « un item par appareil » (extincteurs), c'est
-# une CHECKLIST DE CONFORMITÉ à sections fixes (voir gicleur_checklist.py) :
-# des questions Oui / S.O. / Non regroupées par section, plus quelques
-# tableaux de taille fixe (identification, soupapes de commande, essais
-# d'écoulement, installations spéciales, points bas) et des listes libres.
+# Rapport Gicleur — rapport de la visite (module autonome, son propre
+# certificat). L'ancien formulaire Préventex a été retiré ; les fiches
+# d'inspection (sous eau, sous air, préaction…) viendront s'y rattacher.
 # ─────────────────────────────────────────────────────────────────────────
 
 class RapportGicleur(models.Model):
@@ -1710,18 +1705,12 @@ class RapportGicleur(models.Model):
         OUVERT = "ouvert", "Ouvert"
         FERME = "ferme", "Fermé"
 
-    class TypeSysteme(models.TextChoices):
-        EAU = "eau", "Sous eau (wet-pipe)"
-        AIR = "air", "Sous air (dry-pipe)"
-        DELUGE = "deluge", "Déluge"
-        PREACTION = "preaction", "Préaction"
-        COMBINE = "combine", "Combiné"
-
     class FrequenceInspection(models.TextChoices):
         ANNUELLE = "annuelle", "Annuelle"
         SEMESTRIELLE = "semestrielle", "Semestrielle"
         TRIMESTRIELLE = "trimestrielle", "Trimestrielle"
         MENSUELLE = "mensuelle", "Mensuelle"
+        BIMENSUELLE = "bimensuelle", "Bi-mensuelle"
 
     batiment = models.ForeignKey(Batiment, on_delete=models.CASCADE, related_name="rapports_gicleurs")
     cree_par = models.ForeignKey(
@@ -1755,20 +1744,16 @@ class RapportGicleur(models.Model):
         help_text="Calculée automatiquement à la fermeture (date_inspection + 1 an) — sert aux rappels par courriel.",
     )
 
-    # En-tête du formulaire
-    identification_systeme = models.CharField(max_length=150, blank=True)
-    local_gicleur = models.CharField(max_length=150, blank=True, help_text="Local des vannes/gicleurs.")
-    type_systeme = models.CharField(max_length=20, choices=TypeSysteme.choices, blank=True)
     frequence_inspection = models.CharField(max_length=20, choices=FrequenceInspection.choices, blank=True)
-    compagnie_installatrice = models.CharField(max_length=150, blank=True)
+    # Section optionnelle « Débits et valves » (voir gicleur_fiches.DEBITS_VALVES) :
+    # null = non ajoutée ; sinon {"lignes": [...], "deficiences": "…"}.
+    debits_valves = models.JSONField(null=True, blank=True, default=None)
+    # Infos et identification du bâtiment (onglets « Client » et « Identification »
+    # de l'Excel, voir gicleur_fiches.FICHE_IDENTIFICATION).
+    identification = models.JSONField(default=dict, blank=True, help_text="{reponses: {...}, remarques: {...}}")
 
-    # Blocs de texte libre
-    recommandations = models.TextField(
-        blank=True, help_text="Modifications récentes de l'affectation des locaux ou du matériel d'incendie."
-    )
-    ajustements_effectues = models.TextField(
-        blank=True, help_text="Ajustements ou corrections effectués lors de la visite."
-    )
+    # Sections du rapport lui-même (hors fiche) qui peuvent avoir des photos.
+    SECTIONS_RAPPORT = ("debits_valves", "id_panneau", "id_generalites", "id_raccord", "id_verification")
 
     class Meta:
         ordering = ["-date_creation"]
@@ -1776,54 +1761,22 @@ class RapportGicleur(models.Model):
     def historiser(self, utilisateur, description):
         HistoriqueRapportGicleur.objects.create(rapport=self, utilisateur=utilisateur, description=description)
 
-    def creer_structure_par_defaut(self):
-        """Peuple les lignes de checklist et les tableaux fixes à la création."""
-        from .gicleur_checklist import (
-            CATEGORIES_SOUPAPE_COMMANDE,
-            CHECKLIST_GICLEUR,
-            NB_ESSAIS_ECOULEMENT,
-            NB_IDENTIFICATIONS_SYSTEMES,
-            NB_INSTALLATIONS_SPECIALES,
-            NB_POINTS_BAS,
-        )
+    def deficiences(self) -> list[dict]:
+        """Déficiences de toutes les fiches (chacune avec son sous-rapport),
+        puis celles de la section « Débits et valves »."""
+        from .gicleur_fiches import deficiences_debits_valves, deficiences_identification
 
-        GicleurReponseChecklist.objects.bulk_create([
-            GicleurReponseChecklist(
-                rapport=self, section=section, ordre=i, code_item=code,
-                label=label, type_reponse=type_reponse,
-            )
-            for i, (code, section, _titre, label, type_reponse) in enumerate(CHECKLIST_GICLEUR)
-        ])
-        GicleurIdentificationSysteme.objects.bulk_create([
-            GicleurIdentificationSysteme(rapport=self, numero=i) for i in range(1, NB_IDENTIFICATIONS_SYSTEMES + 1)
-        ])
-        GicleurSoupapeCommande.objects.bulk_create([
-            GicleurSoupapeCommande(rapport=self, ordre=i, categorie=code)
-            for i, (code, _label) in enumerate(CATEGORIES_SOUPAPE_COMMANDE, start=1)
-        ])
-        GicleurEssaiEcoulement.objects.bulk_create([
-            GicleurEssaiEcoulement(rapport=self, ordre=i) for i in range(1, NB_ESSAIS_ECOULEMENT + 1)
-        ])
-        GicleurInstallationSpeciale.objects.bulk_create([
-            GicleurInstallationSpeciale(rapport=self, ordre=i) for i in range(1, NB_INSTALLATIONS_SPECIALES + 1)
-        ])
-        GicleurPointBas.objects.bulk_create([
-            GicleurPointBas(rapport=self, position=str(i)) for i in range(1, NB_POINTS_BAS + 1)
-        ])
+        return deficiences_identification(self) + [
+            {**d, "sous_rapport": sr.pk}
+            for sr in self.sous_rapports.all()
+            for d in sr.deficiences()
+        ] + deficiences_debits_valves(self)
 
     @property
     def est_conforme(self) -> bool:
-        """Non conforme dès qu'une question de la checklist est à « Non » ou
-        qu'une soupape de commande n'est pas ouverte/protégée/identifiée."""
-        from .gicleur_checklist import CODES_HORS_CONFORMITE
-
-        if self.reponses_checklist.filter(reponse="non").exclude(code_item__in=CODES_HORS_CONFORMITE).exists():
-            return False
-        if self.soupapes_commande.filter(
-            models.Q(ouvertes="non") | models.Q(protegees="non") | models.Q(identifiees="non")
-        ).exists():
-            return False
-        return True
+        """Non conforme dès qu'une section (d'une fiche ou du rapport) a des
+        déficiences écrites."""
+        return not self.deficiences()
 
     def fermer(self, utilisateur):
         from datetime import timedelta
@@ -1935,176 +1888,38 @@ class HistoriqueRapportGicleur(models.Model):
         return f"{self.date_heure:%Y-%m-%d %H:%M} — {self.description}"
 
 
-REPONSE_GICLEUR_CHOICES = [("oui", "Oui"), ("na", "S/O"), ("non", "Non")]
-OUI_NON_CHOICES = [("oui", "Oui"), ("non", "Non")]
+class SousRapportGicleur(models.Model):
+    """Une fiche d'inspection d'un système (sous eau, sous air…) dans le
+    rapport gicleur de la visite — un bâtiment peut en avoir plusieurs du
+    même type. Les questions sont décrites dans `gicleur_fiches.py` ; les
+    réponses sont stockées par code de champ."""
 
+    class TypeFiche(models.TextChoices):
+        EAU = "eau", "Système sous eau"
+        AIR = "air", "Système sous air"
+        DARPR = "darpr", "Dispositif anti-refoulement à pression réduite"
+        DAR2CR = "dar2cr", "Dispositif anti-refoulement à deux clapets"
 
-class GicleurReponseChecklist(models.Model):
-    """Une ligne de la checklist de conformité (sections 2 à 11)."""
-
-    class TypeReponse(models.TextChoices):
-        CHOIX = "choix", "Oui / S/O / Non"
-        TEXTE = "texte", "Texte libre"
-
-    rapport = models.ForeignKey(RapportGicleur, on_delete=models.CASCADE, related_name="reponses_checklist")
-    section = models.CharField(max_length=2)
+    rapport = models.ForeignKey(RapportGicleur, on_delete=models.CASCADE, related_name="sous_rapports")
+    type_fiche = models.CharField(max_length=20, choices=TypeFiche.choices)
+    numero_systeme = models.CharField(max_length=50, blank=True)
     ordre = models.PositiveIntegerField(default=0)
-    code_item = models.CharField(max_length=10)
-    label = models.CharField(max_length=300)
-    type_reponse = models.CharField(max_length=10, choices=TypeReponse.choices, default=TypeReponse.CHOIX)
-    reponse = models.CharField(max_length=3, choices=REPONSE_GICLEUR_CHOICES, blank=True)
-    valeur_texte = models.TextField(blank=True)
+    reponses = models.JSONField(default=dict, blank=True, help_text="{code du champ: valeur}")
+    remarques = models.JSONField(default=dict, blank=True, help_text="{code de section: déficiences écrites par le technicien}")
+    date_creation = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["ordre"]
-        unique_together = [("rapport", "code_item")]
+        ordering = ["ordre", "id"]
+
+    def deficiences(self) -> list[dict]:
+        from .gicleur_fiches import deficiences_sous_rapport
+
+        return deficiences_sous_rapport(self)
 
     def __str__(self):
-        return f"{self.code_item} — {self.label}"
+        from .gicleur_fiches import libelle_sous_rapport
 
-
-class GicleurEssaiEcoulement(models.Model):
-    """Tableau fixe (4 lignes) — essais d'écoulement / pompe de surpression."""
-
-    class EtatMarcheArret(models.TextChoices):
-        MARCHE = "marche", "Marche"
-        ARRET = "arret", "Arrêt"
-
-    rapport = models.ForeignKey(RapportGicleur, on_delete=models.CASCADE, related_name="essais_ecoulement")
-    ordre = models.PositiveIntegerField()
-    pression_systeme = models.CharField(max_length=20, blank=True, help_text="Pression du système, en lbs.")
-    localisation_drain = models.CharField(max_length=150, blank=True)
-    dimension_tuyau = models.CharField(max_length=50, blank=True)
-    pression_statique = models.CharField(max_length=20, blank=True)
-    pression_residuelle = models.CharField(max_length=20, blank=True)
-    pression_apres = models.CharField(max_length=20, blank=True)
-    etat_marche_arret = models.CharField(max_length=10, choices=EtatMarcheArret.choices, blank=True)
-    heure_marche_arret = models.CharField(max_length=10, blank=True)
-
-    class Meta:
-        ordering = ["ordre"]
-
-
-class GicleurIdentificationSysteme(models.Model):
-    """Section 1 « Identification de l'équipement » — une fiche par système."""
-
-    rapport = models.ForeignKey(RapportGicleur, on_delete=models.CASCADE, related_name="identifications_systemes")
-    numero = models.PositiveIntegerField()
-    systeme = models.CharField(max_length=150, blank=True)
-    zone_protegee = models.CharField(max_length=150, blank=True)
-    marque = models.CharField(max_length=150, blank=True)
-    modele = models.CharField(max_length=150, blank=True)
-    annee = models.CharField(max_length=4, blank=True)
-    diametre = models.CharField(max_length=50, blank=True)
-    lieu_robinet_essai = models.CharField(max_length=150, blank=True)
-    pompe_surpression = models.CharField(max_length=150, blank=True)
-    compresseur_air = models.CharField(max_length=150, blank=True)
-    plaque_signaletique = models.CharField(max_length=150, blank=True)
-    identification_complete = models.CharField(max_length=150, blank=True)
-
-    class Meta:
-        ordering = ["numero"]
-
-
-class GicleurSoupapeCommande(models.Model):
-    """Tableau fixe (5 lignes) — section 2 « Soupapes de commande »."""
-
-    CATEGORIES = [
-        ("ville", "Soupapes de commande de la ville"),
-        ("alimentation", "Soupapes de commande d'alimentation"),
-        ("pompe", "Soupapes de commande de pompe"),
-        ("secteur", "Soupapes de commande de secteur"),
-        ("principale", "Soupapes de commande principales"),
-    ]
-
-    rapport = models.ForeignKey(RapportGicleur, on_delete=models.CASCADE, related_name="soupapes_commande")
-    ordre = models.PositiveIntegerField()
-    categorie = models.CharField(max_length=20, choices=CATEGORIES)
-    nombre = models.CharField(max_length=20, blank=True)
-    type_texte = models.CharField(max_length=100, blank=True)
-    ouvertes = models.CharField(max_length=3, choices=OUI_NON_CHOICES, blank=True)
-    protegees = models.CharField(max_length=3, choices=OUI_NON_CHOICES, blank=True)
-    identifiees = models.CharField(max_length=3, choices=OUI_NON_CHOICES, blank=True)
-    condition = models.CharField(max_length=150, blank=True)
-    localisation = models.CharField(max_length=150, blank=True)
-
-    class Meta:
-        ordering = ["ordre"]
-
-
-class GicleurValveEtageSupervise(models.Model):
-    """Liste libre — « Valve d'étage supervisé »."""
-
-    rapport = models.ForeignKey(RapportGicleur, on_delete=models.CASCADE, related_name="valves_etage_supervise")
-    ordre = models.PositiveIntegerField(default=0)
-    texte = models.TextField(blank=True)
-
-    class Meta:
-        ordering = ["ordre"]
-
-
-class GicleurInstallationSpeciale(models.Model):
-    """Tableau (3 lignes par défaut) — installations spéciales (degré de température)."""
-
-    rapport = models.ForeignKey(RapportGicleur, on_delete=models.CASCADE, related_name="installations_speciales")
-    ordre = models.PositiveIntegerField()
-    degre_temperature = models.CharField(max_length=50, blank=True)
-    localisation = models.CharField(max_length=150, blank=True)
-
-    class Meta:
-        ordering = ["ordre"]
-
-
-class GicleurPointBas(models.Model):
-    """Points bas d'une installation sous air (section 11)."""
-
-    rapport = models.ForeignKey(RapportGicleur, on_delete=models.CASCADE, related_name="points_bas")
-    position = models.CharField(max_length=10)
-    description = models.TextField(blank=True)
-    vidange = models.CharField(max_length=3, choices=REPONSE_GICLEUR_CHOICES, blank=True)
-
-    class Meta:
-        ordering = ["id"]
-
-
-class GicleurReponseNegative(models.Model):
-    """Ligne libre — section « Réponses négatives »."""
-
-    rapport = models.ForeignKey(RapportGicleur, on_delete=models.CASCADE, related_name="reponses_negatives")
-    ordre = models.PositiveIntegerField(default=0)
-    texte = models.TextField()
-
-    class Meta:
-        ordering = ["ordre"]
-
-
-class GicleurAmelioration(models.Model):
-    """Ligne libre — section « Améliorations souhaitées »."""
-
-    rapport = models.ForeignKey(RapportGicleur, on_delete=models.CASCADE, related_name="ameliorations")
-    ordre = models.PositiveIntegerField(default=0)
-    texte = models.TextField()
-
-    class Meta:
-        ordering = ["ordre"]
-
-
-class GicleurCommentaireSection(models.Model):
-    """Commentaire libre sous une section numérotée (1 à 11) — au plus un par
-    section ; aucune ligne si la section n'a pas de commentaire."""
-
-    SECTIONS_AVEC_COMMENTAIRE = [str(n) for n in range(1, 12)]
-
-    rapport = models.ForeignKey(RapportGicleur, on_delete=models.CASCADE, related_name="commentaires_sections")
-    section = models.CharField(max_length=2)
-    texte = models.TextField()
-
-    class Meta:
-        ordering = ["rapport", "section"]
-        unique_together = [("rapport", "section")]
-
-    def __str__(self):
-        return f"Section {self.section} — {self.texte[:40]}"
+        return libelle_sous_rapport(self)
 
 
 # Champ ForeignKey de PhotoAnomalie → modèle de rapport correspondant.
@@ -2135,6 +1950,12 @@ class PhotoAnomalie(models.Model):
     # Rapport d'alarme : photo rattachée à une section E3 (un étage, une
     # aile…). Nulle pour les autres types de rapport et les anciennes photos.
     section = models.ForeignKey(SectionDispositif, null=True, blank=True, on_delete=models.CASCADE, related_name="photos")
+    # Rapport gicleur : photo rattachée à une section d'une fiche (sous eau,
+    # sous air…). `rapport_gicleur` reste renseigné.
+    sous_rapport_gicleur = models.ForeignKey(
+        SousRapportGicleur, null=True, blank=True, on_delete=models.CASCADE, related_name="photos",
+    )
+    section_fiche = models.CharField(max_length=50, blank=True, help_text="Code de la section de la fiche (gicleur_fiches.py).")
 
     image = models.BinaryField()
     emplacement = models.CharField(max_length=200, help_text="Titre de la photo, ex. « Sous-sol — salle mécanique ».")

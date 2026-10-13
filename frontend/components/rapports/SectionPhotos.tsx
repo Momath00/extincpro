@@ -99,6 +99,8 @@ export default function SectionPhotos({
   readOnly,
   suggestionsEmplacement = [],
   section,
+  filtre,
+  titre,
   masquerSiVide = false,
 }: {
   photosUrl: string // ex. `${API_URL}/api/rapports-gicleurs/12/photos/`
@@ -107,6 +109,11 @@ export default function SectionPhotos({
   /** Rapport d'alarme : id de la section E3 dont on affiche/ajoute les
    *  photos, ou « aucune » pour les photos rattachées au rapport seulement. */
   section?: number | 'aucune'
+  /** Rapport gicleur : { sous_rapport, section_fiche } — filtre la liste et
+   *  rattache les nouvelles photos (« aucune » = rapport seulement). */
+  filtre?: Record<string, string>
+  /** Titre de l'en-tête (par défaut « Photos des anomalies »). */
+  titre?: string
   /** Ne rien afficher tant qu'il n'y a aucune photo (anciennes photos). */
   masquerSiVide?: boolean
 }) {
@@ -127,12 +134,13 @@ export default function SectionPhotos({
   const compteurSurvol = useRef(0)
   const idListe = useRef(`emplacements-${Math.random().toString(36).slice(2)}`).current
 
+  const requete = new URLSearchParams({ ...(section ? { section: String(section) } : {}), ...(filtre || {}) }).toString()
   useEffect(() => {
-    appelJson(section ? `${photosUrl}?section=${section}` : photosUrl).then(res => {
+    appelJson(requete ? `${photosUrl}?${requete}` : photosUrl).then(res => {
       if (res.ok && Array.isArray(res.data)) setPhotos(res.data)
       setChargement(false)
     })
-  }, [photosUrl, section])
+  }, [photosUrl, requete])
 
   // Libère les aperçus locaux quand le composant disparaît.
   const enAttenteRef = useRef(enAttente)
@@ -204,6 +212,7 @@ export default function SectionPhotos({
       form.append('emplacement', p.emplacement.trim())
       form.append('description', p.description.trim())
       if (typeof section === 'number') form.append('section', String(section))
+      Object.entries(filtre || {}).forEach(([cle, valeur]) => { if (valeur !== 'aucune') form.append(cle, valeur) })
       const res = await envoyerFormulaire(photosUrl, form, pct => majAttente(p.cle, { progression: pct }))
       if (res.ok) {
         setPhotos(prev => [...prev, res.data])
@@ -268,7 +277,7 @@ export default function SectionPhotos({
       >
         <div className="flex items-center gap-2">
           <i className="ti ti-camera text-lg" style={{ color: RED }} />
-          <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: NAVY }}>{t('photos_anomalies_titre')}</h2>
+          <h2 className="text-sm font-bold uppercase tracking-widest" style={{ color: NAVY }}>{titre || t('photos_anomalies_titre')}</h2>
         </div>
         <div className="flex items-center gap-2">
           {enAttente.length > 0 && (
