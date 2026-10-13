@@ -88,6 +88,17 @@ class PhotosRapportMixin:
                 photos = photos.filter(section__isnull=True)
             elif section:
                 photos = photos.filter(section_id=section)
+            # Rapport gicleur : ?sous_rapport=<id>&section_fiche=<code> pour
+            # une section d'une fiche ; ?sous_rapport=aucune pour les photos
+            # rattachées au rapport seulement.
+            sous_rapport = request.query_params.get("sous_rapport")
+            if sous_rapport == "aucune":
+                photos = photos.filter(sous_rapport_gicleur__isnull=True)
+            elif sous_rapport:
+                photos = photos.filter(sous_rapport_gicleur_id=sous_rapport)
+            section_fiche = request.query_params.get("section_fiche")
+            if section_fiche:
+                photos = photos.filter(section_fiche=section_fiche)
             return Response(PhotoAnomalieSerializer(photos, many=True).data)
 
         refus = self._refus_modification_photos(request, rapport)
@@ -112,9 +123,27 @@ class PhotosRapportMixin:
             if section is None:
                 return Response({"section": ["Section inconnue pour ce rapport."]}, status=status.HTTP_400_BAD_REQUEST)
 
+        sous_rapport, section_fiche = None, ""
+        if request.data.get("sous_rapport"):
+            from .gicleur_fiches import section_de
+
+            sous_rapports = getattr(rapport, "sous_rapports", None)
+            sous_rapport = sous_rapports.filter(pk=request.data["sous_rapport"]).first() if sous_rapports is not None else None
+            if sous_rapport is None:
+                return Response({"sous_rapport": ["Fiche inconnue pour ce rapport."]}, status=status.HTTP_400_BAD_REQUEST)
+            section_fiche = request.data.get("section_fiche") or ""
+            if section_fiche and section_de(sous_rapport.type_fiche, section_fiche) is None:
+                return Response({"section_fiche": ["Section inconnue pour cette fiche."]}, status=status.HTTP_400_BAD_REQUEST)
+        elif request.data.get("section_fiche"):
+            # Section du rapport lui-même (ex. « Débits et valves » du gicleur).
+            section_fiche = request.data["section_fiche"]
+            if section_fiche not in getattr(rapport, "SECTIONS_RAPPORT", ()):
+                return Response({"section_fiche": ["Section inconnue pour ce rapport."]}, status=status.HTTP_400_BAD_REQUEST)
+
         ordre = (rapport.photos.aggregate(m=Max("ordre"))["m"] or 0) + 1
         photo = serializer.save(
             **{self.champ_rapport_photo: rapport}, section=section, image=image, ordre=ordre, ajoutee_par=request.user,
+            sous_rapport_gicleur=sous_rapport, section_fiche=section_fiche,
         )
         rapport.historiser(request.user, f"Photo ajoutée : {photo.emplacement}"[:300])
         return Response(PhotoAnomalieSerializer(photo).data, status=status.HTTP_201_CREATED)
@@ -175,16 +204,32 @@ CSS_PHOTOS = """
 """
 
 
-def html_annexe_photos(rapport, titre: str = "Photos des anomalies", suite: str = "suite") -> str:
+def html_annexe_photos(rapport, titre: str = "Photos des anomalies", suite: str = "suite", photos=None) -> str:
     """Section à insérer juste avant le pied de page du rapport complet.
     Chaîne vide s'il n'y a aucune photo (pas de page blanche). Les images
     sont intégrées en base64 : le document reste autonome (ouvert en blob
-    dans le navigateur, ou rendu en PDF par Playwright sans accès réseau)."""
+    dans le navigateur, ou rendu en PDF par Playwright sans accès réseau).
+    `photos` : un sous-ensemble (ex. les photos d'une fiche gicleur) au lieu
+    de toutes les photos du rapport."""
     from django.utils import timezone
 
-    photos = list(rapport.photos.select_related("section").order_by("section__ordre", "section_id", "ordre", "id"))
+    photos = list((rapport.photos.all() if photos is None else photos).select_related("section", "sous_rapport_gicleur").order_by(
+        "section__ordre", "section_id", "sous_rapport_gicleur__ordre", "sous_rapport_gicleur_id", "ordre", "id",
+    ))
     if not photos:
         return ""
+
+    def titre_photo(photo):
+        if photo.section:
+            return f"{photo.section.nom} — {photo.emplacement}"
+        if photo.sous_rapport_gicleur:
+            from .gicleur_fiches import libelle_section, libelle_sous_rapport
+
+            langue = rapport.batiment.client.organisation.langue
+            sr = photo.sous_rapport_gicleur
+            morceaux = [libelle_sous_rapport(sr, langue), libelle_section(sr.type_fiche, photo.section_fiche, langue), photo.emplacement]
+            return " — ".join(m for m in morceaux if m)
+        return photo.emplacement
 
     cartes = []
     for numero, photo in enumerate(photos, start=1):
@@ -192,7 +237,7 @@ def html_annexe_photos(rapport, titre: str = "Photos des anomalies", suite: str 
         meta = timezone.localtime(photo.date_ajout).strftime("%Y-%m-%d %H:%M")
         description = f"<div class='photo-description'>{escape(photo.description)}</div>" if photo.description else ""
         cartes.append(f"""<div class="photo-carte">
-  <div class="photo-entete"><span class="photo-num">{numero}</span><span class="photo-emplacement">{escape(f"{photo.section.nom} — {photo.emplacement}" if photo.section else photo.emplacement)}</span></div>
+  <div class="photo-entete"><span class="photo-num">{numero}</span><span class="photo-emplacement">{escape(titre_photo(photo))}</span></div>
   <div class="photo-cadre"><img src='{src}' alt='Photo {numero}'/></div>
   <div class="photo-texte">{description}<div class="photo-meta">{meta}</div></div>
 </div>""")

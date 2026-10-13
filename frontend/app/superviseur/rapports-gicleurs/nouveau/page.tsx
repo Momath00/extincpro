@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import SearchableSelect from '@/components/SearchableSelect'
+import { ChoixTypesFiches, fichesDepuisQuantites } from '@/components/rapports-gicleurs/FichesGicleur'
+import { useFichesGicleur } from '@/lib/gicleurFiches'
 import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -29,6 +31,10 @@ export default function NouveauRapportGicleurPage() {
   const [moduleIncendieActif, setModuleIncendieActif] = useState(false)
   const [moduleExtincteurActif, setModuleExtincteurActif] = useState(false)
   const [moduleEclairageActif, setModuleEclairageActif] = useState(false)
+  // Fiches à inspecter : toutes les compagnies ne font pas tous les systèmes.
+  const fiches = useFichesGicleur()
+  const [quantitesFiches, setQuantitesFiches] = useState<Record<string, number>>({})
+  const [avecDebitsValves, setAvecDebitsValves] = useState(false)
 
   const [loadingBatiments, setLoadingBatiments] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -102,6 +108,8 @@ export default function NouveauRapportGicleurPage() {
           avec_extincteur: avecExtincteur,
           avec_eclairage_urgence: avecEclairageUrgence,
           avec_systeme_alarme: avecSystemeAlarme,
+          fiches: fichesDepuisQuantites(quantitesFiches),
+          avec_debits_valves: avecDebitsValves,
         }),
       })
       const data = await res.json() as any
@@ -230,6 +238,34 @@ export default function NouveauRapportGicleurPage() {
             onChange={e => setDateInspection(e.target.value)}
             className="w-full sm:w-64 border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324]"
           />
+        </div>
+
+        <div>
+          <label className="text-xs font-bold uppercase tracking-widest mb-1 block" style={{ color: NAVY }}>
+            {t('gic_fiches_a_inspecter')}
+          </label>
+          <p className="text-xs text-gray-400 mb-3">{t('gic_fiches_a_inspecter_desc')}</p>
+          {fiches
+            ? <ChoixTypesFiches fiches={fiches} valeurs={quantitesFiches} onChange={setQuantitesFiches} />
+            : <div className="h-16 rounded-lg bg-gray-50 animate-pulse" />}
+          {/* Section optionnelle du rapport (pas une fiche de système). */}
+          <button
+            type="button"
+            onClick={() => setAvecDebitsValves(v => !v)}
+            className="mt-3 w-full flex items-start gap-3 p-3 rounded-md border-2 text-left transition-colors"
+            style={{ borderColor: avecDebitsValves ? ORANGE : '#0a0b0d', background: avecDebitsValves ? '#fff2e8' : '#fff' }}
+          >
+            <span
+              className="w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border-2 mt-0.5"
+              style={{ borderColor: avecDebitsValves ? ORANGE : '#0a0b0d', background: avecDebitsValves ? ORANGE : 'transparent' }}
+            >
+              {avecDebitsValves && <i className="ti ti-check text-white text-xs" />}
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold flex items-center gap-1.5" style={{ color: NAVY }}><i className="ti ti-gauge" /> {t('dv_titre')}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{t('dv_creation_desc')}</p>
+            </div>
+          </button>
         </div>
 
 
