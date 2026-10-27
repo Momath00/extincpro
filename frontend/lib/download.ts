@@ -8,6 +8,11 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
  * Sur un jeton expiré (401), redirige vers /login plutôt que d'échouer en
  * silence — sans ça le bouton semble juste "ne pas marcher" (rien ne se
  * passe, aucune erreur visible) une fois la session expirée.
+ *
+ * L'URL blob n'est volontairement PAS révoquée : Safari (macOS/iPad)
+ * recharge le document depuis son URL au moment d'imprimer / exporter en
+ * PDF — une URL révoquée donne alors une page blanche. Le blob est libéré
+ * quand l'onglet de l'application se ferme ou se recharge.
  */
 export async function downloadHtml(url: string): Promise<boolean> {
   const token = localStorage.getItem('access_token')
@@ -21,7 +26,6 @@ export async function downloadHtml(url: string): Promise<boolean> {
   const blob = new Blob([html], { type: 'text/html' })
   const blobUrl = URL.createObjectURL(blob)
   window.open(blobUrl, '_blank')
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
   return true
 }
 
