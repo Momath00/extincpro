@@ -7,6 +7,7 @@ import InfoSystemeForm from '@/components/rapports-cuisine/InfoSystemeForm'
 import SchemaHottes from '@/components/rapports-cuisine/SchemaHottes'
 import ChecklistCuisine from '@/components/rapports-cuisine/ChecklistCuisine'
 import { downloadHtml } from '@/lib/download'
+import BoutonPdf from '@/components/BoutonPdf'
 import { useT } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
 import SectionPhotos from '@/components/rapports/SectionPhotos'
@@ -153,6 +154,12 @@ export default function TechnicienRapportCuisineDetailPage() {
             >
               <i className="ti ti-file-download" /> {t('telecharger_rapport')}
             </button>
+          )}
+          {readOnly && (
+            <BoutonPdf url={`${API_URL}/api/rapports-cuisine/${rapport.id}/telecharger/`} nomFichier={`Rapport Cuisine - ${rapport.batiment?.adresse_complete || rapport.id}`}
+              libelle={t('rapport_pdf')} onErreur={(m) => showToast(m, 'error')}
+              className="text-sm font-bold px-4 py-2.5 rounded-md text-white flex items-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
+              style={{ background: NAVY }} />
           )}
         </div>
       </div>

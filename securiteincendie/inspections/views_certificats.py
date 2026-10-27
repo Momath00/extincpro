@@ -6,7 +6,7 @@ La logique métier est dans certificats.py."""
 import re
 
 from django.db.models import Q
-from django.http import HttpResponse
+from .pdf import reponse_document
 from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -224,7 +224,7 @@ class CertificatVisiteViewSet(viewsets.GenericViewSet):
     def pdf(self, request, pk=None):
         cert = self.get_object()
         apercu = request.query_params.get("apercu") == "1"
-        return HttpResponse(C.html_certificat(cert, apercu=apercu), content_type="text/html; charset=utf-8")
+        return reponse_document(request, C.html_certificat(cert, apercu=apercu), f"certificat-{cert.id}")
 
     @action(detail=True, methods=["get"], url_path="revision-pdf")
     def revision_pdf(self, request, pk=None):
@@ -232,7 +232,7 @@ class CertificatVisiteViewSet(viewsets.GenericViewSet):
         revision = cert.revisions.filter(revision=request.query_params.get("revision")).first()
         if revision is None:
             return Response({"error": "Révision introuvable."}, status=status.HTTP_404_NOT_FOUND)
-        return HttpResponse(revision.html, content_type="text/html; charset=utf-8")
+        return reponse_document(request, revision.html, f"certificat-{cert.id}-r{revision.revision}")
 
     @action(detail=True, methods=["post"])
     def renvoyer(self, request, pk=None):

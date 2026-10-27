@@ -12,7 +12,7 @@ Séparé de `views.py` (déjà très long) ; réutilise ses helpers partagés
 from types import SimpleNamespace
 
 from django.db.models import F, Max
-from django.http import HttpResponse
+from .pdf import reponse_document
 from django.utils.html import escape
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -348,7 +348,7 @@ class RapportGicleurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
             return Response({"error": "Le rapport doit être fermé."}, status=status.HTTP_400_BAD_REQUEST)
         if not hasattr(rapport, "certificat"):
             return Response({"error": "Aucun certificat pour ce rapport."}, status=status.HTTP_404_NOT_FOUND)
-        return HttpResponse(html_certificat_gicleur(rapport), content_type="text/html; charset=utf-8")
+        return reponse_document(request, html_certificat_gicleur(rapport), f"certificat-gicleurs-{rapport.id}")
 
     @action(detail=True, methods=["get"], url_path="telecharger")
     def telecharger(self, request, pk=None):
@@ -360,7 +360,7 @@ class RapportGicleurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
             fiche = rapport.sous_rapports.filter(pk=request.query_params["sous_rapport"]).first()
             if fiche is None:
                 return Response({"error": "Fiche introuvable pour ce rapport."}, status=status.HTTP_404_NOT_FOUND)
-        return HttpResponse(html_rapport_gicleur_complet(rapport, fiche=fiche), content_type="text/html; charset=utf-8")
+        return reponse_document(request, html_rapport_gicleur_complet(rapport, fiche=fiche), f"rapport-gicleurs-{rapport.id}")
 
 
 class SousRapportGicleurViewSet(viewsets.ModelViewSet):

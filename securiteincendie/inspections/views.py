@@ -3,7 +3,7 @@ from datetime import date
 
 from django.utils.html import escape
 from django.db.models import F, Q
-from django.http import HttpResponse
+from .pdf import reponse_document
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -1596,14 +1596,12 @@ class RapportViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         if not hasattr(rapport, "certificat"):
             return Response({"error": "Aucun certificat pour ce rapport."}, status=status.HTTP_404_NOT_FOUND)
 
-        html = _html_certificat_incendie(rapport)
-        return HttpResponse(html, content_type="text/html; charset=utf-8")
+        return reponse_document(request, _html_certificat_incendie(rapport), f"certificat-{rapport.id}")
 
     @action(detail=True, methods=["get"], url_path="telecharger")
     def telecharger(self, request, pk=None):
         rapport = self.get_object()
-        html = _html_rapport_incendie_complet(rapport)
-        return HttpResponse(html, content_type="text/html; charset=utf-8")
+        return reponse_document(request, _html_rapport_incendie_complet(rapport), f"rapport-{rapport.id}")
 
     @action(detail=True, methods=["get"])
     def excel(self, request, pk=None):
@@ -2244,14 +2242,12 @@ class RapportExtincteurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         if rapport.certificat.statut != "emis" and not (request.user.est_superviseur() or request.user.est_technicien()):
             return Response({"error": "Le certificat n'a pas encore été émis."}, status=status.HTTP_404_NOT_FOUND)
 
-        html = _html_certificat_extincteur(rapport)
-        return HttpResponse(html, content_type="text/html; charset=utf-8")
+        return reponse_document(request, _html_certificat_extincteur(rapport), f"certificat-extincteurs-{rapport.id}")
 
     @action(detail=True, methods=["get"], url_path="telecharger")
     def telecharger(self, request, pk=None):
         rapport = self.get_object()
-        html = _html_rapport_extincteur_complet(rapport)
-        return HttpResponse(html, content_type="text/html; charset=utf-8")
+        return reponse_document(request, _html_rapport_extincteur_complet(rapport), f"rapport-extincteurs-{rapport.id}")
 
     @action(detail=True, methods=["get"])
     def excel(self, request, pk=None):
@@ -2616,8 +2612,7 @@ class RapportEclairageUrgenceViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], url_path="telecharger")
     def telecharger(self, request, pk=None):
         rapport = self.get_object()
-        html = _html_rapport_eclairage_complet(rapport)
-        return HttpResponse(html, content_type="text/html; charset=utf-8")
+        return reponse_document(request, _html_rapport_eclairage_complet(rapport), f"rapport-eclairage-{rapport.id}")
 
     @action(detail=True, methods=["get"])
     def excel(self, request, pk=None):
@@ -3266,8 +3261,7 @@ class RapportCuisineViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], url_path="telecharger")
     def telecharger(self, request, pk=None):
         rapport = self.get_object()
-        html = _html_rapport_cuisine_complet(rapport)
-        return HttpResponse(html, content_type="text/html; charset=utf-8")
+        return reponse_document(request, _html_rapport_cuisine_complet(rapport), f"rapport-cuisine-{rapport.id}")
 
 
 class HotteCuisineViewSet(viewsets.ModelViewSet):

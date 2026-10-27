@@ -12,6 +12,7 @@ import { resilientMutate } from '@/lib/offline/resilientFetch'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 import ModuleBadge from '@/components/dashboard/ModuleBadge'
 import { downloadHtml } from '@/lib/download'
+import BoutonPdf from '@/components/BoutonPdf'
 import { useT } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
 
@@ -126,13 +127,9 @@ function CertificatTab({
                 {actionLoading ? t('envoi_en_cours') : t('envoyer_au_citoyen')}
               </button>
             )}
-            <button
-              onClick={() => downloadHtml(`${API_URL}/api/rapports-gicleurs/${rapport.id}/certificat-pdf/`)}
-              className="flex-1 text-sm font-bold px-4 py-3 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-              style={{ background: '#4338ca', color: '#fff' }}
-            >
-              <i className="ti ti-download" /> {t('telecharger_pdf')}
-            </button>
+            <BoutonPdf url={`${API_URL}/api/rapports-gicleurs/${rapport.id}/certificat-pdf/`} nomFichier={`Certificat Gicleurs - ${rapport.batiment?.adresse_complete || rapport.id}`}
+              className="flex-1 text-sm font-bold px-4 py-3 rounded-lg flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-50"
+              style={{ background: '#4338ca', color: '#fff' }} />
           </div>
         </div>
       </div>
@@ -374,6 +371,8 @@ export default function SuperviseurRapportGicleurDetailPage() {
               >
                 {telechargement === 'rapport' ? <SpinnerBouton /> : <i className="ti ti-file-download" />} {t('telecharger_rapport')}
               </button>
+              <BoutonPdf url={`${API_URL}/api/rapports-gicleurs/${rapport.id}/telecharger/`} nomFichier={`Rapport Gicleurs - ${rapport.batiment?.adresse_complete || rapport.id}`}
+                libelle={t('rapport_pdf')} onErreur={(m) => showToast(m, 'error')} />
               {rapport.certificat && (
                 <button
                   onClick={async () => {
@@ -388,6 +387,10 @@ export default function SuperviseurRapportGicleurDetailPage() {
                 >
                   {telechargement === 'certificat' ? <SpinnerBouton /> : <i className="ti ti-certificate" />} {t('certificat')}
                 </button>
+              )}
+              {rapport.certificat && (
+                <BoutonPdf url={`${API_URL}/api/rapports-gicleurs/${rapport.id}/certificat-pdf/`} nomFichier={`Certificat Gicleurs - ${rapport.batiment?.adresse_complete || rapport.id}`}
+                  libelle={t('certificat_pdf')} onErreur={(m) => showToast(m, 'error')} />
               )}
             </>
           )}

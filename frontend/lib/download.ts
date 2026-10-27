@@ -47,6 +47,13 @@ export async function downloadHtml(url: string): Promise<boolean> {
   }
 }
 
+/** Le même document que `downloadHtml`, mais en vrai fichier PDF généré par
+ * le serveur (?fichier=pdf) — ne dépend pas de l'impression du navigateur. */
+export function downloadPdf(url: string, nomFichier: string): Promise<boolean> {
+  const nom = nomFichier.replace(/[\\/:*?"<>|]+/g, '-').trim() + '.pdf'
+  return downloadFichier(`${url}${url.includes('?') ? '&' : '?'}fichier=pdf`, nom)
+}
+
 /** Équivalent de `downloadHtml` pour un fichier binaire (Excel, etc.). */
 export async function downloadFichier(url: string, nomFichier: string): Promise<boolean> {
   const token = localStorage.getItem('access_token')

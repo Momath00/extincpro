@@ -351,7 +351,7 @@ function DetailCycle({ detail, superviseur, dateFmt, exportEnCours, onExporter, 
 
   async function ouvrirArchive(a: any, pdf = false) {
     const ok = pdf
-      ? await downloadFichier(`${API_URL}/api/archives/${a.id}/?format=pdf`, `${a.titre}-v${a.version}.pdf`.replace(/[^\w.-]+/g, '-'))
+      ? await downloadFichier(`${API_URL}/api/archives/${a.id}/?fichier=pdf`, `${a.titre}-v${a.version}.pdf`.replace(/[^\w.-]+/g, '-'))
       : await downloadHtml(`${API_URL}/api/archives/${a.id}/`)
     if (!ok) onErreur(t('dossier_erreur_document'))
   }
