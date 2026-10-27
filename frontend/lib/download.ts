@@ -9,24 +9,42 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
  * silence — sans ça le bouton semble juste "ne pas marcher" (rien ne se
  * passe, aucune erreur visible) une fois la session expirée.
  *
+ * L'onglet est ouvert AVANT le fetch, pendant le clic : Safari (iPad/iPhone)
+ * bloque comme fenêtre surgissante tout `window.open` fait après un
+ * `await`. Doit donc rester appelé directement depuis le gestionnaire de
+ * clic, sans `await` avant.
+ *
  * L'URL blob n'est volontairement PAS révoquée : Safari (macOS/iPad)
  * recharge le document depuis son URL au moment d'imprimer / exporter en
  * PDF — une URL révoquée donne alors une page blanche. Le blob est libéré
  * quand l'onglet de l'application se ferme ou se recharge.
  */
 export async function downloadHtml(url: string): Promise<boolean> {
+  const fenetre = window.open('', '_blank')
   const token = localStorage.getItem('access_token')
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-  if (res.status === 401) {
-    window.location.href = '/login'
+  try {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+    if (res.status === 401) {
+      fenetre?.close()
+      window.location.href = '/login'
+      return false
+    }
+    if (!res.ok) {
+      fenetre?.close()
+      return false
+    }
+    const html = await res.text()
+    const blob = new Blob([html], { type: 'text/html' })
+    const blobUrl = URL.createObjectURL(blob)
+    // Onglet bloqué malgré tout : ouvre le document dans l'onglet courant
+    // plutôt que de ne rien faire.
+    if (fenetre) fenetre.location.href = blobUrl
+    else window.location.href = blobUrl
+    return true
+  } catch {
+    fenetre?.close()
     return false
   }
-  if (!res.ok) return false
-  const html = await res.text()
-  const blob = new Blob([html], { type: 'text/html' })
-  const blobUrl = URL.createObjectURL(blob)
-  window.open(blobUrl, '_blank')
-  return true
 }
 
 /** Équivalent de `downloadHtml` pour un fichier binaire (Excel, etc.). */
