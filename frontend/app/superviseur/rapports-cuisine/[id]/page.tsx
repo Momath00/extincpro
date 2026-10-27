@@ -10,6 +10,7 @@ import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 import ModuleBadge from '@/components/dashboard/ModuleBadge'
 import PanneauCertificat from '@/components/certificats/PanneauCertificat'
 import { downloadHtml } from '@/lib/download'
+import BoutonPdf from '@/components/BoutonPdf'
 import { useT } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
 import SectionPhotos from '@/components/rapports/SectionPhotos'
@@ -206,6 +207,8 @@ export default function SuperviseurRapportCuisineDetailPage() {
           >
             <i className="ti ti-file-download" /> {t('telecharger_rapport')}
           </button>
+          <BoutonPdf url={`${API_URL}/api/rapports-cuisine/${rapport.id}/telecharger/`} nomFichier={`Rapport Cuisine - ${rapport.batiment?.adresse_complete || rapport.id}`}
+            libelle={t('rapport_pdf')} onErreur={(m) => showToast(m, 'error')} />
         </div>
       </div>
 

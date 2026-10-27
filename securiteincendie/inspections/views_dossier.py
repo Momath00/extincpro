@@ -409,7 +409,7 @@ class CycleViewSet(viewsets.ReadOnlyModelViewSet):
 
 class ArchiveDocumentView(APIView):
     """Document figé : HTML (par défaut, s'ouvre et s'imprime dans le
-    navigateur) ou PDF (?format=pdf)."""
+    navigateur) ou PDF (?fichier=pdf)."""
 
     permission_classes = [permissions.IsAuthenticated]
 
@@ -426,7 +426,7 @@ class ArchiveDocumentView(APIView):
                 raise NotFound()
         contenu = archive.fichier.lire()
         nom = f"{D._nom_sur(archive.titre)}-v{archive.version}"
-        if request.query_params.get("format") == "pdf":
+        if request.query_params.get("fichier") == "pdf":
             from .pdf import _html_vers_pdf
 
             reponse = HttpResponse(_html_vers_pdf(contenu.decode("utf-8")), content_type="application/pdf")

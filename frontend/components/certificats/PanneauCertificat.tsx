@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { downloadHtml } from '@/lib/download'
+import BoutonPdf from '@/components/BoutonPdf'
 import { useLangue, useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -333,6 +334,12 @@ export default function PanneauCertificat({
               style={{ background: '#e0e7ff', color: '#3730a3' }}>
               <i className="ti ti-download" /> {t('cp_telecharger')}
             </button>
+          )}
+          {cert.statut === 'emis' && (
+            <BoutonPdf url={`${API_URL}/api/certificats-visite/${cert.id}/pdf/`} nomFichier={`Certificat ${cert.numero_affiche}`}
+              libelle={t('certificat_pdf')} onErreur={setErreur}
+              className="text-sm font-bold px-4 py-2.5 rounded-md text-white flex items-center gap-2 hover:opacity-90 disabled:opacity-50"
+              style={{ background: '#3730a3' }} />
           )}
           <button type="button" onClick={() => downloadHtml(`${API_URL}/api/certificats-visite/${cert.id}/pdf/?apercu=1`)}
             className="text-sm font-semibold px-4 py-2.5 rounded-md border border-gray-200 flex items-center gap-2 hover:bg-gray-50"

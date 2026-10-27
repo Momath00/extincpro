@@ -49,6 +49,20 @@ def _proteger_pdf(contenu: bytes) -> bytes:
     return sortie.getvalue()
 
 
+def reponse_document(request, html: str, nom: str = "document"):
+    """Réponse des boutons « Rapport »/« Certificat » : le HTML (s'ouvre et
+    s'imprime dans le navigateur) ou, avec ?fichier=pdf, le vrai PDF en
+    téléchargement — indépendant de l'impression de Safari (Mac/iPad).
+    Pas ?format= : DRF le réserve au choix du rendu et répond 404."""
+    from django.http import HttpResponse
+
+    if request.query_params.get("fichier") == "pdf":
+        reponse = HttpResponse(_html_vers_pdf(html), content_type="application/pdf")
+        reponse["Content-Disposition"] = f'attachment; filename="{nom}.pdf"'
+        return reponse
+    return HttpResponse(html, content_type="text/html; charset=utf-8")
+
+
 def generer_pdf_certificat(rapport) -> bytes:
     from .views import _html_certificat_incendie
     return _html_vers_pdf(_html_certificat_incendie(rapport))

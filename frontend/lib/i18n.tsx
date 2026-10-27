@@ -489,6 +489,10 @@ export const DICT: Dict = {
   envoi_en_cours: { fr: 'Envoi...', en: 'Sending...' },
   envoyer_au_citoyen: { fr: 'Envoyer au contact client', en: 'Send to client contact' },
   telecharger_pdf: { fr: 'Télécharger PDF', en: 'Download PDF' },
+  rapport_pdf: { fr: 'Rapport PDF', en: 'Report PDF' },
+  certificat_pdf: { fr: 'Certificat PDF', en: 'Certificate PDF' },
+  pdf_generation: { fr: 'Génération du PDF…', en: 'Generating PDF…' },
+  erreur_telechargement_pdf: { fr: 'Erreur lors de la génération du PDF.', en: 'Error generating the PDF.' },
   certificat_envoye_email_pdf: { fr: 'Certificat envoyé par courriel (PDF)', en: 'Certificate sent by email (PDF)' },
   envoi_direct_sans_compte: { fr: 'envoi direct, sans compte', en: 'direct delivery, no account' },
   client_sans_email_contact: {

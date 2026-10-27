@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { downloadHtml } from '@/lib/download'
+import BoutonPdf from '@/components/BoutonPdf'
 import { useT } from '@/lib/i18n'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -113,6 +114,10 @@ export default function CitoyenRapportGicleurDetailPage() {
             >
               <i className="ti ti-file-download" /> {t('telecharger_le_rapport')}
             </button>
+            <BoutonPdf url={`${API_URL}/api/rapports-gicleurs/${rapport.id}/telecharger/`} nomFichier={`Rapport Gicleurs - ${rapport.batiment?.adresse_complete || rapport.id}`}
+              libelle={t('rapport_pdf')}
+              className="mt-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide px-4 py-2 rounded-md text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+              style={{ background: NAVY }} />
           </div>
 
           {certificatEnvoye ? (
@@ -148,6 +153,10 @@ export default function CitoyenRapportGicleurDetailPage() {
               >
                 <i className="ti ti-download" /> {t('telecharger_mon_certificat')}
               </button>
+              <BoutonPdf url={`${API_URL}/api/rapports-gicleurs/${rapport.id}/certificat-pdf/`} nomFichier={`Certificat Gicleurs - ${rapport.batiment?.adresse_complete || rapport.id}`}
+                libelle={t('certificat_pdf')}
+                className="mt-2 flex items-center justify-center gap-2 w-full py-3 rounded-md text-sm font-bold uppercase border-2 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                style={{ borderColor: NAVY, color: NAVY }} />
             </div>
           ) : (
             <div className="bg-white rounded-md border border-gray-100 p-6">
