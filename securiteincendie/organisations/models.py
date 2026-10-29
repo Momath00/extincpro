@@ -10,12 +10,21 @@ class Organisation(models.Model):
         FRANCAIS = "fr", "Français"
         ANGLAIS = "en", "Anglais"
 
+    class GabaritRapports(models.TextChoices):
+        STANDARD = "standard", "Standard ExtincPro"
+        SECURITE_INCENDIE_NATIONAL = "sin", "Sécurité Incendie National"
+
     nom = models.CharField(max_length=150, unique=True)
     slug = models.SlugField(max_length=160, unique=True)
     adresse = models.CharField(max_length=300, blank=True)
     langue = models.CharField(
         max_length=2, choices=Langue.choices, default=Langue.FRANCAIS,
         help_text="Langue de l'interface et des documents générés (rapports, certificats) pour cette organisation.",
+    )
+    gabarit_rapports = models.CharField(
+        max_length=10, choices=GabaritRapports.choices, default=GabaritRapports.STANDARD,
+        help_text="Colonnes de saisie et mise en page des rapports extincteurs et éclairage d'urgence. "
+                   "« Sécurité Incendie National » reprend leurs gabarits Excel (NFPA 10 / NFPA 101).",
     )
     logo = models.TextField(
         blank=True, default="",

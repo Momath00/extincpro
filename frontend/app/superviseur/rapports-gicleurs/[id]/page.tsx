@@ -15,6 +15,7 @@ import { downloadHtml } from '@/lib/download'
 import BoutonPdf from '@/components/BoutonPdf'
 import { useT } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
+import { dateLocale } from '@/lib/dates'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -306,13 +307,12 @@ export default function SuperviseurRapportGicleurDetailPage() {
           </div>
           <p className="text-gray-400 text-sm flex items-center gap-1.5">
             {rapport.date_inspection
-              ? new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })
+              ? dateLocale(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })
               : ''}
-            {!estFerme && (
-              <button onClick={() => setModalMode('date')} className="text-gray-300 hover:text-[#e11324] transition-colors" title={t('modifier_date_inspection')}>
-                <i className="ti ti-pencil text-xs" />
-              </button>
-            )}
+            {/* Aussi sur un rapport fermé : corrige la date (sans avis au client). */}
+            <button onClick={() => setModalMode('date')} className="text-gray-300 hover:text-[#e11324] transition-colors" title={t('modifier_date_inspection')}>
+              <i className="ti ti-pencil text-xs" />
+            </button>
           </p>
           {horsLigne && (
             <p className="text-xs text-gray-400 mt-0.5">
@@ -486,8 +486,9 @@ export default function SuperviseurRapportGicleurDetailPage() {
               contact: rapport.batiment?.client_contact_nom || '',
               infosContact: [rapport.batiment?.client_contact_telephone, rapport.batiment?.client_contact_email].filter(Boolean).join(' · '),
               inspecteurs: (rapport.techniciens || []).map((x: any) => [x.first_name, x.last_name].filter(Boolean).join(' ') || x.username).join(', '),
-              date: rapport.date_inspection ? new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' }) : '',
+              date: rapport.date_inspection ? dateLocale(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' }) : '',
               numeroJob: rapport.numero_job || '', frequence: rapport.frequence_inspection || '',
+              modifierDate: () => setModalMode('date'),
             }}
             readOnly={false} onErreur={msg => showToast(msg, 'error')} />
           {/* Photos rattachées au rapport seulement (hors fiche). */}

@@ -78,6 +78,11 @@ export default function OngletE2({
 
   const section = E2_STRUCTURE.find(s => s.id === sectionActive)!
   const sectionData = getSectionData(sectionActive)
+  // Gabarit Sécurité Incendie National : E2.12 = « REMARQUES (Référence : E2) »
+  // de leur fiche, bien visible dans la navigation.
+  const sin = rapport.gabarit === 'sin'
+  const nomOnglet = (id: string) => sin && id === 'e2_12' ? `E2.12 ${t('e3_remarques')}` : id.replace('e2_', 'E2.')
+  const titreSection = sin && section.id === 'e2_12' ? t('e2_12_titre_sin') : section.titre
 
   return (
     <div className="flex flex-col md:flex-row gap-6">
@@ -96,7 +101,7 @@ export default function OngletE2({
               borderLeft: sectionActive === s.id ? `3px solid ${ORANGE}` : '3px solid transparent',
             }}
           >
-            {s.id.replace('_', '.').toUpperCase().replace('E2', 'E2')}
+            {nomOnglet(s.id)}
           </button>
         ))}
       </div>
@@ -114,7 +119,7 @@ export default function OngletE2({
                 color: sectionActive === s.id ? '#fff' : '#6b7280',
               }}
             >
-              {s.id.replace('e2_', 'E2.')}
+              {nomOnglet(s.id)}
             </button>
           ))}
         </div>
@@ -123,7 +128,7 @@ export default function OngletE2({
       {/* Contenu */}
       <div className="flex-1 min-w-0">
         <div className="bg-white rounded-md border border-gray-100 p-5">
-          <h3 className="text-sm font-bold mb-4" style={{ color: NAVY }}>{section.titre}</h3>
+          <h3 className="text-sm font-bold mb-4" style={{ color: NAVY }}>{titreSection}</h3>
 
           {section.hasLocDesc && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5 pb-5 border-b border-gray-100">
@@ -178,7 +183,7 @@ export default function OngletE2({
                   value={sectionData.remarques || ''}
                   onChange={e => updateSectionField(sectionActive, 'remarques', e.target.value)}
                   placeholder={section.items[0]?.placeholder || t('saisir_remarques_placeholder')}
-                  rows={5}
+                  rows={sin && section.id === 'e2_12' ? 10 : 5}
                   className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324] resize-none"
                 />
               )}

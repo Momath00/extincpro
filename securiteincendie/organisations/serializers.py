@@ -60,6 +60,7 @@ class OrganisationSerializer(serializers.ModelSerializer):
             "slug",
             "adresse",
             "langue",
+            "gabarit_rapports",
             "logo",
             "est_active",
             "date_fin_essai",

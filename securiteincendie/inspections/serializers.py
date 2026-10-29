@@ -270,11 +270,12 @@ class RapportDetailSerializer(RapportListSerializer):
     sections = SectionAvecDispositifsSerializer(many=True, read_only=True)
     historique = HistoriqueRapportSerializer(many=True, read_only=True)
     certificat = CertificatSerializer(read_only=True)
+    gabarit = serializers.CharField(source="batiment.client.organisation.gabarit_rapports", read_only=True)
 
     class Meta(RapportListSerializer.Meta):
         fields = RapportListSerializer.Meta.fields + [
             "cree_par", "fiche_e1", "fiche_e2", "fiche_legende", "resume_sommaire",
-            "sections", "historique", "certificat",
+            "sections", "historique", "certificat", "gabarit",
         ]
 
 
@@ -344,7 +345,8 @@ class ExtincteurItemSerializer(serializers.ModelSerializer):
             "id", "rapport", "ordre", "etage", "etat", "etat_display", "emplacement", "date_fabrication",
             "format", "format_display", "type_extincteur", "type_extincteur_display",
             "marque", "marque_display", "numero_serie", "prochaine_maintenance",
-            "prochain_test_hydrostatique", "remarque", "non_conformites",
+            "prochain_test_hydrostatique", "derniere_inspection", "derniere_recharge",
+            "dernier_test_hydrostatique", "remarque", "non_conformites",
         ]
         read_only_fields = ["rapport"]
 
@@ -445,9 +447,12 @@ class RapportExtincteurDetailSerializer(RapportExtincteurListSerializer):
     historique = HistoriqueRapportExtincteurSerializer(many=True, read_only=True)
     certificat = CertificatExtincteurSerializer(read_only=True)
 
+    gabarit = serializers.CharField(source="batiment.client.organisation.gabarit_rapports", read_only=True)
+
     class Meta(RapportExtincteurListSerializer.Meta):
         fields = RapportExtincteurListSerializer.Meta.fields + [
             "cree_par", "extincteurs", "boyaux", "historique", "certificat",
+            "gabarit", "remarques", "recommandations", "obligations",
         ]
 
 
@@ -477,7 +482,7 @@ class EclairageUrgenceItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = EclairageUrgenceItem
         fields = [
-            "id", "rapport", "ordre", "emplacement", "etage",
+            "id", "rapport", "ordre", "emplacement", "etage", "fabricant", "dispositif",
             "modele", "voltage", "etat", "etat_display", "remarque",
         ]
         read_only_fields = ["rapport"]
@@ -517,9 +522,12 @@ class RapportEclairageUrgenceDetailSerializer(RapportEclairageUrgenceListSeriali
     eclairages_urgence = EclairageUrgenceItemSerializer(many=True, read_only=True)
     historique = HistoriqueRapportEclairageUrgenceSerializer(many=True, read_only=True)
 
+    gabarit = serializers.CharField(source="batiment.client.organisation.gabarit_rapports", read_only=True)
+
     class Meta(RapportEclairageUrgenceListSerializer.Meta):
         fields = RapportEclairageUrgenceListSerializer.Meta.fields + [
             "cree_par", "eclairages_urgence", "historique",
+            "gabarit", "remarques", "recommandations", "obligations",
         ]
 
 

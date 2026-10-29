@@ -473,6 +473,8 @@ function CarteFiche({ sr, fiche, fiches, langue, rapportId, readOnly, ouverte, b
 export type EnteteIdentification = {
   client: string; adresse: string; contact: string; infosContact: string
   inspecteurs: string; date: string; numeroJob: string; frequence: string
+  /** Superviseur seulement : ouvre la fenêtre de modification de la date. */
+  modifierDate?: () => void
 }
 
 const TYPES_INSPECTION: { v: string; cle: string }[] = [
@@ -537,6 +539,12 @@ function CarteIdentification({ fiche, identification, entete, onEntete, majValeu
               <div key={libelle} className="bg-white px-3 py-2.5 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
                 <span className="text-sm font-bold flex-shrink-0" style={{ color: NAVY }}>{libelle}</span>
                 <span className="text-sm text-gray-600 sm:text-right flex-1 min-w-0 break-words">{valeur || '—'}</span>
+                {libelle === t('date_inspection') && entete.modifierDate && (
+                  <button type="button" onClick={entete.modifierDate} title={t('modifier_date_inspection')}
+                    className="self-start sm:self-auto w-7 h-7 rounded flex items-center justify-center flex-shrink-0 text-gray-400 hover:text-[#e11324] hover:bg-orange-50 transition-colors">
+                    <i className="ti ti-pencil text-sm" />
+                  </button>
+                )}
               </div>
             ))}
             <div className="bg-white px-3 py-2.5 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">

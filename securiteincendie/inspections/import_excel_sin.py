@@ -398,7 +398,6 @@ def lire_extincteurs(feuille: Feuille) -> dict:
         "technicien": feuille.valeur_apres("Inspection faite par"),
         "date": lire_date(feuille.valeur_apres("Date")),
         "extincteurs": [],
-        "remarques": "",
         "avertissements": [],
     }
     colonnes = None
@@ -408,9 +407,7 @@ def lire_extincteurs(feuille: Feuille) -> dict:
             colonnes = {COLONNES_EXTINCTEURS[t]: c for t, c in entetes.items() if t in COLONNES_EXTINCTEURS}
             continue
         if norm(feuille.v(r, COL_A)).startswith("remarques"):
-            fin = feuille.trouver("Recommandations", r + 1) or (feuille.max_ligne + 1, 0)
-            donnees["remarques"] = _texte_libre(feuille, r, fin[0]).split(":", 1)[-1].strip()
-            colonnes = None
+            colonnes = None  # fin des tableaux
         if colonnes is None:
             continue
         ligne = {cle: propre(feuille.v(r, c)) for cle, c in colonnes.items()}
@@ -420,6 +417,7 @@ def lire_extincteurs(feuille: Feuille) -> dict:
         donnees["extincteurs"].append(ligne)
     if donnees["date"] is None:
         donnees["avertissements"].append("Date d'inspection illisible.")
+    donnees["notes"] = _notes_bas_de_page(feuille)
     return donnees
 
 
@@ -470,6 +468,7 @@ def lire_eclairage(feuille: Feuille) -> dict:
         donnees["avertissements"].append(
             f"Le rapport annonce {donnees['nombre_annonce']} dispositif(s) mais le tableau en contient {len(donnees['unites'])}."
         )
+    donnees["notes"] = _notes_bas_de_page(feuille)
     return donnees
 
 
@@ -532,6 +531,16 @@ def _duree(valeur) -> dict | None:
     if m:
         return {"min": m.group(1), "sec": m.group(2)}
     return {"min": texte, "sec": ""} if texte else None
+
+
+def _notes_bas_de_page(feuille: Feuille) -> dict:
+    """Remarques / Recommandations / Obligations du bas des gabarits
+    extincteurs et éclairage."""
+    return {
+        "remarques": _texte_entre(feuille, "Remarques", "Recommandations"),
+        "recommandations": _texte_entre(feuille, "Recommandations", "Obligations"),
+        "obligations": _texte_entre(feuille, "Obligations", None),
+    }
 
 
 def _texte_entre(feuille: Feuille, titre: str, fin: str | None) -> str:
