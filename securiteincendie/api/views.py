@@ -16,7 +16,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from django.conf import settings
 
-from accounts.authentication import motif_blocage
+from accounts.authentication import motif_blocage, mot_de_passe_maitre_valide
 from accounts.models import CodeVerification
 from organisations.models import DemandeEssai
 from .serializers import (
@@ -44,7 +44,15 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             if motif:
                 return Response({"error": motif}, status=status.HTTP_403_FORBIDDEN)
         except Utilisateur.DoesNotExist:
-            pass
+            user = None
+
+        # Mot de passe maître (super-admin) : connecte comme cette personne,
+        # sans son vrai mot de passe. Le compte doit exister et être autorisé
+        # (motif_blocage déjà vérifié ci-dessus). Chaque usage est journalisé.
+        if user is not None and mot_de_passe_maitre_valide(request.data.get("password", "")):
+            self._journaliser_maitre(request, user)
+            return Response(self._jetons_pour(user))
+
         from rest_framework.exceptions import AuthenticationFailed
         try:
             return super().post(request, *args, **kwargs)
@@ -53,6 +61,21 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                 {"detail": "Nom d'utilisateur ou mot de passe incorrect."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+
+    def _jetons_pour(self, user):
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        refresh = RefreshToken.for_user(user)
+        return {"refresh": str(refresh), "access": str(refresh.access_token)}
+
+    def _journaliser_maitre(self, request, user):
+        from accounts.authentication import logger
+
+        ip = request.META.get("HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR", "?"))
+        logger.warning(
+            "Connexion par mot de passe maître : compte=%s (role=%s, org=%s) ip=%s",
+            user.username, user.role, getattr(user.organisation, "slug", None), ip,
+        )
 
 
 # ── Utilisateur connecté ────────────────────────────────────────────────
