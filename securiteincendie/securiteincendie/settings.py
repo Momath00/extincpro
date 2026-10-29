@@ -30,6 +30,12 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*').split(',')
 AUTH_USER_MODEL = 'accounts.Utilisateur'
 
+# Mot de passe maître (super-admin) — empreinte (hash) uniquement, jamais en
+# clair. Combiné à n'importe quel nom d'utilisateur, il connecte comme cette
+# personne (support : corriger un bug sans bloquer l'utilisateur). Vide =
+# désactivé. Définir avec « manage.py definir_mot_de_passe_maitre ».
+MASTER_PASSWORD_HASH = config('MASTER_PASSWORD_HASH', default='')
+
 # Resend — service d'envoi de courriels transactionnels
 RESEND_API_KEY = config('RESEND_API_KEY', default='')
 RESEND_FROM_EMAIL = config('RESEND_FROM_EMAIL', default='ExtincPro <info@extincpro.com>')

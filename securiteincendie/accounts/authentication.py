@@ -1,5 +1,26 @@
+import logging
+
+from django.conf import settings
+from django.contrib.auth.hashers import check_password
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import JWTAuthentication
+
+logger = logging.getLogger("accounts.master")
+
+
+def mot_de_passe_maitre_valide(mot_de_passe: str) -> bool:
+    """Vrai si `mot_de_passe` est le mot de passe maître du super-admin.
+    Seule son empreinte est connue (settings.MASTER_PASSWORD_HASH) ; vide =
+    fonction désactivée. On compare toujours (même sans hash configuré) pour
+    ne pas révéler par le temps de réponse si un maître existe."""
+    empreinte = settings.MASTER_PASSWORD_HASH or ""
+    if not mot_de_passe:
+        return False
+    if not empreinte:
+        # Comparaison factice pour garder un temps de réponse constant.
+        check_password(mot_de_passe, "pbkdf2_sha256$600000$x$x")
+        return False
+    return check_password(mot_de_passe, empreinte)
 
 MESSAGE_COMPTE_DESACTIVE = "Votre compte est désactivé. Contactez votre superviseur."
 MESSAGE_ORGANISATION_SUSPENDUE = (
