@@ -1,10 +1,12 @@
 """Lecture des rapports Excel de Sécurité Incendie National (migration de
 leur historique — voir la commande `importer_securite_nationale`).
 
-Trois gabarits, un bâtiment et une visite par classeur :
+Quatre gabarits, un bâtiment et une visite par classeur :
 - « ALARME S-536 » : fiches E1, E2.x, légende et E3.2.1 de la norme ;
 - « EXTINCTEURS NFPA 10 » : tableau des extincteurs portatifs ;
-- « ÉCLAIRAGE NFPA 101 » : tableau des unités d'éclairage d'urgence.
+- « ÉCLAIRAGE NFPA 101 » : tableau des unités d'éclairage d'urgence ;
+- « GICLEURS NFPA 25 » : formulaire d'une page (vannes, tuyauterie,
+  raccord pompier, système sous eau, pompes, alimentation d'eau).
 
 Ce module ne touche pas à la base : il transforme un classeur en dict
 neutre et note les anomalies (`avertissements`) au lieu de deviner.
@@ -14,13 +16,14 @@ pour tolérer les petits décalages d'une copie à l'autre du gabarit.
 
 import re
 import unicodedata
-from datetime import date, datetime
+from datetime import date, datetime, time
 
 from openpyxl import load_workbook
 
 ALARME = "alarme"
 EXTINCTEURS = "extincteurs"
 ECLAIRAGE = "eclairage"
+GICLEURS = "gicleurs"
 
 MOIS = {
     "janvier": 1, "fevrier": 2, "mars": 3, "avril": 4, "mai": 5, "juin": 6, "juillet": 7,
@@ -144,6 +147,8 @@ def detecter_type(feuille: Feuille) -> str | None:
     texte = " ".join(norm(v) for (r, _c), v in feuille.cellules.items() if r <= 20)
     if "s-536" in texte or "s536" in texte:
         return ALARME
+    if "nfpa 25" in texte:
+        return GICLEURS
     if "eclairage" in texte and "nfpa 101" in texte:
         return ECLAIRAGE
     if "extincteur" in texte and "nfpa 10" in texte:
@@ -156,7 +161,7 @@ def lire_fichier(chemin) -> dict:
     wb = ouvrir_classeur(chemin)
     feuille = Feuille(wb.worksheets[0])
     type_ = detecter_type(feuille)
-    lecteurs = {ALARME: lire_alarme, EXTINCTEURS: lire_extincteurs, ECLAIRAGE: lire_eclairage}
+    lecteurs = {ALARME: lire_alarme, EXTINCTEURS: lire_extincteurs, ECLAIRAGE: lire_eclairage, GICLEURS: lire_gicleurs}
     if type_ is None:
         raise ValueError(f"Gabarit non reconnu : {chemin}")
     donnees = lecteurs[type_](feuille)
@@ -445,7 +450,8 @@ def lire_eclairage(feuille: Feuille) -> dict:
                 "fabricant": entetes.get("fabricant"),
                 "dispositif": entetes.get("dispositif"),
                 "modele_batterie": entetes.get("modele"),
-                "fonctionnel": entetes.get("fonctionnel"),
+                # Selon la copie du gabarit : « FONCTIONNEL » ou « CONFORME ».
+                "fonctionnel": entetes.get("fonctionnel") or entetes.get("conforme"),
                 "capacite": entetes.get("capacite"),
             }
             continue
@@ -464,4 +470,232 @@ def lire_eclairage(feuille: Feuille) -> dict:
         donnees["avertissements"].append(
             f"Le rapport annonce {donnees['nombre_annonce']} dispositif(s) mais le tableau en contient {len(donnees['unites'])}."
         )
+    return donnees
+
+
+# ── Gicleurs NFPA 25 ─────────────────────────────────────────────────────────
+
+REPONSES_GICLEUR = {"oui": "oui", "non": "non", "n/a": "na"}
+SYSTEMES_GICLEUR = ("sous eau", "sous air", "preaction", "preaction electrique", "pompe")
+VANNES_GICLEUR = ("papillon", "os&y", "piv", "murale")
+
+
+def _est_coche(valeur) -> bool:
+    return norm(valeur) == "x"
+
+
+def _voisin(feuille: Feuille, r: int, c: int) -> str:
+    """Valeur à droite d'un libellé — vide si la cellule suivante est un
+    autre libellé (« OS&Y : », « Pression d'arrêt (lb/po²) »)."""
+    for c2, v in feuille.ligne(r):
+        if c2 > c:
+            if isinstance(v, str) and (":" in v or "lb/po" in norm(v)):
+                return ""
+            return propre(v)
+    return ""
+
+
+def _apres(feuille: Feuille, libelle: str, depuis=1, jusqua=None) -> str:
+    pos = feuille.trouver(libelle + "…", depuis, jusqua)
+    return _voisin(feuille, *pos) if pos else ""
+
+
+def _coches_en_ligne(feuille: Feuille, r: int) -> set[str]:
+    """Libellés suivis de « : X » dans le texte de la ligne (« Oui : X »,
+    « Scellés : X   Barrées : X »)."""
+    texte = norm(" | ".join(str(v) for _c, v in feuille.ligne(r)))
+    return {m.strip() for m in re.findall(r"([a-z/&.\- ]+?)\s*:\s*x(?![a-z])", texte)}
+
+
+def _choix_coche(feuille: Feuille, r: int) -> str:
+    """Libellé le plus proche à gauche du « X » de la ligne (« Annuelle  X »)."""
+    libelle = ""
+    for _c, v in feuille.ligne(r):
+        if _est_coche(v):
+            return libelle
+        if isinstance(v, str) and norm(v):
+            libelle = propre(v).rstrip(" :")
+    return ""
+
+
+def _duree(valeur) -> dict | None:
+    """Délai « minutes/secondes ». Excel range « 0:30 » en h:mm : on le lit
+    comme 0 min 30 s, seule lecture plausible pour ce délai."""
+    if isinstance(valeur, datetime):
+        valeur = valeur.time()
+    if isinstance(valeur, time):
+        if valeur.second:
+            return {"min": str(valeur.hour * 60 + valeur.minute), "sec": str(valeur.second)}
+        return {"min": str(valeur.hour), "sec": str(valeur.minute)}
+    texte = propre(valeur)
+    m = re.fullmatch(r"(\d+)\s*[:m]\s*(\d+)\s*s?", norm(texte))
+    if m:
+        return {"min": m.group(1), "sec": m.group(2)}
+    return {"min": texte, "sec": ""} if texte else None
+
+
+def _texte_entre(feuille: Feuille, titre: str, fin: str | None) -> str:
+    """Texte libre sous un titre (« REMARQUES : »), jusqu'au titre suivant."""
+    debut = feuille.trouver(titre, colonne=COL_A)
+    if debut is None:
+        return ""
+    arret = feuille.trouver(fin + "…", debut[0] + 1, colonne=COL_A) if fin else None
+    suite = " ".join(propre(v) for c, v in feuille.ligne(debut[0]) if c > debut[1] and propre(v))
+    texte = _texte_libre(feuille, debut[0] + 1, arret[0] if arret else feuille.max_ligne + 1)
+    return "\n".join(t for t in (suite, texte) if t)
+
+
+def _pompe_gicleur(feuille: Feuille, titre: str, avertissements: list) -> dict:
+    """Bloc « Pompe de surpression » / « Pompe incendie » : présence et mode
+    cochés dans le texte (« Oui : X »), pressions et délai."""
+    pos = feuille.trouver(titre, colonne=COL_A)
+    if pos is None:
+        return {}
+    r0 = pos[0]
+    ligne_oui = feuille.trouver("Oui…", r0, r0 + 4, colonne=COL_A)
+    coches = _coches_en_ligne(feuille, ligne_oui[0]) if ligne_oui else set()
+    pompe = {
+        "presente": "oui" if "oui" in coches else "non" if "non" in coches else "",
+        "mode": next((m for m in ("manuelle", "automatique") if m in coches), ""),
+        "depart": _apres(feuille, "Pression de départ", r0, r0 + 5),
+        "arret": _apres(feuille, "Pression d'arrêt", r0, r0 + 5),
+        "delai": None,
+    }
+    ligne_delai = feuille.trouver("Délai…", r0, r0 + 6)
+    if ligne_delai:
+        brut = next((v for c, v in feuille.ligne(ligne_delai[0]) if c > ligne_delai[1]), None)
+        pompe["delai"] = _duree(brut)
+        if isinstance(brut, time) and not brut.second:
+            avertissements.append(
+                f"{titre} : délai saisi « {brut:%H:%M} » (heures:minutes dans Excel), "
+                f"lu comme {pompe['delai']['min']} min {pompe['delai']['sec']} s."
+            )
+    return pompe
+
+
+def lire_gicleurs(feuille: Feuille) -> dict:
+    pos_date = feuille.trouver("Date de l'inspection…")
+    donnees = {
+        "client": {
+            "nom": feuille.valeur_apres("Nom du bâtiment"),
+            "contact_nom": feuille.valeur_apres("Nom du contact"),
+            "contact_telephone": feuille.valeur_apres("Numéro de téléphone"),
+        },
+        "batiment": {"nom": feuille.valeur_apres("Nom du bâtiment"), "adresse": feuille.valeur_apres("Adresse")},
+        "technicien": feuille.valeur_apres("Nom du technicien"),
+        "date": None,
+        "frequence": "",
+        "synthese": {},
+        "systemes": {},
+        "vannes": {},
+        "questions": [],
+        "valeurs": {},
+        "supervisions": [],
+        "avertissements": [],
+    }
+    if pos_date:
+        # Vraie date Excel à droite du libellé, ou texte « 14 OCTOBRE 2025 ».
+        brut = next((v for c, v in feuille.ligne(pos_date[0]) if c > pos_date[1]), None)
+        donnees["date"] = lire_date(brut) or lire_date(feuille.valeur_apres("Date de l'inspection"))
+
+    pos = feuille.trouver("Type d'inspection…")
+    if pos:
+        donnees["frequence"] = _choix_coche(feuille, pos[0])
+
+    for cle, libelle in (
+        ("fonctionnel", "Suite à l'inspection, le système est fonctionnel"),
+        ("deficiences", "Le système présente des déficiences"),
+        ("recommandations", "Nous ajoutons des recommandations"),
+        ("relie_alarme", "Relié à l'alarme incendie"),
+    ):
+        donnees["synthese"][cle] = REPONSES_GICLEUR.get(norm(_apres(feuille, libelle)), "")
+
+    for systeme in SYSTEMES_GICLEUR:
+        pos = feuille.trouver(systeme, colonne=COL_A)
+        if pos and _voisin(feuille, *pos):
+            donnees["systemes"][systeme] = _voisin(feuille, *pos)
+    pos = feuille.trouver("Papillon…")
+    if pos:
+        for c, v in feuille.ligne(pos[0]):
+            if norm(v) in VANNES_GICLEUR and _voisin(feuille, pos[0], c):
+                donnees["vannes"][norm(v)] = _voisin(feuille, pos[0], c)
+
+    # Questions Oui / Non / N/A : colonnes données par la ligne d'en-tête
+    # qui précède chaque bloc. Une ligne qui porte d'autres libellés avant
+    # les cases (« Interrupteur d'alarme … Interrupteur de débit X ») est un
+    # choix, pas une question.
+    colonnes = {}
+    for r in range(1, feuille.max_ligne + 1):
+        cellules = feuille.ligne(r)
+        entetes = {c: REPONSES_GICLEUR[norm(v)] for c, v in cellules if norm(v) in REPONSES_GICLEUR}
+        if len(entetes) >= 2:
+            colonnes = entetes
+            continue
+        coches = {c for c, v in cellules if _est_coche(v)}
+        libelle = propre(feuille.v(r, COL_A))
+        if not coches or not libelle or not colonnes or not coches <= set(colonnes):
+            continue
+        if any(COL_A < c < min(colonnes) and isinstance(v, str) and norm(v) for c, v in cellules):
+            continue
+        reponses = {colonnes[c] for c in coches}
+        if len(reponses) > 1:
+            donnees["avertissements"].append(f"Ligne {r} « {libelle[:60]} » : plusieurs cases cochées, ignorée.")
+            continue
+        donnees["questions"].append({"libelle": libelle, "reponse": reponses.pop(), "ligne": r})
+
+    v = donnees["valeurs"]
+    pos = feuille.trouver("Scellés…")
+    v["etat_vannes"] = sorted(_coches_en_ligne(feuille, pos[0])) if pos else []
+    v["nombre_raccords"] = _apres(feuille, "Nombre de raccords")
+    debut = (feuille.trouver("Système de gicleurs sous eau…") or (1, 1))[0]
+    for cle, libelle in (
+        ("numero_systeme", "# du système"), ("marque", "Marque"), ("modele", "Modèle"), ("annee", "Année"),
+        ("no_serie", "No de série"), ("diametre", "Diamètre"), ("salle", "Emplacement de la salle des gicleurs"),
+        ("zone", "Zone protégée"), ("robinet_essai", "Localisation du robinet d'essai"),
+        ("pression_systeme", "Pression du système avant les essais"),
+    ):
+        v[cle] = _apres(feuille, libelle, depuis=debut)
+    pos = feuille.trouver("Interrupteur d'alarme…")
+    v["interrupteur"] = _choix_coche(feuille, pos[0]) if pos else ""
+
+    donnees["pompe_surpression"] = _pompe_gicleur(feuille, "Pompe de surpression", donnees["avertissements"])
+    donnees["pompe_incendie"] = _pompe_gicleur(feuille, "Pompe incendie", donnees["avertissements"])
+
+    debut = (feuille.trouver("Système antigel…") or (1, 1))[0]
+    for cle, libelle in (("antigel_secteur", "Secteur protégé"), ("antigel_localisation", "Localisation du système antigel"),
+                         ("antigel_type", "Type"), ("antigel_resultat", "Résultat"), ("antigel_temperature", "Température")):
+        v[cle] = _apres(feuille, libelle, debut, debut + 8)
+
+    debut = (feuille.trouver("Vérification de l'alimentation d'eau…") or (1, 1))[0]
+    for cle, libelle in (("alim_ville", "Ville"), ("alim_diametre", "Diamètre"), ("alim_statique", "Pression statique"),
+                         ("alim_pompe", "Pompe incendie"), ("alim_reservoir", "Réservoir"),
+                         ("alim_residuelle", "Pression résiduelle"), ("alim_ecart_10", "Est-ce que le résultat indique")):
+        v[cle] = _apres(feuille, libelle, debut, debut + 12)
+
+    pos = feuille.trouver("Liste des supervisions…")
+    entete = feuille.trouver("Emplacement", pos[0], pos[0] + 3, colonne=COL_A) if pos else None
+    if entete:
+        cols = {norm(val): c for c, val in feuille.ligne(entete[0])}
+        fin = feuille.trouver("Remarques…", entete[0] + 1, colonne=COL_A)
+        for r in range(entete[0] + 1, fin[0] if fin else feuille.max_ligne + 1):
+            ligne = {
+                "emplacement": propre(feuille.v(r, COL_A)),
+                "type": propre(feuille.v(r, cols.get("type de valves", 0))),
+                "diametre": propre(feuille.v(r, cols.get("diametre", 0))),
+                "fonctionnement": propre(feuille.v(r, cols.get("bon fonctionnement", 0))),
+            }
+            if any(ligne.values()):
+                donnees["supervisions"].append(ligne)
+
+    donnees["textes"] = {
+        "observations": _texte_entre(feuille, "Remarques et observations", "Type de système et nombre"),
+        "remarques": _texte_entre(feuille, "Remarques", "Recommandations"),
+        "recommandations": _texte_entre(feuille, "Recommandations", "Obligations"),
+        "obligations": _texte_entre(feuille, "Obligations", None),
+    }
+
+    if donnees["date"] is None:
+        donnees["avertissements"].append("Date d'inspection illisible.")
+    if not donnees["questions"]:
+        donnees["avertissements"].append("Aucune case Oui / Non / N/A lue.")
     return donnees
