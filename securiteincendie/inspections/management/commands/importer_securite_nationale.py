@@ -5,7 +5,7 @@ ponctuelle — voir inspections/import_excel_sin.py pour la lecture).
     python manage.py importer_securite_nationale CHEMIN [CHEMIN…]
 
 Une visite = les classeurs d'un même dossier (alarme, extincteurs,
-éclairage du même bâtiment le même jour). Un dossier qui contient des
+éclairage, gicleurs du même bâtiment le même jour). Un dossier qui contient des
 sous-dossiers donne une visite par sous-dossier ; des fichiers passés
 directement forment ensemble une seule visite.
 
@@ -25,6 +25,7 @@ from django.utils import timezone
 
 from accounts.models import Utilisateur
 from inspections import dossier as D
+from inspections import gicleur_fiches as G
 from inspections import import_excel_sin as X
 from inspections.models import (
     Batiment,
@@ -38,7 +39,9 @@ from inspections.models import (
     Rapport,
     RapportEclairageUrgence,
     RapportExtincteur,
+    RapportGicleur,
     SectionDispositif,
+    SousRapportGicleur,
 )
 from organisations.models import Organisation
 
@@ -49,13 +52,48 @@ CODES_DISPOSITIF = {code for code, _libelle in Dispositif.TypeDispositif.choices
 REPONSE_BOOL = {"oui": True, "non": False}
 FORMATS = {code for code, _libelle in ExtincteurItem.Format.choices}
 
+# Gabarit GICLEURS NFPA 25 → fiche « sous eau » et identification du bâtiment
+# (gicleur_fiches.py). Début du libellé normalisé → (fiche, champ). Les
+# questions sans équivalent vont dans les notes de la fiche.
+QUESTIONS_GICLEUR = [
+    ("l'accessibilite aux systemes et vannes", "ident", "id_salle_degagee"),
+    ("les vannes sont toutes dans leur position normale", "ident", "id_vannes_position"),
+    ("les vannes de controle ont ete ouvertes ou fermees", "ident", "id_vannes_position"),
+    ("les gicleurs semblent exempts", "eau", "gicleurs_exempts"),
+    ("il y a un degagement", "eau", "degagement_18po"),
+    ("les gicleurs sont plus recents", "eau", "moins_50_ans"),
+    ("la tuyauterie semble", "eau", "tuyauterie_bonne_condition"),
+    ("les supports a tuyauterie", "eau", "supports_sismiques"),
+    ("le cabinet de rechange", "eau", "gicleurs_rechange"),
+    ("le raccord pompier est visible", "ident", "id_raccord_accessible"),
+    ("les accouplements pivotants", "ident", "id_raccord_capuchons"),
+    ("les bouchons/capuchons", "ident", "id_raccord_capuchons"),
+    ("le drain a bille", "ident", "id_raccord_clapet"),
+    ("la cloche hydraulique", "eau", "cloche_hydraulique"),
+    ("la cloche electrique", "eau", "cloche_electrique"),
+    ("l'interrupteur de basse pression", "eau", "alarme_basse_pression"),
+    ("la plaque signaletique du calcul hydraulique", "eau", "plaque_calcul_hydraulique"),
+    ("le systeme a ete remis en fonction", "eau", "systeme_remis_operation"),
+]
+CHAMPS_EAU = G.champs_de_la_fiche("eau")
+CHAMPS_IDENTIFICATION = {c["code"]: c for s in G.FICHE_IDENTIFICATION["sections"] for c in s["champs"]}
+PRIORITE_REPONSE = {"na": 0, "oui": 1, "non": 2}
+LIBELLE_REPONSE = {"oui": "Oui", "non": "Non", "na": "S.O."}
+VANNES = {"papillon": "papillon", "os&y": "osy", "piv": "piv"}
+ETATS_VANNES = {"scelles": "scellées", "barrees": "barrées", "supervisees": "supervisées"}
+FREQUENCES = {"annuelle": "annuelle", "semi-annuelle": "semestrielle", "trimestrielle": "trimestrielle"}
+ANTIGEL = (
+    ("antigel_secteur", "secteur protégé"), ("antigel_localisation", "localisation"), ("antigel_type", "type"),
+    ("antigel_resultat", "résultat"), ("antigel_temperature", "température"),
+)
+
 
 class AnnulerSimulation(Exception):
     pass
 
 
 class Command(BaseCommand):
-    help = "Importe les rapports Excel (alarme S-536, extincteurs NFPA 10, éclairage NFPA 101) de Sécurité Incendie National."
+    help = "Importe les rapports Excel (alarme S-536, extincteurs NFPA 10, éclairage NFPA 101, gicleurs NFPA 25) de Sécurité Incendie National."
 
     def add_arguments(self, parser):
         parser.add_argument("chemins", nargs="+", help="Dossiers de visites ou classeurs .xlsx.")
@@ -70,7 +108,7 @@ class Command(BaseCommand):
         if not visites:
             raise CommandError("Aucun classeur .xlsx trouvé.")
 
-        self.compteurs = {"visites": 0, "alarme": 0, "extincteurs": 0, "eclairage": 0, "ignores": 0, "erreurs": 0}
+        self.compteurs = {"visites": 0, "alarme": 0, "extincteurs": 0, "eclairage": 0, "gicleurs": 0, "ignores": 0, "erreurs": 0}
         self.techniciens = {}
         try:
             with transaction.atomic():
@@ -84,7 +122,7 @@ class Command(BaseCommand):
         c = self.compteurs
         self.stdout.write(self.style.SUCCESS(
             f"\n{c['visites']} visite(s) : {c['alarme']} rapport(s) alarme, {c['extincteurs']} extincteurs, "
-            f"{c['eclairage']} éclairage ; {c['ignores']} déjà présent(s), {c['erreurs']} fichier(s) en erreur."
+            f"{c['eclairage']} éclairage, {c['gicleurs']} gicleurs ; {c['ignores']} déjà présent(s), {c['erreurs']} fichier(s) en erreur."
         ))
 
     # ── Préparation ─────────────────────────────────────────────────────────
@@ -145,7 +183,7 @@ class Command(BaseCommand):
             return
 
         # Le classeur alarme est le plus complet (ville, code postal) : il fait foi.
-        ordre = [lus[t] for t in (X.ALARME, X.EXTINCTEURS, X.ECLAIRAGE) if t in lus]
+        ordre = [lus[t] for t in (X.ALARME, X.EXTINCTEURS, X.ECLAIRAGE, X.GICLEURS) if t in lus]
         principal = ordre[0]
         self._comparer(ordre, "adresse", lambda d: d["batiment"]["adresse"])
         self._comparer(ordre, "nom du client", lambda d: d["client"]["nom"])
@@ -166,6 +204,8 @@ class Command(BaseCommand):
                 extincteurs = self._rapport_extincteurs(batiment, jour, lus[X.EXTINCTEURS], alarme)
             if X.ECLAIRAGE in lus:
                 self._rapport_eclairage(batiment, jour, lus[X.ECLAIRAGE], extincteurs)
+            if X.GICLEURS in lus:
+                self._rapport_gicleur(batiment, jour, lus[X.GICLEURS])
 
     def _comparer(self, ordre, libelle, valeur):
         valeurs = {}
@@ -438,6 +478,141 @@ class Command(BaseCommand):
             )
         self._finaliser(rapport, donnees, "eclairage", "éclairage", f"{len(donnees['unites'])} unités")
         return rapport
+
+    def _rapport_gicleur(self, batiment, jour, donnees) -> RapportGicleur:
+        existant = self._deja_present(RapportGicleur, batiment, jour, "gicleurs")
+        if existant is not None:
+            return existant
+        if not self.organisation.a_le_module("rapport_gicleur"):
+            self._avertir(f"Le module « Rapport gicleur » n'est pas actif pour {self.organisation.nom} : rapport importé mais invisible tant qu'il ne l'est pas.")
+
+        v, s = donnees["valeurs"], donnees["synthese"]
+        eau = {"reponses": {}, "remarques": {}}
+        ident = {"reponses": {}, "remarques": {}}
+        notes_systeme, notes_batiment = [], []
+
+        # Questions Oui / Non / N/A → champs des fiches ; « Non » l'emporte
+        # quand deux questions de l'Excel tombent sur le même champ.
+        for q in donnees["questions"]:
+            cible = next(((f, code) for motif, f, code in QUESTIONS_GICLEUR if X.norm(q["libelle"]).startswith(motif)), None)
+            champ = cible and (CHAMPS_EAU.get(cible[1]) or CHAMPS_IDENTIFICATION.get(cible[1]))
+            if champ is None or (q["reponse"] == "na" and not champ.get("na")):
+                notes_systeme.append(f"{q['libelle'].rstrip(' .')} : {LIBELLE_REPONSE[q['reponse']]}")
+                continue
+            reponses = (eau if cible[0] == "eau" else ident)["reponses"]
+            actuelle = reponses.get(cible[1])
+            if actuelle is None or PRIORITE_REPONSE[q["reponse"]] > PRIORITE_REPONSE[actuelle]:
+                reponses[cible[1]] = q["reponse"]
+
+        r = eau["reponses"]
+        for code, cle in (("marque", "marque"), ("modele", "modele"), ("annee_fabrication", "annee"), ("no_serie", "no_serie"),
+                          ("emplacement", "salle"), ("zone_protegee", "zone"), ("localisation_essai_inspecteur", "robinet_essai"),
+                          ("pression_systeme", "pression_systeme")):
+            r[code] = v.get(cle, "")
+        r["diametre"] = _pouces(v.get("diametre", ""))
+        vannes = [nom for nom, nombre in donnees["vannes"].items() if nombre not in ("", "0")]
+        if len(vannes) == 1:
+            r["vanne_principale"] = VANNES.get(vannes[0], "autre")
+        alimentation = []
+        if v.get("alim_ville") and X.norm(v["alim_ville"]) != "non":
+            alimentation.append("ville")
+        if X.norm(v.get("alim_pompe")) == "oui":
+            alimentation.append("pompe")
+        if X.norm(v.get("alim_reservoir")) == "oui":
+            alimentation.append("reservoir")
+        r["alimentation_eau"] = alimentation
+        r["diametre_drain"] = _pouces(v.get("alim_diametre", ""))
+        r["pression_statique"] = v.get("alim_statique", "")
+        r["pression_residuelle"] = v.get("alim_residuelle", "")
+        pompe = donnees["pompe_surpression"]
+        if pompe:
+            r["pompe_presente"] = pompe["presente"]
+            r["pompe_mode"] = pompe["mode"]
+            r["pompe_pression_demarrage"] = pompe["depart"]
+            r["pompe_pression_arret"] = pompe["arret"]
+            r["pompe_delai"] = pompe["delai"]
+        if s.get("fonctionnel"):
+            ident["reponses"]["id_en_fonction"] = s["fonctionnel"]
+        ident["reponses"]["id_soumis_contact"] = X.nom_personne(donnees["client"]["contact_nom"])
+        ident["reponses"]["id_soumis_infos"] = donnees["client"]["contact_telephone"]
+
+        # Ce que les fiches n'ont pas : gardé en clair dans les notes.
+        if v.get("interrupteur"):
+            notes_systeme.append(f"Interrupteur d'alarme : {v['interrupteur']}")
+        if v.get("alim_ecart_10"):
+            notes_systeme.append(f"Écart de moins de 10 % entre les pressions statique et résiduelle : {v['alim_ecart_10']}")
+        incendie = donnees["pompe_incendie"]
+        if incendie.get("presente"):
+            details = ", ".join(t for t in (
+                incendie["mode"], incendie["depart"] and f"départ {incendie['depart']} lb/po²",
+                incendie["arret"] and f"arrêt {incendie['arret']} lb/po²",
+            ) if t)
+            notes_systeme.append(f"Pompe incendie : {incendie['presente']}" + (f" ({details})" if details else ""))
+        antigel = [f"{libelle} : {v[cle]}" for cle, libelle in ANTIGEL if v.get(cle)]
+        if antigel:
+            notes_systeme.append("Système antigel — " + " ; ".join(antigel))
+        if donnees["systemes"]:
+            notes_batiment.append("Systèmes dans le bâtiment : " + ", ".join(f"{k} {n}" for k, n in donnees["systemes"].items()))
+        if donnees["vannes"]:
+            notes_batiment.append("Vannes de contrôle : " + ", ".join(f"{k} {n}" for k, n in donnees["vannes"].items()))
+        if v.get("etat_vannes"):
+            notes_batiment.append("Vannes : " + ", ".join(ETATS_VANNES.get(e, e) for e in v["etat_vannes"]))
+        if v.get("nombre_raccords"):
+            notes_batiment.append(f"Raccords pompier : {v['nombre_raccords']}")
+        if s.get("relie_alarme"):
+            notes_batiment.append(f"Relié à l'alarme incendie : {LIBELLE_REPONSE[s['relie_alarme']]}")
+        for cle, titre in (("observations", "Remarques et observations"), ("remarques", "Remarques"),
+                           ("recommandations", "Recommandations"), ("obligations", "Obligations")):
+            if donnees["textes"].get(cle):
+                notes_batiment.append(f"{titre} :\n{donnees['textes'][cle]}")
+        eau["reponses"]["notes"] = "\n".join(notes_systeme)
+        ident["reponses"]["id_notes"] = "\n".join(notes_batiment)
+
+        # La conformité vient des déficiences écrites : si l'Excel en déclare,
+        # on les inscrit pour que le rapport ne passe pas pour conforme.
+        if s.get("deficiences") == "oui":
+            texte = donnees["textes"].get("remarques") or donnees["textes"].get("observations") or "Déficiences déclarées au rapport Excel (sans détail)."
+            ident["remarques"]["id_verification"] = texte[:3000]
+            self._avertir("Le rapport gicleur déclare des déficiences : texte inscrit dans « Vérification finale ».")
+
+        for fiche, champs in ((eau, CHAMPS_EAU), (ident, CHAMPS_IDENTIFICATION)):
+            for code, valeur in list(fiche["reponses"].items()):
+                try:
+                    G.valider_valeur(champs[code], valeur)
+                except ValueError:
+                    self._avertir(f"Gicleurs : valeur « {valeur} » refusée pour {code}, notée dans les notes.")
+                    fiche["reponses"]["notes" if fiche is eau else "id_notes"] += f"\n{champs[code]['fr']} : {valeur}"
+                    valeur = None
+                if valeur in (None, "", []):
+                    fiche["reponses"].pop(code)
+
+        supervisions = [
+            {"emplacement": l["emplacement"][:150], "type": l["type"][:150], "modele": l["diametre"][:150],
+             "signal": {"oui": "oui", "non": "non"}.get(X.norm(l["fonctionnement"]), "")}
+            for l in donnees["supervisions"]
+        ]
+        rapport = RapportGicleur.objects.create(
+            batiment=batiment,
+            frequence_inspection=FREQUENCES.get(X.norm(donnees["frequence"]), ""),
+            identification=ident,
+            debits_valves={"lignes": supervisions, "deficiences": ""} if supervisions else None,
+            **self._champs_fermeture(jour),
+        )
+        SousRapportGicleur.objects.create(
+            rapport=rapport, type_fiche="eau", numero_systeme=v.get("numero_systeme", "")[:50], ordre=0,
+            reponses=eau["reponses"], remarques=eau["remarques"],
+        )
+        autres = {k: n for k, n in donnees["systemes"].items() if k != "sous eau" and n not in ("", "0")}
+        if autres or donnees["systemes"].get("sous eau", "1") not in ("", "0", "1"):
+            self._avertir(f"Gicleurs : {donnees['systemes']} annoncés, mais le classeur ne décrit qu'un système sous eau (seul importé).")
+        self._finaliser(rapport, donnees, "gicleurs", "gicleurs", f"{len(donnees['questions'])} réponses")
+        return rapport
+
+
+def _pouces(texte: str) -> str:
+    """« 4 POUCES » → « 4 » (le champ porte déjà l'unité « po »)."""
+    m = re.fullmatch(r"\s*(\d+(?:[.,]\d+)?(?:\s+\d/\d)?|\d/\d)\s*(?:po|pouces?|\"|'')?\.?\s*", texte or "", re.I)
+    return m.group(1) if m else texte
 
 
 def _format(poids: str) -> str:

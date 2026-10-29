@@ -20,6 +20,7 @@ from inspections.models import (
     Rapport,
     RapportEclairageUrgence,
     RapportExtincteur,
+    RapportGicleur,
 )
 
 from .fabrique import BaseTest
@@ -223,3 +224,102 @@ class ImportCommande(BaseTest):
         self.importer()
         self.assertEqual(Rapport.objects.get().batiment, existant)
         self.assertFalse(Client.objects.filter(nom="HUTCHINSON").exists())
+
+
+def classeur_gicleurs(chemin):
+    from datetime import datetime, time
+
+    _classeur(chemin, {
+        "A10": "Le système a été inspecté selon la norme NFPA 25",
+        "A12": "Nom du bâtiment ", "C12": "SDC 1399 VICTOR HUGO",
+        "A13": "Adresse", "C13": "1399 VICTOR HUGO, MONTRÉAL",
+        "A14": "Nom du contact ", "C14": "M. DOMINIQUE MONET",
+        "A15": "Numéro de téléphone", "C15": "514-927-7425",
+        "A16": "Nom du technicien", "C16": "M. ZACK DIOTTE",
+        "A17": "Date de l’inspection ", "C17": datetime(2025, 10, 14),
+        "A18": "Type d'inspection ", "C18": "Annuelle", "D18": "X", "E18": "Semi-annuelle", "G18": "Trimestrielle",
+        "A20": "Suite à l'inspection, le système est fonctionnel : ", "C20": "OUI",
+        "A21": "Le système présente des déficiences :", "C21": "OUI",
+        "A40": "Sous eau :", "B40": 1,
+        "A41": "Sous air :",
+        "A48": "Papillon :", "C48": "OS&Y :", "D48": 1, "E48": "PIV :",
+        "F52": "Oui", "G52": "Non", "H52": "N/A",
+        "A54": "Les vannes sont toutes dans leur position normale (ouverte ou fermée).", "F54": "X",
+        "A55": "Scellés :      X                Barrées :                        Supervisées : X",
+        "A56": "Les vannes sont exemptes de dommages ou de fuites.", "G56": "X",
+        "F64": "Oui", "G64": "Non", "H64": "N/A",
+        "A65": "Les gicleurs semblent exempts de peinture, corrosion, dommage physique.", "F65": "X",
+        "A78": "Les accouplements pivotants fonctionne correctement.", "F78": "X",
+        "A79": "Les bouchons/capuchons sont en place.", "G79": "X",
+        "A85": "Système de gicleurs sous eau :",
+        "A87": "# du système :", "B87": 1,
+        "A89": "Marque :", "B89": "ASTRA",
+        "A93": "Diamètre :", "B93": "4 POUCES",
+        "A99": "Essais ", "F99": "Oui", "G99": "Non", "H99": "N/A",
+        "A100": "Pression du système avant les essais (lb/po²)", "E100": 77,
+        "A101": "La cloche hydraulique est fonctionnelle.", "G101": "X",
+        "A102": "Interrupteur d'alarme ", "E102": "Interrupteur de débit", "G102": "X",
+        "A103": "La cloche électrique (120 volts) est fonctionnelle. ", "H103": "X",
+        "A106": "Pompe de surpression",
+        "A108": "Oui : X", "B108": "Non : ", "D108": "Manuelle : ", "F108": "Automatique : X",
+        "A109": "Pression de départ (lb/po²)", "C109": 77, "E109": "Pression d'arrêt (lb/po²)", "G109": 166,
+        "A110": "Délai afin de rétablir la pression normale du système (minutes/secondes)", "G110": time(0, 30),
+        "A112": "Pompe incendie ",
+        "A114": "Oui : ", "B114": "Non : X",
+        "A115": "Pression de départ (lb/po²)", "E115": "Pression d'arrêt (lb/po²)",
+        "A129": "Vérification de l'alimentation d'eau/Essai du drain :",
+        "A131": "Ville :", "B131": "MONTRÉAL",
+        "A133": "Pression statique (lb/po²) :", "B133": 77,
+        "A134": "Pompe incendie :", "B134": "NON",
+        "A154": "Liste des supervisions :",
+        "A156": "Emplacement", "C156": "Type de valves", "E156": "Diamètre", "G156": "Bon fonctionnement",
+        "A157": "GARAGE", "C157": "OS&Y", "E157": "4 PO", "G157": "OUI",
+        "A172": "REMARQUES :",
+        "A173": "BOUCHON MANQUANT AU RACCORD POMPIER.",
+        "A185": "RECOMMANDATIONS :",
+        "A198": "OBLIGATIONS :",
+    })
+
+
+class ImportGicleurs(BaseTest):
+    def setUp(self):
+        super().setUp()
+        self.dossier = Path(tempfile.mkdtemp())
+        classeur_gicleurs(self.dossier / "GICLEURS NFPA 25.xlsx")
+
+    def test_lecture_du_gabarit(self):
+        d = X.lire_fichier(self.dossier / "GICLEURS NFPA 25.xlsx")
+        self.assertEqual((d["type"], d["date"], d["frequence"]), (X.GICLEURS, date(2025, 10, 14), "Annuelle"))
+        self.assertEqual(d["vannes"], {"os&y": "1"})
+        self.assertEqual(d["valeurs"]["etat_vannes"], ["scelles", "supervisees"])
+        self.assertEqual(d["valeurs"]["interrupteur"], "Interrupteur de débit")
+        # La ligne « Interrupteur d'alarme … X » est un choix, pas une question.
+        self.assertNotIn("Interrupteur d'alarme", [q["libelle"] for q in d["questions"]])
+        self.assertEqual(d["pompe_surpression"]["delai"], {"min": "0", "sec": "30"})
+        self.assertEqual((d["pompe_surpression"]["presente"], d["pompe_surpression"]["mode"]), ("oui", "automatique"))
+        self.assertEqual(d["pompe_incendie"]["presente"], "non")
+        self.assertEqual(d["textes"]["remarques"], "BOUCHON MANQUANT AU RACCORD POMPIER.")
+
+    def test_import_cree_le_rapport_gicleur(self):
+        sortie = StringIO()
+        with self.captureOnCommitCallbacks(execute=True):
+            call_command("importer_securite_nationale", str(self.dossier), "--organisation", self.organisation.slug, stdout=sortie)
+        rapport = RapportGicleur.objects.get()
+        self.assertEqual((rapport.statut, rapport.date_inspection, rapport.frequence_inspection), ("ferme", date(2025, 10, 14), "annuelle"))
+        self.assertFalse(hasattr(rapport, "certificat"))
+        ident = rapport.identification
+        self.assertEqual(ident["reponses"]["id_raccord_capuchons"], "non")  # « Non » l'emporte sur « Oui »
+        self.assertEqual(ident["reponses"]["id_vannes_position"], "oui")
+        self.assertEqual(ident["remarques"]["id_verification"], "BOUCHON MANQUANT AU RACCORD POMPIER.")
+        self.assertFalse(rapport.est_conforme)
+        self.assertEqual(rapport.debits_valves["lignes"], [{"emplacement": "GARAGE", "type": "OS&Y", "modele": "4 PO", "signal": "oui"}])
+        sr = rapport.sous_rapports.get()
+        self.assertEqual((sr.type_fiche, sr.numero_systeme), ("eau", "1"))
+        r = sr.reponses
+        self.assertEqual((r["marque"], r["diametre"], r["vanne_principale"], r["pression_systeme"]), ("ASTRA", "4", "osy", "77"))
+        self.assertEqual((r["cloche_hydraulique"], r["cloche_electrique"], r["gicleurs_exempts"]), ("non", "na", "oui"))
+        self.assertEqual((r["pompe_presente"], r["pompe_mode"], r["pompe_pression_arret"]), ("oui", "automatique", "166"))
+        self.assertEqual(r["alimentation_eau"], ["ville"])
+        self.assertIn("Les vannes sont exemptes de dommages ou de fuites : Non", r["notes"])
+        self.assertIn("Interrupteur d'alarme : Interrupteur de débit", r["notes"])
+        self.assertIn("délai saisi « 00:30 »", sortie.getvalue())
