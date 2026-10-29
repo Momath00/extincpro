@@ -46,8 +46,10 @@ from inspections.models import (
 from organisations.models import Organisation
 
 # Codes du gabarit S-536 → codes d'ExtincPro (fiche E3 et légende).
-ALIAS_DISPOSITIF = {"VH": "K/S", "C": "B", "EOL": "FDL", "DS": "DFG", "FS": "IDG", "ET": "TEL", "EM": "ISO"}
-ALIAS_LEGENDE = {"VH": "K/S", "B": "C", "HT": "RHT", "EOL": "FDL", "DS": "DFG", "FS": "IDG", "ET": "TEL", "EM": "ISO"}
+# Leurs codes sont ceux de la légende S-536 (gabarit « sin ») : seul l'ancien
+# « C » (cloche) devient « B ».
+ALIAS_DISPOSITIF = {"C": "B"}
+ALIAS_LEGENDE = {"C": "B"}
 CODES_DISPOSITIF = {code for code, _libelle in Dispositif.TypeDispositif.choices}
 REPONSE_BOOL = {"oui": True, "non": False}
 FORMATS = {code for code, _libelle in ExtincteurItem.Format.choices}
@@ -396,9 +398,9 @@ class Command(BaseCommand):
         existant = self._deja_present(RapportExtincteur, batiment, jour, "extincteurs")
         if existant is not None:
             return existant
-        rapport = RapportExtincteur.objects.create(batiment=batiment, rapport_alarme=alarme, **self._champs_fermeture(jour))
-        if donnees["remarques"]:
-            rapport.historiser(self.superviseur, f"Remarques du rapport Excel : {donnees['remarques']}"[:300])
+        rapport = RapportExtincteur.objects.create(
+            batiment=batiment, rapport_alarme=alarme, **donnees["notes"], **self._champs_fermeture(jour)
+        )
 
         series = {}
         for ordre, ligne in enumerate(donnees["extincteurs"], start=1):
@@ -423,12 +425,17 @@ class Command(BaseCommand):
                 codes.append("PIC")
             if X.norm(ligne["support"]) == "non":
                 codes.append("SUPM")
+            # Colonnes du gabarit : une année, sinon « XX » (inconnu) ou une
+            # note libre gardée en remarque.
+            annees = {}
             for cle, libelle in (
                 ("derniere_inspection", "Dernière inspection"),
                 ("derniere_recharge", "Dernière recharge"),
                 ("dernier_test_hydro", "Dernier test hydro"),
             ):
-                if ligne[cle]:
+                if re.fullmatch(r"\d{4}", ligne[cle]):
+                    annees[cle] = ligne[cle]
+                elif ligne[cle] and X.norm(ligne[cle]) != "xx":
                     notes.append(f"{libelle} : {ligne[cle]}")
             if ligne["numero_serie"]:
                 series.setdefault(ligne["numero_serie"], []).append(ligne["numero"])
@@ -443,6 +450,9 @@ class Command(BaseCommand):
                 date_fabrication=annee,
                 prochaine_maintenance=prochaine_recharge if re.fullmatch(r"\d{4}", prochaine_recharge) else "",
                 prochain_test_hydrostatique=prochain_hydro if re.fullmatch(r"\d{4}", prochain_hydro) else "",
+                derniere_inspection=annees.get("derniere_inspection", ""),
+                derniere_recharge=annees.get("derniere_recharge", ""),
+                dernier_test_hydrostatique=annees.get("dernier_test_hydro", ""),
                 non_conformites=codes,
                 etat="D" if codes else "C",
                 remarque=" · ".join(notes)[:300],
@@ -462,19 +472,22 @@ class Command(BaseCommand):
         if extincteurs is not None and hasattr(extincteurs, "rapport_eclairage_lie"):
             extincteurs = None
         rapport = RapportEclairageUrgence.objects.create(
-            batiment=batiment, rapport_extincteur=extincteurs, **self._champs_fermeture(jour)
+            batiment=batiment, rapport_extincteur=extincteurs, **donnees["notes"], **self._champs_fermeture(jour)
         )
+        dispositifs = {code.lower(): code for code in EclairageUrgenceItem.Dispositif.values}
         for ordre, ligne in enumerate(donnees["unites"], start=1):
-            modele = " ".join(t for t in (ligne["fabricant"], ligne["dispositif"]) if t)
-            if ligne["modele_batterie"]:
-                modele = f"{modele} — batterie {ligne['modele_batterie']}"
+            dispositif = dispositifs.get(X.norm(ligne["dispositif"]).replace(" ", ""), "")
+            remarque = f"Dispositif : {ligne['dispositif']}" if ligne["dispositif"] and not dispositif else ""
             EclairageUrgenceItem.objects.create(
                 rapport=rapport,
                 ordre=ordre,
                 emplacement=ligne["emplacement"][:200],
-                modele=modele[:100],
+                fabricant=ligne["fabricant"][:100],
+                dispositif=dispositif,
+                modele=ligne["modele_batterie"][:100],
                 voltage=ligne["capacite"][:50],
                 etat={"oui": "C", "non": "D"}.get(X.norm(ligne["fonctionnel"]), "NI"),
+                remarque=remarque,
             )
         self._finaliser(rapport, donnees, "eclairage", "éclairage", f"{len(donnees['unites'])} unités")
         return rapport

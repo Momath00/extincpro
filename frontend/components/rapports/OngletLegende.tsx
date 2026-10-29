@@ -29,6 +29,31 @@ const LEGENDE: { code: string; description: { fr: string; en: string } }[] = [
   { code: 'MA', description: { fr: 'Module adressable', en: 'Addressable module' } },
 ]
 
+// Légende E3.1 de la norme S-536 — gabarit Sécurité Incendie National.
+const LEGENDE_S536: { code: string; description: { fr: string; en: string } }[] = [
+  { code: 'M', description: { fr: "Avertisseur manuel d'incendie", en: 'Manual pull station' } },
+  { code: 'RHT', description: { fr: 'Détecteur de chaleur réarmable', en: 'Resettable heat detector' } },
+  { code: 'HT', description: { fr: 'Détecteur de chaleur non réarmable', en: 'Non-resettable heat detector' } },
+  { code: 'S', description: { fr: 'Détecteur de fumée', en: 'Smoke detector' } },
+  { code: 'RI', description: { fr: 'Indicateur à distance', en: 'Remote indicator' } },
+  { code: 'DS', description: { fr: 'Détecteur de fumée de conduit', en: 'Duct smoke detector' } },
+  { code: 'SFD', description: { fr: "Dispositif d'appui (surveillance)", en: 'Supervisory device' } },
+  { code: 'FS', description: { fr: 'Interrupteur de débit des gicleurs', en: 'Sprinkler flow switch' } },
+  { code: 'SS', description: { fr: 'Dispositifs de surveillance des gicleurs', en: 'Sprinkler supervisory devices' } },
+  { code: 'EM', description: { fr: "Module d'isolation en cas de défaut", en: 'Fault isolation module' } },
+  { code: 'B', description: { fr: 'Cloche', en: 'Bell' } },
+  { code: 'H', description: { fr: 'Avertisseur sonore', en: 'Horn' } },
+  { code: 'V', description: { fr: 'Dispositif de signalisation visuelle', en: 'Visual signal device' } },
+  { code: 'SP', description: { fr: 'Haut-parleur à cône', en: 'Cone speaker' } },
+  { code: 'HSP', description: { fr: 'Haut-parleur à pavillon', en: 'Horn speaker' } },
+  { code: 'AD', description: { fr: 'Dispositif auxiliaire', en: 'Auxiliary device' } },
+  { code: 'ET', description: { fr: "Téléphone d'urgence", en: 'Emergency telephone' } },
+  { code: 'EOL', description: { fr: "Résistance d'extrémité de ligne", en: 'End-of-line resistor' } },
+  { code: 'VH', description: { fr: 'Avertisseur sonore et visuel', en: 'Horn strobe' } },
+  { code: 'PAI', description: { fr: "Panneau d'alarme incendie", en: 'Fire alarm panel' } },
+  { code: 'K', description: { fr: 'Klaxon', en: 'Horn' } },
+]
+
 function Toast({ msg, type }: { msg: string; type: 'success' | 'error' }) {
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] flex items-center gap-3 bg-white rounded-xl shadow-xl border px-5 py-3.5"
@@ -104,7 +129,7 @@ export default function OngletLegende({
             </tr>
           </thead>
           <tbody>
-            {LEGENDE.map(({ code, description }) => {
+            {(rapport.gabarit === 'sin' ? LEGENDE_S536 : LEGENDE).map(({ code, description }) => {
               const ligne = lignes[code] || {}
               return (
                 <tr key={code} className="border-t border-gray-50">

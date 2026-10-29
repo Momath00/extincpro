@@ -88,7 +88,8 @@ def classeur_extincteurs(chemin, adresse="3600 BOULEVARD DU TRICENTENAIRE"):
         "A10": "ADRESSE DE SERVICE:", "D10": adresse,
         "A13": "INSPECTION FAITE PAR:", "D13": "M. ZACK DIOTTE",
         "A14": "DATE:", "D14": "17 SEPTEMBRE 2025",
-        "A96": "REMARQUES :", "A108": "RECOMMANDATIONS :",
+        "A96": "REMARQUES :", "A97": "Cabinet #3 bloqué par des boîtes.",
+        "A108": "RECOMMANDATIONS :", "A120": "OBLIGATIONS :", "A121": "Dégager l'accès aux extincteurs.",
     }
     colonnes = "ABCDEFGHIJKLMN"
     cellules.update({f"{colonnes[i]}16": t for i, t in enumerate(entetes)})
@@ -176,9 +177,9 @@ class ImportCommande(BaseTest):
         e2 = alarme.fiche_e2.details
         self.assertEqual(e2["e2_1"], {"localisation": "ENTRÉE PRINCIPALE", "A": "oui", "G": "sans_objet"})
         self.assertEqual(e2["e2_5"], {"C": "27.75 VCC", "D": "T : 26.55 VCC"})
-        self.assertEqual(alarme.fiche_legende.dispositifs["K/S"]["type"], "AVERTISSEUR SONORE ET VISUEL (quantité : 1)")
+        self.assertEqual(alarme.fiche_legende.dispositifs["VH"]["type"], "AVERTISSEUR SONORE ET VISUEL (quantité : 1)")
         dispositifs = list(alarme.dispositifs.order_by("id"))
-        self.assertEqual([d.type_dispositif for d in dispositifs], ["M", "K/S", None])
+        self.assertEqual([d.type_dispositif for d in dispositifs], ["M", "VH", None])
         self.assertEqual([d.annonce_statut for d in dispositifs], ["I", "D", "I"])
         self.assertIn("code Excel : ZZ", dispositifs[2].remarque)
         self.assertTrue(all(d.section_id for d in dispositifs))
@@ -192,14 +193,22 @@ class ImportCommande(BaseTest):
         self.assertEqual((items[1].type_extincteur, items[1].non_conformites), ("CO2", ["SUPM"]))
         self.assertEqual((items[2].format, items[2].date_fabrication, items[2].etat), ("autre", "", "C"))
         self.assertIn("Année de fabrication : 20043", items[2].remarque)
-        self.assertIn("Dernière recharge : 2019", items[0].remarque)
+        self.assertEqual(
+            (items[0].derniere_inspection, items[0].derniere_recharge, items[0].dernier_test_hydrostatique),
+            ("2024", "2019", "2019"),
+        )
+        self.assertEqual((items[2].derniere_recharge, items[2].dernier_test_hydrostatique), ("", ""))
+        self.assertEqual(
+            (ext.remarques, ext.recommandations, ext.obligations),
+            ("Cabinet #3 bloqué par des boîtes.", "", "Dégager l'accès aux extincteurs."),
+        )
 
         eclairage = RapportEclairageUrgence.objects.get(batiment=batiment)
         self.assertEqual(eclairage.rapport_extincteur, ext)
         unites = list(eclairage.eclairages_urgence.order_by("ordre"))
-        self.assertEqual([(u.modele, u.voltage, u.etat) for u in unites], [
-            ("EMERGI-LITE ES", "", "C"),
-            ("LUMACELL ES-TD — batterie PEAK", "1x 6V7AH", "D"),
+        self.assertEqual([(u.fabricant, u.dispositif, u.modele, u.voltage, u.etat) for u in unites], [
+            ("EMERGI-LITE", "ES", "", "", "C"),
+            ("LUMACELL", "ES-TD", "PEAK", "1x 6V7AH", "D"),
         ])
 
         # Historique : ni certificat, ni courriel, ni brouillon de visite suivante.

@@ -15,6 +15,7 @@ import BoutonPdf from '@/components/BoutonPdf'
 import { useT } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
 import SectionPhotos from '@/components/rapports/SectionPhotos'
+import { dateLocale } from '@/lib/dates'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -297,7 +298,7 @@ export default function SuperviseurRapportExtincteurDetailPage() {
           </div>
           <p className="text-gray-400 text-sm flex items-center gap-1.5">
             {rapport.date_inspection
-              ? new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })
+              ? dateLocale(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })
               : ''}
             {!estFerme && (
               <button onClick={() => setModalMode('date')} className="text-gray-300 hover:text-[#e11324] transition-colors" title={t('modifier_date_inspection')}>

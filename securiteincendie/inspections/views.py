@@ -126,6 +126,16 @@ LEGENDE_DISPOSITIFS = [
 ]
 
 
+def _legende_dispositifs(organisation):
+    """Légende E3 selon le gabarit de l'organisation (S-536 pour Sécurité
+    Incendie National)."""
+    if organisation.gabarit_rapports == "sin":
+        from .gabarit_sin import LEGENDE_DISPOSITIFS_S536
+
+        return LEGENDE_DISPOSITIFS_S536
+    return LEGENDE_DISPOSITIFS
+
+
 # ── Légende des non-conformités du rapport extincteurs portatifs ─────────
 _STYLE_CODE_NC = (
     "display:inline-block;font-weight:800;color:#e11324;background:#fee2e2;"
@@ -1039,12 +1049,23 @@ def _html_rapport_incendie_complet(rapport) -> str:
 
     e2_html = ""
     e2_parts = []
+    remarques_e2_sin = ""  # gabarit SIN : E2.12 imprimée après la fiche des dispositifs
+    sin = bat.client.organisation.gabarit_rapports == "sin"
     for key, titre in E2_TITRES.items():
         sec_data = (e2.details or {}).get(key, {}) if (e2 and e2.details) else {}
         items_defs = E2_ITEMS.get(key, [])
         loc = sec_data.get("localisation", "")
         loc_str = f" <span style='font-size:8pt;color:#444;'>({loc})</span>" if loc else ""
-        if key in ("e2_11", "e2_12"):
+        if sin and key == "e2_12":
+            # Leur fiche : bloc « E2.12 REMARQUES (Référence : E2) » à lignes.
+            titre = "E2.12 — REMARQUES <span style='font-weight:400;'>(Référence : E2)</span>"
+            texte = escape(sec_data.get("remarques", "")).replace("\n", "<br>")
+            content = (
+                "<div style='border:1px solid #111;min-height:150px;padding:6px 8px;font-size:9.5pt;line-height:22px;"
+                "background-image:repeating-linear-gradient(transparent,transparent 21px,#d1d5db 21px,#d1d5db 22px);'>"
+                f"{texte or '&nbsp;'}</div>"
+            )
+        elif key in ("e2_11", "e2_12"):
             val = sec_data.get("remarques", "")
             content = f"<p style='font-size:9pt;color:#111;padding:4px 0;'>{val or '—'}</p>"
         else:
@@ -1063,12 +1084,16 @@ def _html_rapport_incendie_complet(rapport) -> str:
                 f"<th class='center' style='width:64px;'>Résultat</th>"
                 f"</tr></thead><tbody>{rows}</tbody></table>"
             )
-        e2_parts.append(
+        bloc = (
             f"<div style='margin-bottom:14px;page-break-inside:avoid;'>"
             f"<div class='sec-sub'>{titre}{loc_str}</div>"
             f"{content}"
             f"</div>"
         )
+        if sin and key == "e2_12":
+            remarques_e2_sin = bloc
+        else:
+            e2_parts.append(bloc)
     if e2_parts:
         e2_html = '<div class="sec-title">E2 — Essai du poste de contrôle</div>' + "".join(e2_parts)
 
@@ -1076,7 +1101,7 @@ def _html_rapport_incendie_complet(rapport) -> str:
         f"<tr><td class='bold'>{code}</td><td>{desc}</td>"
         f"<td>{(legende.get(code) or {}).get('type') or '—'}</td>"
         f"<td>{(legende.get(code) or {}).get('modele') or '—'}</td></tr>"
-        for code, desc in LEGENDE_DISPOSITIFS
+        for code, desc in _legende_dispositifs(bat.client.organisation)
     )
     legende_html = (
         '<div class="sec-title">Légende des dispositifs</div>'
@@ -1094,10 +1119,16 @@ def _html_rapport_incendie_complet(rapport) -> str:
             is_defect = d.est_defectueux
             is_ni = not is_defect and d.annonce_statut == "NI"
             bg = ' style="background:#fef2f2;"' if is_defect else ' style="background:#fef3c7;"' if is_ni else ""
-            a = "1" if d.installation_correcte is True else "S.O." if d.installation_correcte is None else "0"
-            b = "1" if d.necessite_entretien is True else "S.O." if d.necessite_entretien is None else "0"
-            c_val = "1" if d.alarme_confirmee is True else "S.O." if d.alarme_confirmee is None else "0"
-            d_val = d.annonce_statut or "—"
+            if sin:
+                from .gabarit_sin import ANNONCE_O_N, o_n
+
+                a, b, c_val = o_n(d.installation_correcte), o_n(d.necessite_entretien), o_n(d.alarme_confirmee)
+                d_val = ANNONCE_O_N.get(d.annonce_statut, "—")
+            else:
+                a = "1" if d.installation_correcte is True else "S.O." if d.installation_correcte is None else "0"
+                b = "1" if d.necessite_entretien is True else "S.O." if d.necessite_entretien is None else "0"
+                c_val = "1" if d.alarme_confirmee is True else "S.O." if d.alarme_confirmee is None else "0"
+                d_val = d.annonce_statut or "—"
             e_val = d.zone_circuit or "—"
             loc_style = ' style="color:#cc0000;font-weight:700;"' if is_defect else ' style="color:#b45309;font-weight:700;"' if is_ni else ""
             rows += (
@@ -1112,6 +1143,15 @@ def _html_rapport_incendie_complet(rapport) -> str:
                 f"<td>{d.remarque or ''}</td>"
                 f"</tr>"
             )
+        if sin:
+            from .gabarit_sin import COLONNES_E3
+
+            entetes = "".join(f"<th class='center' style='font-size:6.5pt;'>{c}</th>" for c in COLONNES_E3)
+            sections_html += (
+                f"<div class='sec-sub'>{section.nom}</div>"
+                f"<table class='data-grid'><thead><tr>{entetes}</tr></thead><tbody>{rows}</tbody></table>"
+            )
+            continue
         sections_html += (
             f"<div class='sec-sub'>{section.nom}</div>"
             f"<table class='data-grid'>"
@@ -1129,6 +1169,12 @@ def _html_rapport_incendie_complet(rapport) -> str:
         )
     if not sections_html:
         sections_html = "<p class='muted' style='font-size:9pt;'>Aucun dispositif enregistré.</p>"
+    # Les colonnes du gabarit SIN portent leur titre complet : pas de légende A–E.
+    legende_colonnes_e3 = "" if sin else (
+        '<div style="font-size:7.5pt;color:#000;margin-bottom:8px;font-style:italic;">A = Installation correcte &nbsp;|&nbsp; '
+        "B = Nécessite entretien &nbsp;|&nbsp; C = Alarme confirmée &nbsp;|&nbsp; D = Statut (D=Défectueux, I=Inspecté, "
+        "NI=Non inspecté) &nbsp;|&nbsp; E = Zone/Circuit &nbsp;&nbsp;(A/B/C : 1 = Oui, 0 = Non)</div>"
+    )
 
     logo_content = organisation_logo_content(bat.client.organisation, 46)
     organisation_nom = bat.client.organisation.nom
@@ -1189,8 +1235,9 @@ def _html_rapport_incendie_complet(rapport) -> str:
   <tbody>{inv_rows}<tr style="font-weight:700;background:#f8fafc;border-top:1.5px solid #e5e7eb;"><td>Total</td><td class="center bold">{total_disp}</td></tr></tbody>
 </table>
 <div class="sec-title">E3 — Détail par section</div>
-<div style="font-size:7.5pt;color:#000;margin-bottom:8px;font-style:italic;">A = Installation correcte &nbsp;|&nbsp; B = Nécessite entretien &nbsp;|&nbsp; C = Alarme confirmée &nbsp;|&nbsp; D = Statut (D=Défectueux, I=Inspecté, NI=Non inspecté) &nbsp;|&nbsp; E = Zone/Circuit &nbsp;&nbsp;(A/B/C : 1 = Oui, 0 = Non)</div>
+{legende_colonnes_e3}
 {sections_html}
+{remarques_e2_sin}
 {html_annexe_photos(rapport, t("photos_anomalies"), t("suite"))}
 {pied_de_page(organisation_nom, t("footer_rapport_incendie"))}
 </div>
@@ -1692,7 +1739,7 @@ class RapportViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         ws.cell(row=ligne, column=1, value="Légende des dispositifs").font = Font(bold=True, color=NAVY, size=12)
         ligne += 1
         excel_ligne_entetes(ws, ["Dispositif", "Description", "Type", "N° de modèle"], ligne=ligne)
-        for code, desc in LEGENDE_DISPOSITIFS:
+        for code, desc in _legende_dispositifs(rapport.batiment.client.organisation):
             ligne += 1
             infos = legende.get(code) or {}
             ws.cell(row=ligne, column=1, value=code)
@@ -1793,6 +1840,27 @@ class DispositifViewSet(viewsets.ModelViewSet):
         rapport.historiser(self.request.user, description)
 
 
+def _maj_notes_rapport(request, rapport):
+    """Remarques / recommandations / obligations du bas du rapport (gabarit
+    Sécurité Incendie National) — le technicien assigné peut les saisir tant
+    que le rapport est ouvert, comme les lignes du tableau."""
+    if request.user.est_citoyen():
+        return Response({"error": "Accès refusé."}, status=status.HTTP_403_FORBIDDEN)
+    if rapport.statut == "ferme" and not request.user.est_superviseur():
+        return Response({"error": "Ce rapport est fermé et ne peut plus être modifié."}, status=status.HTTP_400_BAD_REQUEST)
+    champs = [c for c in ("remarques", "recommandations", "obligations") if c in request.data]
+    modifies = []
+    for champ in champs:
+        valeur = str(request.data.get(champ) or "")[:5000]
+        if getattr(rapport, champ) != valeur:
+            setattr(rapport, champ, valeur)
+            modifies.append(champ)
+    if modifies:
+        rapport.save(update_fields=modifies)
+        rapport.historiser(request.user, f"Notes modifiées ({', '.join(modifies)})")
+    return Response({c: getattr(rapport, c) for c in ("remarques", "recommandations", "obligations")})
+
+
 def _html_certificat_extincteur(rapport) -> str:
     """HTML du certificat couvrant ce rapport extincteur — figé s'il est émis,
     sinon aperçu brouillon (voir certificats.py)."""
@@ -1811,6 +1879,9 @@ def _html_rapport_extincteur_complet(rapport) -> str:
     from .pdf_design import CSS_DOCUMENT, entete, pied_de_page
 
     bat = rapport.batiment
+    if bat.client.organisation.gabarit_rapports == "sin":
+        from .gabarit_sin import html_rapport_extincteurs
+        return html_rapport_extincteurs(rapport)
     adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
     langue = bat.client.organisation.langue
     t = lambda cle: _t(langue, cle)
@@ -2232,6 +2303,10 @@ class RapportExtincteurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         rapport = self.get_object()
         return Response(HistoriqueRapportExtincteurSerializer(rapport.historique.all(), many=True).data)
 
+    @action(detail=True, methods=["patch"])
+    def notes(self, request, pk=None):
+        return _maj_notes_rapport(request, self.get_object())
+
     @action(detail=True, methods=["get"], url_path="certificat-pdf")
     def certificat_pdf(self, request, pk=None):
         rapport = self.get_object()
@@ -2377,6 +2452,9 @@ def _html_rapport_eclairage_complet(rapport) -> str:
     from .pdf_design import CSS_DOCUMENT, entete, pied_de_page
 
     bat = rapport.batiment
+    if bat.client.organisation.gabarit_rapports == "sin":
+        from .gabarit_sin import html_rapport_eclairage
+        return html_rapport_eclairage(rapport)
     adresse = f"{bat.numero_civique} {bat.rue}, {bat.ville}"
     langue = bat.client.organisation.langue
     t = lambda cle: _t(langue, cle)
@@ -2608,6 +2686,10 @@ class RapportEclairageUrgenceViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
     def historique(self, request, pk=None):
         rapport = self.get_object()
         return Response(HistoriqueRapportEclairageUrgenceSerializer(rapport.historique.all(), many=True).data)
+
+    @action(detail=True, methods=["patch"])
+    def notes(self, request, pk=None):
+        return _maj_notes_rapport(request, self.get_object())
 
     @action(detail=True, methods=["get"], url_path="telecharger")
     def telecharger(self, request, pk=None):

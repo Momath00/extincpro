@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useT } from '@/lib/i18n'
+import { dateLocale } from '@/lib/dates'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -128,7 +129,7 @@ export default function TechnicienRapportsCuisinePage() {
                   <span className="flex items-center gap-1">
                     <i className="ti ti-calendar text-gray-300" />
                     {r.date_inspection
-                      ? new Date(r.date_inspection).toLocaleDateString('fr-CA', { day: 'numeric', month: 'short', year: 'numeric' })
+                      ? dateLocale(r.date_inspection).toLocaleDateString('fr-CA', { day: 'numeric', month: 'short', year: 'numeric' })
                       : t('date_non_definie')}
                   </span>
                   {r.rapport_extincteur_id && (

@@ -8,6 +8,7 @@ import { onReconciled } from '@/lib/offline/queue'
 import GroupesRepliables from '@/components/rapports/GroupesRepliables'
 import { BoutonPrincipal } from '@/components/rapports/BarreOutils'
 import Legende, { CodeLegende, LignesCouleurs } from '@/components/rapports/Legende'
+import NotesRapport from '@/components/rapports/NotesRapport'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -204,15 +205,19 @@ function ScrollableTable({ children }: { children: ReactNode }) {
 function LigneExtincteur({
   item,
   readOnly,
+  sin,
   onDeleted,
   onUpdate,
 }: {
   item: any
   readOnly: boolean
+  /** Colonnes du gabarit Sécurité Incendie National. */
+  sin: boolean
   onDeleted: () => void
   onUpdate: (field: string, value: any) => void
 }) {
   const t = useT()
+  const nbColonnes = (sin ? 15 : 11) + (readOnly ? 0 : 1)
   const FORMAT_CHOICES = useChoix(FORMAT_CHOICES_I18N)
   const TYPE_CHOICES = useChoix(TYPE_EXTINCTEUR_CHOICES_I18N)
   const MARQUE_CHOICES = useChoix(MARQUE_CHOICES_I18N)
@@ -267,6 +272,47 @@ function LigneExtincteur({
       readOnly={readOnly}
       onCommit={annee => patchField(field, annee)}
     />
+  )
+
+  // Gabarit SIN : « À FAIRE » (recharge, test hydro) et les colonnes OUI/NON
+  // (étiquette, support) sont les codes RC, TH, PIC et SUPM de la légende —
+  // l'onglet Déficiences et le certificat restent ainsi justes.
+  const codes: string[] = it.non_conformites || []
+  function basculerCode(code: string, actif: boolean) {
+    const suivant = actif ? [...codes.filter(c => c !== code), code] : codes.filter(c => c !== code)
+    patchField('non_conformites', LEGENDE_NON_CONFORMITES.map(l => l.code).filter(c => suivant.includes(c)))
+  }
+
+  const anneeOuAFaire = (field: string, code: string) => (
+    <div className="flex flex-col gap-1">
+      {anneeInput(field)}
+      {readOnly ? (
+        codes.includes(code) && <span className="text-[10px] font-bold uppercase" style={{ color: '#dc2626' }}>{t('a_faire')}</span>
+      ) : (
+        <label className="flex items-center gap-1 text-[10px] font-semibold whitespace-nowrap" style={{ color: NAVY }}>
+          <input type="checkbox" checked={codes.includes(code)} onChange={e => basculerCode(code, e.target.checked)} />
+          {t('a_faire')}
+        </label>
+      )}
+    </div>
+  )
+
+  // OUI = présent ; NON = code de non-conformité (PIC, SUPM).
+  const ouiNonInput = (code: string) => (
+    readOnly ? (
+      <span className="text-xs font-bold" style={{ color: codes.includes(code) ? '#dc2626' : '#16a34a' }}>
+        {codes.includes(code) ? t('non') : t('oui')}
+      </span>
+    ) : (
+      <select
+        value={codes.includes(code) ? 'non' : 'oui'}
+        onChange={e => basculerCode(code, e.target.value === 'non')}
+        className="text-xs border-2 border-[#0a0b0d] rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-full min-w-[60px]"
+      >
+        <option value="oui">{t('oui')}</option>
+        <option value="non">{t('non')}</option>
+      </select>
+    )
   )
 
   const isDefect = it.etat === 'D'
@@ -331,14 +377,33 @@ function LigneExtincteur({
         } : {}}
       >
         <td className="px-2 py-2 text-center text-xs text-gray-400">{it.ordre}</td>
-        <td className="px-2 py-2">{textInput('etage', t('col_etage'), 'w-full min-w-[70px]')}</td>
-        <td className="px-2 py-2">{textInput('emplacement', t('col_emplacement'), 'w-full min-w-[110px]')}</td>
-        <td className="px-2 py-2">{selectInput('type_extincteur', TYPE_CHOICES)}</td>
-        <td className="px-2 py-2">{selectInput('format', FORMAT_CHOICES)}</td>
-        <td className="px-2 py-2">{selectInput('marque', MARQUE_CHOICES)}</td>
-        <td className="px-2 py-2">{anneeInput('date_fabrication')}</td>
-        <td className="px-2 py-2">{anneeInput('prochaine_maintenance')}</td>
-        <td className="px-2 py-2">{anneeInput('prochain_test_hydrostatique')}</td>
+        {sin ? (
+          <>
+            <td className="px-2 py-2">{anneeInput('derniere_inspection')}</td>
+            <td className="px-2 py-2">{textInput('numero_serie', t('col_numero_serie'), 'w-full min-w-[90px]')}</td>
+            <td className="px-2 py-2">{selectInput('format', FORMAT_CHOICES)}</td>
+            <td className="px-2 py-2">{selectInput('type_extincteur', TYPE_CHOICES)}</td>
+            <td className="px-2 py-2">{anneeInput('date_fabrication')}</td>
+            <td className="px-2 py-2">{anneeInput('derniere_recharge')}</td>
+            <td className="px-2 py-2">{anneeInput('dernier_test_hydrostatique')}</td>
+            <td className="px-2 py-2">{anneeOuAFaire('prochaine_maintenance', 'RC')}</td>
+            <td className="px-2 py-2">{anneeOuAFaire('prochain_test_hydrostatique', 'TH')}</td>
+            <td className="px-2 py-2">{ouiNonInput('PIC')}</td>
+            <td className="px-2 py-2">{ouiNonInput('SUPM')}</td>
+            <td className="px-2 py-2">{textInput('emplacement', t('col_lieu_extincteur'), 'w-full min-w-[110px]')}</td>
+          </>
+        ) : (
+          <>
+            <td className="px-2 py-2">{textInput('etage', t('col_etage'), 'w-full min-w-[70px]')}</td>
+            <td className="px-2 py-2">{textInput('emplacement', t('col_emplacement'), 'w-full min-w-[110px]')}</td>
+            <td className="px-2 py-2">{selectInput('type_extincteur', TYPE_CHOICES)}</td>
+            <td className="px-2 py-2">{selectInput('format', FORMAT_CHOICES)}</td>
+            <td className="px-2 py-2">{selectInput('marque', MARQUE_CHOICES)}</td>
+            <td className="px-2 py-2">{anneeInput('date_fabrication')}</td>
+            <td className="px-2 py-2">{anneeInput('prochaine_maintenance')}</td>
+            <td className="px-2 py-2">{anneeInput('prochain_test_hydrostatique')}</td>
+          </>
+        )}
         <td className="px-2 py-2">{etatInput()}</td>
         <td className="px-2 py-2">
           {/* Codes de la légende + texte libre, comme la case du formulaire Excel. */}
@@ -364,7 +429,7 @@ function LigneExtincteur({
       </tr>
       {confirmDelete && (
         <tr>
-          <td colSpan={readOnly ? 11 : 12}>
+          <td colSpan={nbColonnes}>
             <div className="flex items-center gap-3 px-4 py-2.5 bg-red-50 text-xs border-t border-red-100">
               <i className="ti ti-alert-circle text-red-500" />
               <span className="text-red-700 font-semibold">{t('supprimer_cette_ligne')}</span>
@@ -382,7 +447,7 @@ function LigneExtincteur({
       )}
       {erreurChamp && (
         <tr>
-          <td colSpan={readOnly ? 11 : 12}>
+          <td colSpan={nbColonnes}>
             <div className="flex items-center gap-2 px-4 py-1.5 bg-red-50 text-[11px] border-t border-red-100 text-red-600 font-semibold">
               <i className="ti ti-alert-triangle text-red-500" /> {erreurChamp}
               <button onClick={() => setErreurChamp(null)} className="ml-auto text-red-400 hover:text-red-600">
@@ -412,6 +477,7 @@ export default function TableExtincteurs({
 }) {
   const t = useT()
   const langue = useLangue()
+  const sin = rapport.gabarit === 'sin'
   const [items, setItems] = useState<any[]>(rapport.extincteurs || [])
   const [adding, setAdding] = useState(false)
 
@@ -633,19 +699,38 @@ export default function TableExtincteurs({
           estEnDeficience={estEnDeficience}
           rendreTableau={lignes => (
               <ScrollableTable>
-                <table className="w-full text-sm min-w-[1180px]">
+                <table className={`w-full text-sm ${sin ? 'min-w-[1500px]' : 'min-w-[1180px]'}`}>
                   <thead>
                     <tr className="text-[10px] font-bold uppercase tracking-widest text-white"
                       style={{ background: `linear-gradient(135deg, ${NAVY}, #232733)` }}>
                       <th className="text-center px-2 py-2.5 w-10">{t('col_no')}</th>
-                      <th className="text-left px-2 py-2.5">{t('col_etage')}</th>
-                      <th className="text-left px-2 py-2.5">{t('col_emplacement')}</th>
-                      <th className="text-left px-2 py-2.5">{t('col_type')}</th>
-                      <th className="text-left px-2 py-2.5">{t('col_format')}</th>
-                      <th className="text-left px-2 py-2.5">{t('col_marque')}</th>
-                      <th className="text-left px-2 py-2.5">{t('col_date_fabrication')}</th>
-                      <th className="text-left px-2 py-2.5">{t('col_prochaine_maintenance')}</th>
-                      <th className="text-left px-2 py-2.5">{t('col_prochain_test_hydro')}</th>
+                      {sin ? (
+                        <>
+                          <th className="text-left px-2 py-2.5">{t('col_derniere_inspection')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_numero_serie')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_poids')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_type')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_annee_fab')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_derniere_recharge')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_dernier_test_hydro')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_prochaine_recharge')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_prochain_test_hydro')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_etiquette_visibilite')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_support_mural')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_lieu_extincteur')}</th>
+                        </>
+                      ) : (
+                        <>
+                          <th className="text-left px-2 py-2.5">{t('col_etage')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_emplacement')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_type')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_format')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_marque')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_date_fabrication')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_prochaine_maintenance')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_prochain_test_hydro')}</th>
+                        </>
+                      )}
                       <th className="text-center px-2 py-2.5 w-16" title={t('etat_legende')}>{t('col_etat')}</th>
                       <th className="text-left px-2 py-2.5">{t('col_remarque')}</th>
                       {!readOnly && <th className="px-2 py-2.5 w-10" />}
@@ -657,6 +742,7 @@ export default function TableExtincteurs({
                         key={it.id}
                         item={it}
                         readOnly={readOnly}
+                        sin={sin}
                         onDeleted={() => { removerLocal(it.id); onRefresh() }}
                         onUpdate={(field, value) => updateLocal(it.id, field, value)}
                       />
@@ -666,6 +752,10 @@ export default function TableExtincteurs({
               </ScrollableTable>
           )}
         />
+      {sin && (
+        <NotesRapport rapport={rapport} readOnly={readOnly}
+          url={`${API_URL}/api/rapports-extincteurs/${rapport.id}/notes/`} />
+      )}
     </div>
   )
 }

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import ModalModifierRapport from '@/components/rapports/ModalModifierRapport'
 import Pagination from '@/components/dashboard/Pagination'
 import { useT } from '@/lib/i18n'
+import { dateLocale } from '@/lib/dates'
 
 const PAGE_SIZE = 25
 
@@ -249,7 +250,7 @@ function RapportsEclairageUrgenceListContent() {
                       </p>
                       {r.date_inspection && (
                         <p className="text-xs text-gray-400">
-                          {new Date(r.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'medium' })}
+                          {dateLocale(r.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'medium' })}
                         </p>
                       )}
                     </div>

@@ -516,6 +516,21 @@ class Dispositif(models.Model):
         INTERRUPTEUR_BASSE_PRESSION = "IBH", "Interrupteur de basse pression"
         KLAXON_STROBE = "K/S", "Klaxon strobe"
         MODULE_ADRESSABLE = "MA", "Module adressable"
+        # Codes de la légende E3.1 de la norme S-536 (gabarit Sécurité Incendie National).
+        INDICATEUR_DISTANCE = "RI", "Indicateur à distance"
+        DETECTEUR_FUMEE_CONDUIT = "DS", "Détecteur de fumée de conduit"
+        DISPOSITIF_APPUI = "SFD", "Dispositif d'appui (surveillance)"
+        INTERRUPTEUR_DEBIT = "FS", "Interrupteur de débit des gicleurs"
+        SURVEILLANCE_GICLEURS = "SS", "Dispositif de surveillance des gicleurs"
+        MODULE_ISOLATION = "EM", "Module d'isolation en cas de défaut"
+        AVERTISSEUR_SONORE = "H", "Avertisseur sonore"
+        SIGNALISATION_VISUELLE = "V", "Dispositif de signalisation visuelle"
+        HAUT_PARLEUR_CONE = "SP", "Haut-parleur à cône"
+        HAUT_PARLEUR_PAVILLON = "HSP", "Haut-parleur à pavillon"
+        DISPOSITIF_AUXILIAIRE = "AD", "Dispositif auxiliaire"
+        TELEPHONE_URGENCE_S536 = "ET", "Téléphone d'urgence"
+        RESISTANCE_EXTREMITE = "EOL", "Résistance d'extrémité de ligne"
+        AVERTISSEUR_SONORE_VISUEL = "VH", "Avertisseur sonore et visuel"
 
     class StatutAnnonce(models.TextChoices):
         DEFECTUEUX = "D", "Défectueux"
@@ -604,6 +619,10 @@ class RapportExtincteur(models.Model):
         help_text="Le citoyen qui pourra consulter ce rapport et son certificat.",
     )
     numero_job = models.CharField(max_length=50, blank=True, help_text="Champ « JOB » du formulaire papier.")
+    # Zones de texte du bas du rapport (gabarit Sécurité Incendie National).
+    remarques = models.TextField(blank=True)
+    recommandations = models.TextField(blank=True)
+    obligations = models.TextField(blank=True)
 
     statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.OUVERT)
     cycle = models.ForeignKey(
@@ -1033,6 +1052,10 @@ class ExtincteurItem(models.Model):
     numero_serie = models.CharField(max_length=100, blank=True)
     prochaine_maintenance = models.CharField(max_length=4, blank=True)
     prochain_test_hydrostatique = models.CharField(max_length=4, blank=True)
+    # Colonnes propres au gabarit Sécurité Incendie National (années seulement).
+    derniere_inspection = models.CharField(max_length=4, blank=True)
+    derniere_recharge = models.CharField(max_length=4, blank=True)
+    dernier_test_hydrostatique = models.CharField(max_length=4, blank=True)
     # Codes de LEGENDE_NON_CONFORMITES, ex. ["TH", "SUPM"].
     non_conformites = models.JSONField(default=list, blank=True)
     remarque = models.CharField(max_length=300, blank=True)
@@ -1209,6 +1232,10 @@ class RapportEclairageUrgence(models.Model):
         blank=True,
     )
     numero_job = models.CharField(max_length=50, blank=True, help_text="Champ « JOB » du formulaire papier.")
+    # Zones de texte du bas du rapport (gabarit Sécurité Incendie National).
+    remarques = models.TextField(blank=True)
+    recommandations = models.TextField(blank=True)
+    obligations = models.TextField(blank=True)
 
     statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.OUVERT)
     cycle = models.ForeignKey(
@@ -1301,12 +1328,24 @@ class HistoriqueRapportEclairageUrgence(models.Model):
 
 
 class EclairageUrgenceItem(models.Model):
-    """Une ligne du tableau de vérification des unités d'éclairage d'urgence."""
+    """Une ligne du tableau de vérification des unités d'éclairage d'urgence.
+    Gabarit Sécurité Incendie National : `modele` = modèle de la batterie,
+    `voltage` = capacité de la batterie."""
 
     class Etat(models.TextChoices):
         DEFECTUEUX = "D", "Défectueux"
         CONFORME = "C", "Conforme"
         NON_INSPECTE = "NI", "Non inspecté"
+
+    class Dispositif(models.TextChoices):
+        TS = "TS", "Tête d'éclairage d'urgence à tête simple"
+        TD = "TD", "Tête d'éclairage d'urgence à tête double"
+        UE = "UE", "Unité de pouvoir d'éclairage d'urgence"
+        UE_TS = "UE-TS", "Unité de pouvoir d'éclairage d'urgence avec tête simple"
+        UE_TD = "UE-TD", "Unité de pouvoir d'éclairage d'urgence avec tête double"
+        ES = "ES", "Enseigne de sortie"
+        ES_TS = "ES-TS", "Enseigne de sortie avec éclairage d'urgence à tête simple"
+        ES_TD = "ES-TD", "Enseigne de sortie avec éclairage d'urgence à tête double"
 
     rapport = models.ForeignKey(
         RapportEclairageUrgence, on_delete=models.CASCADE, related_name="eclairages_urgence"
@@ -1314,6 +1353,8 @@ class EclairageUrgenceItem(models.Model):
 
     emplacement = models.CharField(max_length=200, blank=True, help_text="Emplacement")
     etage = models.CharField(max_length=100, blank=True)
+    fabricant = models.CharField(max_length=100, blank=True)
+    dispositif = models.CharField(max_length=5, choices=Dispositif.choices, blank=True)
     modele = models.CharField(max_length=100, blank=True)
     voltage = models.CharField(max_length=50, blank=True)
     etat = models.CharField(max_length=2, choices=Etat.choices, null=True, blank=True, default=None)

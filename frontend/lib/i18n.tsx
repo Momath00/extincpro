@@ -159,6 +159,11 @@ export const DICT: Dict = {
     fr: 'Si un contact client avec courriel est associé, il sera avisé automatiquement du changement de date.',
     en: 'If a citizen with an email is associated, they will be notified automatically of the date change.',
   },
+  corriger_date_rapport_ferme_note: {
+    fr: "Rapport fermé : la date est corrigée sans aviser le client. La prochaine inspection est décalée d'autant si elle avait été calculée automatiquement.",
+    en: 'Closed report: the date is corrected without notifying the client. The next inspection moves accordingly if it was calculated automatically.',
+  },
+  date_inspection: { fr: "Date d'inspection", en: 'Inspection date' },
   date_inspection_obligatoire: { fr: 'La date est obligatoire.', en: 'The date is required.' },
   supprimer_rapport_titre_action: { fr: 'Supprimer le rapport', en: 'Delete report' },
   aucun_technicien_assigne: { fr: 'Aucun technicien assigné', en: 'No technician assigned' },
@@ -415,6 +420,37 @@ export const DICT: Dict = {
   col_prochaine_maintenance: { fr: 'Prochaine maintenance', en: 'Next maintenance' },
   col_prochain_test_hydro: { fr: 'Prochain test hydro.', en: 'Next hydro test' },
   col_longueur: { fr: 'Longueur', en: 'Length' },
+
+  // ── Gabarit Sécurité Incendie National (extincteurs NFPA 10 / éclairage NFPA 101) ──
+  col_derniere_inspection: { fr: 'Dernière inspection', en: 'Last inspection' },
+  col_poids: { fr: 'Poids', en: 'Weight' },
+  col_annee_fab: { fr: 'Année de fabrication', en: 'Year of manufacture' },
+  col_derniere_recharge: { fr: 'Dernière recharge', en: 'Last recharge' },
+  col_dernier_test_hydro: { fr: 'Dernier test hydro', en: 'Last hydro test' },
+  col_prochaine_recharge: { fr: 'Prochaine recharge', en: 'Next recharge' },
+  col_etiquette_visibilite: { fr: 'Étiquette de visibilité', en: 'Visibility sign' },
+  col_support_mural: { fr: 'Support mural', en: 'Wall bracket' },
+  col_lieu_extincteur: { fr: 'Lieu extincteur', en: 'Extinguisher location' },
+  col_fabricant: { fr: 'Fabricant', en: 'Manufacturer' },
+  col_conforme: { fr: 'Conforme', en: 'Compliant' },
+  col_capacite: { fr: 'Capacité', en: 'Capacity' },
+  sin_titre_nfpa101: { fr: 'Les dispositifs sont inspectés selon les normes NFPA 101.', en: 'Devices are inspected according to NFPA 101.' },
+  sin_titre_batteries: { fr: 'Batteries', en: 'Batteries' },
+  e3_emplacement: { fr: 'Emplacement', en: 'Location' },
+  e3_installation_correcte: { fr: 'Installation correcte', en: 'Correct installation' },
+  e3_necessite_entretien: { fr: "Nécessite de l'entretien, des réparations, un nettoyage", en: 'Requires maintenance, repair, cleaning' },
+  e3_alarme_confirmee: { fr: "Fonctionnement de l'alarme confirmé", en: 'Alarm operation confirmed' },
+  e3_annonce_confirmee: { fr: "Indication de l'annonce confirmée", en: 'Annunciation confirmed' },
+  e3_zone_circuit: { fr: 'Zone, numéro de circuit ou adresse', en: 'Zone, circuit number or address' },
+  e3_remarques: { fr: 'Remarques', en: 'Remarks' },
+  e2_12_titre_sin: { fr: 'E2.12 — Remarques (Référence : E2)', en: 'E2.12 — Remarks (Reference: E2)' },
+  a_faire: { fr: 'À faire', en: 'To do' },
+  legende_dispositifs: { fr: 'Légende des dispositifs', en: 'Device legend' },
+  notes_rapport: { fr: 'Notes du rapport', en: 'Report notes' },
+  notes_remarques: { fr: 'Remarques', en: 'Remarks' },
+  notes_recommandations: { fr: 'Recommandations', en: 'Recommendations' },
+  notes_obligations: { fr: 'Obligations', en: 'Obligations' },
+  notes_aide: { fr: 'Imprimées au bas du rapport, comme dans le gabarit Excel.', en: 'Printed at the bottom of the report, as in the Excel template.' },
 
   // ── Certificats (page) ─────────────────────────────────────────────────
   certificats_sous_titre: { fr: 'émis, tous modules confondus', en: 'issued, across all modules' },
@@ -1296,6 +1332,44 @@ export const LONGUEUR_CHOICES_I18N: Record<string, { fr: string; en: string }> =
   '75pi': { fr: '75 pi', en: '75 ft' },
   '100pi': { fr: '100 pi', en: '100 ft' },
   autre: { fr: 'Autre', en: 'Other' },
+}
+
+// Dispositifs d'éclairage d'urgence — légende du gabarit Sécurité Incendie National.
+export const DISPOSITIF_ECLAIRAGE_I18N: Record<string, { fr: string; en: string }> = {
+  TS: { fr: "Tête d'éclairage d'urgence à tête simple", en: 'Single-head emergency light' },
+  TD: { fr: "Tête d'éclairage d'urgence à tête double", en: 'Double-head emergency light' },
+  UE: { fr: "Unité de pouvoir d'éclairage d'urgence", en: 'Emergency lighting power unit' },
+  'UE-TS': { fr: "Unité de pouvoir d'éclairage d'urgence avec tête simple", en: 'Emergency power unit with single head' },
+  'UE-TD': { fr: "Unité de pouvoir d'éclairage d'urgence avec tête double", en: 'Emergency power unit with double head' },
+  ES: { fr: 'Enseigne de sortie', en: 'Exit sign' },
+  'ES-TS': { fr: "Enseigne de sortie avec éclairage d'urgence à tête simple", en: 'Exit sign with single-head emergency light' },
+  'ES-TD': { fr: "Enseigne de sortie avec éclairage d'urgence à tête double", en: 'Exit sign with double-head emergency light' },
+}
+
+// Codes de la légende E3.1 (S-536), dans l'ordre de leur fiche — gabarit
+// Sécurité Incendie National.
+export const TYPE_DISPOSITIF_S536_I18N: Record<string, { fr: string; en: string }> = {
+  M: { fr: "Avertisseur manuel d'incendie", en: 'Manual pull station' },
+  RHT: { fr: 'Détecteur de chaleur réarmable', en: 'Resettable heat detector' },
+  HT: { fr: 'Détecteur de chaleur non réarmable', en: 'Non-resettable heat detector' },
+  S: { fr: 'Détecteur de fumée', en: 'Smoke detector' },
+  RI: { fr: 'Indicateur à distance', en: 'Remote indicator' },
+  DS: { fr: 'Détecteur de fumée de conduit', en: 'Duct smoke detector' },
+  SFD: { fr: "Dispositif d'appui (surveillance)", en: 'Supervisory device' },
+  FS: { fr: 'Interrupteur de débit des gicleurs', en: 'Sprinkler flow switch' },
+  SS: { fr: 'Dispositifs de surveillance des gicleurs', en: 'Sprinkler supervisory devices' },
+  EM: { fr: "Module d'isolation en cas de défaut", en: 'Fault isolation module' },
+  B: { fr: 'Cloche', en: 'Bell' },
+  H: { fr: 'Avertisseur sonore', en: 'Horn' },
+  V: { fr: 'Dispositif de signalisation visuelle', en: 'Visual signal device' },
+  SP: { fr: 'Haut-parleur à cône', en: 'Cone speaker' },
+  HSP: { fr: 'Haut-parleur à pavillon', en: 'Horn speaker' },
+  AD: { fr: 'Dispositif auxiliaire', en: 'Auxiliary device' },
+  ET: { fr: "Téléphone d'urgence", en: 'Emergency telephone' },
+  EOL: { fr: "Résistance d'extrémité de ligne", en: 'End-of-line resistor' },
+  VH: { fr: 'Avertisseur sonore et visuel', en: 'Horn strobe' },
+  PAI: { fr: "Panneau d'alarme incendie", en: 'Fire alarm panel' },
+  K: { fr: 'Klaxon', en: 'Horn' },
 }
 
 export const TYPE_DISPOSITIF_I18N: Record<string, { fr: string; en: string }> = {

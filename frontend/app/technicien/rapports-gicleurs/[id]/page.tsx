@@ -12,6 +12,7 @@ import { resilientMutate } from '@/lib/offline/resilientFetch'
 import ModuleBadge from '@/components/dashboard/ModuleBadge'
 import { useT } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
+import { dateLocale } from '@/lib/dates'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -143,7 +144,7 @@ export default function TechnicienRapportGicleurDetailPage() {
           </div>
           <p className="text-gray-500 text-sm">
             {rapport.date_inspection
-              ? new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })
+              ? dateLocale(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })
               : ''}
           </p>
           {horsLigne && (
@@ -211,7 +212,7 @@ export default function TechnicienRapportGicleurDetailPage() {
               contact: rapport.batiment?.client_contact_nom || '',
               infosContact: [rapport.batiment?.client_contact_telephone, rapport.batiment?.client_contact_email].filter(Boolean).join(' · '),
               inspecteurs: (rapport.techniciens || []).map((x: any) => [x.first_name, x.last_name].filter(Boolean).join(' ') || x.username).join(', '),
-              date: rapport.date_inspection ? new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' }) : '',
+              date: rapport.date_inspection ? dateLocale(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' }) : '',
               numeroJob: rapport.numero_job || '', frequence: rapport.frequence_inspection || '',
             }}
             readOnly={readOnly} onErreur={undefined} />

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useT, useLangue, useChoix, TYPE_DISPOSITIF_I18N } from '@/lib/i18n'
+import { useT, useLangue, useChoix, TYPE_DISPOSITIF_I18N, TYPE_DISPOSITIF_S536_I18N } from '@/lib/i18n'
 import { resilientMutate } from '@/lib/offline/resilientFetch'
 import SectionPhotos from './SectionPhotos'
 import BarreOutils, { BoutonPrincipal, BoutonFiltre } from './BarreOutils'
@@ -41,6 +41,7 @@ const AUTRES_PRESETS: { fr: string; en: string }[] = [
 function LigneDispositif({
   dispositif,
   readOnly,
+  sin,
   filtreType,
   typeDispositif,
   onDeleted,
@@ -48,6 +49,8 @@ function LigneDispositif({
 }: {
   dispositif: any
   readOnly: boolean
+  /** Gabarit Sécurité Incendie National : réponses O / N comme leur fiche E3.2.1. */
+  sin: boolean
   filtreType: string
   typeDispositif: Record<string, string>
   onDeleted: () => void
@@ -94,6 +97,11 @@ function LigneDispositif({
   const isDefect = d.annonce_statut === 'D'
   const isNI = !isDefect && d.annonce_statut === 'NI'
   const isInspecte = !isDefect && !isNI && d.annonce_statut === 'I'
+  const libelleOui = sin ? 'O' : t('oui')
+  const libelleNon = sin ? 'N' : t('non')
+  // Colonne D : I / D / NI, affichés O / N / NI pour Sécurité Incendie National.
+  const libelleStatut: Record<string, string> = sin ? { I: 'O', D: 'N', NI: 'NI' } : { I: 'I', D: 'D', NI: 'NI' }
+  const codesType = sin ? Object.keys(typeDispositif) : Object.keys(typeDispositif).sort()
 
   return (
     <>
@@ -143,8 +151,8 @@ function LigneDispositif({
               className="w-full min-w-0 text-xs border-2 border-[#0a0b0d] rounded px-1.5 py-1 focus:outline-none focus:border-[#e11324] bg-white"
             >
               <option value="">-</option>
-              {Object.keys(typeDispositif).sort().map(k => (
-                <option key={k} value={k}>{k}</option>
+              {codesType.map(k => (
+                <option key={k} value={k} title={typeDispositif[k]}>{k}</option>
               ))}
             </select>
           )}
@@ -165,8 +173,8 @@ function LigneDispositif({
               className="w-full min-w-0 text-xs border-2 border-[#0a0b0d] rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
             >
               <option value="">{t('so_abrege')}</option>
-              <option value="true">{t('oui')}</option>
-              <option value="false">{t('non')}</option>
+              <option value="true">{libelleOui}</option>
+              <option value="false">{libelleNon}</option>
             </select>
           )}
         </td>
@@ -186,8 +194,8 @@ function LigneDispositif({
               className="w-full min-w-0 text-xs border-2 border-[#0a0b0d] rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
             >
               <option value="">{t('so_abrege')}</option>
-              <option value="true">{t('oui')}</option>
-              <option value="false">{t('non')}</option>
+              <option value="true">{libelleOui}</option>
+              <option value="false">{libelleNon}</option>
             </select>
           )}
         </td>
@@ -207,8 +215,8 @@ function LigneDispositif({
               className="w-full min-w-0 text-xs border-2 border-[#0a0b0d] rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
             >
               <option value="">{t('so_abrege')}</option>
-              <option value="true">{t('oui')}</option>
-              <option value="false">{t('non')}</option>
+              <option value="true">{libelleOui}</option>
+              <option value="false">{libelleNon}</option>
             </select>
           )}
         </td>
@@ -222,7 +230,7 @@ function LigneDispositif({
                   background: d.annonce_statut === 'D' ? '#fee2e2' : d.annonce_statut === 'I' ? '#e9f6f2' : '#fef3c7',
                   color: d.annonce_statut === 'D' ? '#e11324' : d.annonce_statut === 'I' ? '#0d6b4f' : '#b45309',
                 }}>
-                {d.annonce_statut}
+                {libelleStatut[d.annonce_statut] ?? d.annonce_statut}
               </span>
             ) : <span className="text-gray-300 text-xs">—</span>
           ) : (
@@ -232,8 +240,8 @@ function LigneDispositif({
               className="w-full min-w-0 text-xs border-2 border-[#0a0b0d] rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white"
             >
               <option value="">-</option>
-              <option value="D">D</option>
-              <option value="I">I</option>
+              <option value="D">{libelleStatut.D}</option>
+              <option value="I">{libelleStatut.I}</option>
               <option value="NI">NI</option>
             </select>
           )}
@@ -604,6 +612,48 @@ function ModalAjoutSection({
   )
 }
 
+// ── E2.12 Remarques sous la fiche des dispositifs (gabarit SIN) ─────────────
+// Sur leur fiche S-536, « E2.12 REMARQUES » suit la fiche des dispositifs.
+// Même donnée que l'onglet E2 (fiche_e2.details.e2_12.remarques) : le serveur
+// remplace `details` en entier, on renvoie donc toutes les sections.
+function RemarquesE2({ rapport, readOnly }: { rapport: any; readOnly: boolean }) {
+  const t = useT()
+  const [texte, setTexte] = useState('')
+  const [erreur, setErreur] = useState(false)
+
+  useEffect(() => { setTexte(rapport.fiche_e2?.details?.e2_12?.remarques || '') }, [rapport])
+
+  async function enregistrer() {
+    const details = rapport.fiche_e2?.details || {}
+    if ((details.e2_12?.remarques || '') === texte) return
+    const suivant = { ...details, e2_12: { ...(details.e2_12 || {}), remarques: texte } }
+    setErreur(false)
+    const res = await resilientMutate('PATCH', `${API_URL}/api/rapports/${rapport.id}/fiche-e2/`, { details: suivant })
+    if (!res.ok && !res.queued) { setErreur(true); return }
+    if (rapport.fiche_e2) rapport.fiche_e2.details = suivant
+  }
+
+  return (
+    <div className="bg-white rounded-md border border-gray-100 shadow-sm p-4 flex flex-col gap-2">
+      <p className="text-sm font-bold" style={{ color: NAVY }}>{t('e2_12_titre_sin')}</p>
+      {readOnly ? (
+        <p className="text-sm whitespace-pre-line" style={{ color: texte ? NAVY : '#9ca3af' }}>{texte || '—'}</p>
+      ) : (
+        <textarea
+          rows={8}
+          value={texte}
+          onChange={e => setTexte(e.target.value)}
+          onBlur={enregistrer}
+          placeholder={t('saisir_remarques_placeholder')}
+          className="w-full border-2 border-[#0a0b0d] rounded-md px-3 py-2.5 text-sm focus:outline-none focus:border-[#e11324] resize-y"
+          style={{ color: NAVY }}
+        />
+      )}
+      {erreur && <p className="text-[11px] font-semibold text-red-600">{t('non_enregistre_reessayez')}</p>}
+    </div>
+  )
+}
+
 // ── OngletE3 ─────────────────────────────────────────────────────────────────
 export default function OngletE3({
   rapport,
@@ -620,7 +670,8 @@ export default function OngletE3({
 }) {
   const t = useT()
   const langue = useLangue()
-  const typeDispositif = useChoix(TYPE_DISPOSITIF_I18N)
+  const sin = rapport.gabarit === 'sin'
+  const typeDispositif = useChoix(sin ? TYPE_DISPOSITIF_S536_I18N : TYPE_DISPOSITIF_I18N)
   // Sections fermées par défaut : un gros bâtiment compte plusieurs centaines
   // de dispositifs, on n'ouvre que celle sur laquelle on travaille.
   const [ouvertes, setOuvertes] = useState<Set<number>>(new Set())
@@ -732,7 +783,12 @@ export default function OngletE3({
       <Legende
         titre={t('legende_tableau')}
         compacte
-        elements={[
+        elements={sin ? [
+          { code: 'O', libelle: t('oui') },
+          { code: 'N', libelle: t('non') },
+          { code: t('so_abrege'), libelle: t('sans_objet') },
+          { code: 'NI', libelle: t('non_inspecte_ni') },
+        ] : [
           { code: 'A', libelle: t('legende_installation_correcte') },
           { code: 'B', libelle: t('legende_necessite_entretien') },
           { code: 'C', libelle: t('legende_alarme_confirmee') },
@@ -1079,29 +1135,45 @@ export default function OngletE3({
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm table-fixed min-w-[820px]">
+                <table className={`w-full text-sm table-fixed ${sin ? 'min-w-[980px]' : 'min-w-[820px]'}`}>
                   <colgroup>
-                    <col className="w-[18%]" />
+                    <col className={sin ? 'w-[16%]' : 'w-[18%]'} />
                     <col className="w-[9%]" />
-                    <col className="w-[8%]" />
-                    <col className="w-[9%]" />
-                    <col className="w-[8%]" />
-                    <col className="w-[8%]" />
-                    <col className="w-[7%]" />
+                    <col className={sin ? 'w-[9%]' : 'w-[8%]'} />
+                    <col className={sin ? 'w-[11%]' : 'w-[9%]'} />
+                    <col className={sin ? 'w-[10%]' : 'w-[8%]'} />
+                    <col className={sin ? 'w-[10%]' : 'w-[8%]'} />
+                    <col className={sin ? 'w-[9%]' : 'w-[7%]'} />
                     <col className={readOnly ? 'w-[33%]' : 'w-[28%]'} />
                     {!readOnly && <col className="w-[5%]" />}
                   </colgroup>
                   <thead>
                     <tr className="text-[10px] font-bold uppercase tracking-widest text-white"
                       style={{ background: `linear-gradient(135deg, ${NAVY}, #232733)` }}>
-                      <th className="text-left px-3 py-2.5">{t('localisation_label')}</th>
-                      <th className="text-left px-2 py-2.5">{t('col_type')}</th>
-                      <th className="text-center px-2 py-2.5">A</th>
-                      <th className="text-center px-2 py-2.5">B</th>
-                      <th className="text-center px-2 py-2.5">C</th>
-                      <th className="text-center px-2 py-2.5">D</th>
-                      <th className="text-center px-2 py-2.5">E</th>
-                      <th className="text-left px-2 py-2.5">{t('col_remarque')}</th>
+                      {sin ? (
+                        <>
+                          {/* Titres de leur fiche E3.2.1 (S-536). */}
+                          <th className="text-left px-3 py-2.5">{t('e3_emplacement')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_dispositif')}</th>
+                          <th className="text-center px-1 py-2 normal-case tracking-normal leading-tight">{t('e3_installation_correcte')}</th>
+                          <th className="text-center px-1 py-2 normal-case tracking-normal leading-tight">{t('e3_necessite_entretien')}</th>
+                          <th className="text-center px-1 py-2 normal-case tracking-normal leading-tight">{t('e3_alarme_confirmee')}</th>
+                          <th className="text-center px-1 py-2 normal-case tracking-normal leading-tight">{t('e3_annonce_confirmee')}</th>
+                          <th className="text-center px-1 py-2 normal-case tracking-normal leading-tight">{t('e3_zone_circuit')}</th>
+                          <th className="text-left px-2 py-2.5">{t('e3_remarques')}</th>
+                        </>
+                      ) : (
+                        <>
+                          <th className="text-left px-3 py-2.5">{t('localisation_label')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_type')}</th>
+                          <th className="text-center px-2 py-2.5">A</th>
+                          <th className="text-center px-2 py-2.5">B</th>
+                          <th className="text-center px-2 py-2.5">C</th>
+                          <th className="text-center px-2 py-2.5">D</th>
+                          <th className="text-center px-2 py-2.5">E</th>
+                          <th className="text-left px-2 py-2.5">{t('col_remarque')}</th>
+                        </>
+                      )}
                       {!readOnly && <th className="px-2 py-2.5" />}
                     </tr>
                   </thead>
@@ -1111,6 +1183,7 @@ export default function OngletE3({
                         key={d.id}
                         dispositif={d}
                         readOnly={readOnly}
+                        sin={sin}
                         filtreType={filtreType}
                         typeDispositif={typeDispositif}
                         onDeleted={onRefresh}
@@ -1135,6 +1208,7 @@ export default function OngletE3({
           </div>
         )
       })}
+      {sin && <RemarquesE2 rapport={rapport} readOnly={readOnly} />}
     </div>
   )
 }

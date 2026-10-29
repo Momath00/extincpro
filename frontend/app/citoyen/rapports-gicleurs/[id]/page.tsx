@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { downloadHtml } from '@/lib/download'
 import BoutonPdf from '@/components/BoutonPdf'
 import { useT } from '@/lib/i18n'
+import { dateLocale } from '@/lib/dates'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -70,7 +71,7 @@ export default function CitoyenRapportGicleurDetailPage() {
         {rapport.date_inspection && (
           <p className="text-gray-500 text-sm">
             <i className="ti ti-calendar mr-1" />
-            {new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })}
+            {dateLocale(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })}
           </p>
         )}
       </div>

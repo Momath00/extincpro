@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect, useRef, type ReactNode } from 'react'
-import { useT } from '@/lib/i18n'
+import { useT, useChoix, DISPOSITIF_ECLAIRAGE_I18N } from '@/lib/i18n'
 import { resilientMutate, resilientCreate, isTempId } from '@/lib/offline/resilientFetch'
 import { onReconciled } from '@/lib/offline/queue'
 import GroupesRepliables from '@/components/rapports/GroupesRepliables'
 import { BoutonPrincipal } from '@/components/rapports/BarreOutils'
 import { estEnDeficience } from './OngletDeficiences'
 import Legende, { LignesCouleurs } from '@/components/rapports/Legende'
+import NotesRapport from '@/components/rapports/NotesRapport'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -63,15 +64,20 @@ function ScrollableTable({ children }: { children: ReactNode }) {
 function LigneEclairage({
   item,
   readOnly,
+  sin,
   onDeleted,
   onUpdate,
 }: {
   item: any
   readOnly: boolean
+  /** Colonnes du gabarit Sécurité Incendie National. */
+  sin: boolean
   onDeleted: () => void
   onUpdate: (field: string, value: any) => void
 }) {
   const t = useT()
+  const DISPOSITIFS = useChoix(DISPOSITIF_ECLAIRAGE_I18N)
+  const nbColonnes = (sin ? 8 : 7) + (readOnly ? 0 : 1)
   const [it, setIt] = useState<any>(item)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -102,6 +108,43 @@ function LigneEclairage({
         className={`${width} text-xs border-2 border-[#0a0b0d] bg-white focus:outline-none focus:border-[#e11324] rounded px-1.5 py-1`}
         style={{ color: NAVY }}
       />
+    )
+  )
+
+  // Colonne « Conforme » du gabarit SIN : OUI / NON / NI → C / D / NI.
+  const conformeInput = () => (
+    readOnly ? (
+      <span className="text-xs font-bold" style={{ color: it.etat === 'D' ? '#dc2626' : it.etat === 'C' ? '#16a34a' : '#b45309' }}>
+        {it.etat === 'C' ? t('oui') : it.etat === 'D' ? t('non') : it.etat === 'NI' ? 'NI' : '—'}
+      </span>
+    ) : (
+      <select
+        value={it.etat || ''}
+        onChange={e => patchField('etat', e.target.value || null)}
+        className="text-xs border-2 border-[#0a0b0d] rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-full min-w-[64px]"
+      >
+        <option value="">-</option>
+        <option value="C">{t('oui')}</option>
+        <option value="D">{t('non')}</option>
+        <option value="NI">NI</option>
+      </select>
+    )
+  )
+
+  const dispositifInput = () => (
+    readOnly ? (
+      <span className="text-xs font-bold" title={DISPOSITIFS[it.dispositif] || ''} style={{ color: NAVY }}>{it.dispositif || '—'}</span>
+    ) : (
+      <select
+        value={it.dispositif || ''}
+        onChange={e => patchField('dispositif', e.target.value)}
+        className="text-xs border-2 border-[#0a0b0d] rounded px-1 py-0.5 focus:outline-none focus:border-[#e11324] bg-white w-full min-w-[76px]"
+      >
+        <option value="">—</option>
+        {Object.entries(DISPOSITIFS).map(([code, libelle]) => (
+          <option key={code} value={code} title={libelle}>{code}</option>
+        ))}
+      </select>
     )
   )
 
@@ -150,11 +193,24 @@ function LigneEclairage({
         } : {}}
       >
         <td className="px-2 py-2 text-center text-xs text-gray-400">{it.ordre}</td>
-        <td className="px-2 py-2">{textInput('etage', t('col_etage'), 'w-full min-w-[70px]')}</td>
-        <td className="px-2 py-2">{textInput('emplacement', t('col_emplacement'), 'w-full min-w-[120px]')}</td>
-        <td className="px-2 py-2">{textInput('modele', t('col_modele'), 'w-full min-w-[100px]')}</td>
-        <td className="px-2 py-2">{textInput('voltage', t('col_voltage'), 'w-full min-w-[80px]')}</td>
-        <td className="px-2 py-2">{etatInput()}</td>
+        {sin ? (
+          <>
+            <td className="px-2 py-2">{textInput('emplacement', t('col_emplacement'), 'w-full min-w-[120px]')}</td>
+            <td className="px-2 py-2">{textInput('fabricant', t('col_fabricant'), 'w-full min-w-[100px]')}</td>
+            <td className="px-2 py-2">{dispositifInput()}</td>
+            <td className="px-2 py-2">{textInput('modele', t('col_modele'), 'w-full min-w-[90px]')}</td>
+            <td className="px-2 py-2">{conformeInput()}</td>
+            <td className="px-2 py-2">{textInput('voltage', t('col_capacite'), 'w-full min-w-[80px]')}</td>
+          </>
+        ) : (
+          <>
+            <td className="px-2 py-2">{textInput('etage', t('col_etage'), 'w-full min-w-[70px]')}</td>
+            <td className="px-2 py-2">{textInput('emplacement', t('col_emplacement'), 'w-full min-w-[120px]')}</td>
+            <td className="px-2 py-2">{textInput('modele', t('col_modele'), 'w-full min-w-[100px]')}</td>
+            <td className="px-2 py-2">{textInput('voltage', t('col_voltage'), 'w-full min-w-[80px]')}</td>
+            <td className="px-2 py-2">{etatInput()}</td>
+          </>
+        )}
         <td className="px-2 py-2">{textInput('remarque', t('col_remarque') + '...', 'w-full min-w-[140px]')}</td>
         {!readOnly && (
           <td className="px-2 py-2 text-center">
@@ -169,7 +225,7 @@ function LigneEclairage({
       </tr>
       {confirmDelete && (
         <tr>
-          <td colSpan={readOnly ? 7 : 8}>
+          <td colSpan={nbColonnes}>
             <div className="flex items-center gap-3 px-4 py-2.5 bg-red-50 text-xs border-t border-red-100">
               <i className="ti ti-alert-circle text-red-500" />
               <span className="text-red-700 font-semibold">{t('supprimer_cette_ligne')}</span>
@@ -202,6 +258,8 @@ export default function TableEclairageUrgence({
   onItemChange?: (id: any, field: string, value: any) => void
 }) {
   const t = useT()
+  const DISPOSITIFS = useChoix(DISPOSITIF_ECLAIRAGE_I18N)
+  const sin = rapport.gabarit === 'sin'
   const [items, setItems] = useState<any[]>(rapport.eclairages_urgence || [])
   const [adding, setAdding] = useState(false)
 
@@ -259,6 +317,13 @@ export default function TableEclairageUrgence({
         ]}
         pied={<LignesCouleurs />}
       />
+      {sin && (
+        <Legende
+          titre={t('legende_dispositifs')}
+          compacte
+          elements={Object.entries(DISPOSITIFS).map(([code, libelle]) => ({ code, libelle, couleur: NAVY }))}
+        />
+      )}
 
       {/* Sommaire */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
@@ -405,14 +470,36 @@ export default function TableEclairageUrgence({
               <ScrollableTable>
                 <table className="w-full text-sm min-w-[900px]">
                   <thead>
+                    {/* Sur-titres du gabarit Excel de Sécurité Incendie National. */}
+                    {sin && (
+                      <tr className="text-[10px] font-bold uppercase tracking-widest text-white"
+                        style={{ background: NAVY }}>
+                        <th colSpan={4} className="text-center px-2 py-2 border-r border-white/30">{t('sin_titre_nfpa101')}</th>
+                        <th colSpan={3} className="text-center px-2 py-2 border-r border-white/30">{t('sin_titre_batteries')}</th>
+                        <th colSpan={readOnly ? 1 : 2} />
+                      </tr>
+                    )}
                     <tr className="text-[10px] font-bold uppercase tracking-widest text-white"
                       style={{ background: `linear-gradient(135deg, ${NAVY}, #232733)` }}>
                       <th className="text-center px-2 py-2.5 w-10">{t('col_no')}</th>
-                      <th className="text-left px-2 py-2.5">{t('col_etage')}</th>
-                      <th className="text-left px-2 py-2.5">{t('col_emplacement')}</th>
-                      <th className="text-left px-2 py-2.5">{t('col_modele')}</th>
-                      <th className="text-left px-2 py-2.5">{t('col_voltage')}</th>
-                      <th className="text-center px-2 py-2.5" title={t('etat_legende')}>{t('col_etat')}</th>
+                      {sin ? (
+                        <>
+                          <th className="text-left px-2 py-2.5">{t('col_emplacement')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_fabricant')}</th>
+                          <th className="text-left px-2 py-2.5 border-r border-white/30">{t('col_dispositif')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_modele')}</th>
+                          <th className="text-center px-2 py-2.5">{t('col_conforme')}</th>
+                          <th className="text-left px-2 py-2.5 border-r border-white/30">{t('col_capacite')}</th>
+                        </>
+                      ) : (
+                        <>
+                          <th className="text-left px-2 py-2.5">{t('col_etage')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_emplacement')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_modele')}</th>
+                          <th className="text-left px-2 py-2.5">{t('col_voltage')}</th>
+                          <th className="text-center px-2 py-2.5" title={t('etat_legende')}>{t('col_etat')}</th>
+                        </>
+                      )}
                       <th className="text-left px-2 py-2.5">{t('col_remarque')}</th>
                       {!readOnly && <th className="px-2 py-2.5 w-10" />}
                     </tr>
@@ -423,6 +510,7 @@ export default function TableEclairageUrgence({
                         key={it.id}
                         item={it}
                         readOnly={readOnly}
+                        sin={sin}
                         onDeleted={() => { removerLocal(it.id); onRefresh() }}
                         onUpdate={(field, value) => updateLocal(it.id, field, value)}
                       />
@@ -432,6 +520,10 @@ export default function TableEclairageUrgence({
               </ScrollableTable>
           )}
         />
+      {sin && (
+        <NotesRapport rapport={rapport} readOnly={readOnly}
+          url={`${API_URL}/api/rapports-eclairage-urgence/${rapport.id}/notes/`} />
+      )}
     </div>
   )
 }

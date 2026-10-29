@@ -173,6 +173,20 @@ class RapportGicleurViewSet(PhotosRapportMixin, viewsets.ModelViewSet):
         ancienne_date = instance.date_inspection
         ancienne_prochaine = instance.prochaine_inspection
         rapport = serializer.save()
+        if rapport.statut == RapportGicleur.Statut.FERME:
+            # Correction de la date d'un rapport déjà fermé (ex. historique
+            # importé) : ce n'est pas une visite replanifiée, donc aucun avis
+            # au client. L'échéance calculée à la fermeture (date + 1 an) suit.
+            if rapport.date_inspection != ancienne_date:
+                from datetime import timedelta
+
+                if ancienne_date and rapport.date_inspection and ancienne_prochaine == ancienne_date + timedelta(days=365):
+                    rapport.prochaine_inspection = rapport.date_inspection + timedelta(days=365)
+                    rapport.save(update_fields=["prochaine_inspection"])
+                rapport.historiser(user, f"Date d'inspection corrigée : {ancienne_date or '—'} → {rapport.date_inspection or '—'}")
+            else:
+                rapport.historiser(user, "Rapport modifié")
+            return
         rapport.historiser(user, "Rapport modifié")
         _envoyer_avis_changement_date_si_applicable(rapport, LABEL_GICLEUR, ancienne_date, ancienne_prochaine)
 

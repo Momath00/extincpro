@@ -194,7 +194,7 @@ export default function ModalModifierRapport({
         {mode === 'date' && (
           <>
             <p className="text-xs text-gray-400 mb-4">
-              {t('modifier_date_inspection_note')}
+              {t(rapport.statut === 'ferme' ? 'corriger_date_rapport_ferme_note' : 'modifier_date_inspection_note')}
             </p>
             <input
               type="date"
