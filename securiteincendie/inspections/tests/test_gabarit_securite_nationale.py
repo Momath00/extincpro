@@ -161,3 +161,15 @@ class CorrectionDateGicleurFerme(BaseTest):
         self.assertNotEqual(reponse.status_code, 200)
         rapport.refresh_from_db()
         self.assertEqual(rapport.date_inspection, date(2025, 10, 13))
+
+
+class ChoixDuGabaritParLeSuperAdmin(BaseTest):
+    def test_super_admin_choisit_le_gabarit(self):
+        super_admin = self.utilisateur("super_admin", organisation=None)
+        url = f"/api/organisations/{self.organisation.id}/"
+
+        self.assertEqual(self.api(super_admin).patch(url, {"gabarit_rapports": "sin"}, format="json").status_code, 200)
+        self.organisation.refresh_from_db()
+        self.assertEqual(self.organisation.gabarit_rapports, "sin")
+
+        self.assertEqual(self.api(super_admin).patch(url, {"gabarit_rapports": "xyz"}, format="json").status_code, 400)

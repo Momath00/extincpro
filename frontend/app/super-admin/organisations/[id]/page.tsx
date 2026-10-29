@@ -42,6 +42,7 @@ export default function OrganisationDetailPage() {
   const [busyModule, setBusyModule] = useState<string | null>(null)
   const [busyStatut, setBusyStatut] = useState(false)
   const [busyLangue, setBusyLangue] = useState(false)
+  const [busyGabarit, setBusyGabarit] = useState(false)
   const [busyEssai, setBusyEssai] = useState(false)
   const [dateFinEssai, setDateFinEssai] = useState('')
 
@@ -221,6 +222,17 @@ export default function OrganisationDetailPage() {
     })
     if (res.ok) setOrganisation(await res.json())
     setBusyLangue(false)
+  }
+
+  async function changerGabarit(gabarit_rapports: 'standard' | 'sin') {
+    setBusyGabarit(true)
+    const res = await fetch(`${API_URL}/api/organisations/${id}/`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+      body: JSON.stringify({ gabarit_rapports }),
+    })
+    if (res.ok) setOrganisation(await res.json())
+    setBusyGabarit(false)
   }
 
   async function changerStatutUtilisateurs(ids: number[], estActif: boolean) {
@@ -522,6 +534,43 @@ export default function OrganisationDetailPage() {
                 }}
               >
                 {l.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Gabarit des rapports */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden mb-5">
+        <div className="px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#fef2f2', color: ACCENT }}>
+              <i className="ti ti-layout-grid text-base" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: NAVY }}>Gabarit des rapports</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Colonnes de saisie et mise en page des rapports extincteurs, éclairage d'urgence et alarme.
+                « Sécurité Incendie National » reprend leurs fichiers Excel (NFPA 10, NFPA 101, S-536).
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-1 p-1 rounded-md border border-gray-100 bg-gray-50 flex-shrink-0">
+            {([
+              { key: 'standard', label: 'Standard ExtincPro' },
+              { key: 'sin', label: 'Sécurité Incendie National' },
+            ] as { key: 'standard' | 'sin'; label: string }[]).map(g => (
+              <button
+                key={g.key}
+                onClick={() => changerGabarit(g.key)}
+                disabled={busyGabarit}
+                className="px-3 py-1.5 rounded text-xs font-bold transition-colors whitespace-nowrap disabled:opacity-50"
+                style={{
+                  background: (organisation.gabarit_rapports || 'standard') === g.key ? NAVY : 'transparent',
+                  color: (organisation.gabarit_rapports || 'standard') === g.key ? '#fff' : '#6b7280',
+                }}
+              >
+                {g.label}
               </button>
             ))}
           </div>
