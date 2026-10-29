@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useT } from '@/lib/i18n'
+import { dateLocale } from '@/lib/dates'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -101,7 +102,7 @@ export default function CitoyenRapportsExtincteursPage() {
                     {r.date_inspection && (
                       <p className="text-xs text-gray-400 mt-0.5">
                         <i className="ti ti-calendar mr-1" />
-                        {new Date(r.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })}
+                        {dateLocale(r.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })}
                       </p>
                     )}
                   </div>

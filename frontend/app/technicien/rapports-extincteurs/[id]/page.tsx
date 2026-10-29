@@ -10,6 +10,7 @@ import { estEnDeficience } from '@/lib/nonConformites'
 import { useT } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
 import SectionPhotos from '@/components/rapports/SectionPhotos'
+import { dateLocale } from '@/lib/dates'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -92,7 +93,7 @@ export default function TechnicienRapportExtincteurDetailPage() {
           </div>
           <p className="text-gray-500 text-sm">
             {rapport.date_inspection
-              ? new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })
+              ? dateLocale(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })
               : ''}
           </p>
           {horsLigne && (

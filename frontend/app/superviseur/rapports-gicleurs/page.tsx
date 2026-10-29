@@ -8,6 +8,7 @@ import Pagination from '@/components/dashboard/Pagination'
 import { useT } from '@/lib/i18n'
 import { FICHES_MENU, ICONES_FICHES } from '@/lib/gicleurFiches'
 import LignesFiches from '@/components/rapports-gicleurs/LignesFiches'
+import { dateLocale } from '@/lib/dates'
 
 const PAGE_SIZE = 25
 
@@ -268,7 +269,7 @@ function RapportsGicleursListContent() {
                       </p>
                       {r.date_inspection && (
                         <p className="text-xs text-gray-400">
-                          {new Date(r.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'medium' })}
+                          {dateLocale(r.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'medium' })}
                         </p>
                       )}
                     </div>

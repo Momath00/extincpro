@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { downloadHtml } from '@/lib/download'
 import BoutonPdf from '@/components/BoutonPdf'
 import { useT } from '@/lib/i18n'
+import { dateLocale } from '@/lib/dates'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -100,7 +101,7 @@ export default function CitoyenRapportDetailPage() {
         {rapport.date_inspection && (
           <p className="text-gray-500 text-sm">
             <i className="ti ti-calendar mr-1" />
-            {new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })}
+            {dateLocale(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })}
           </p>
         )}
         <ProgressionRapport rapport={rapport} />
@@ -123,7 +124,7 @@ export default function CitoyenRapportDetailPage() {
             <div className="bg-gray-50 rounded-md px-4 py-3">
               <p className="text-xs text-gray-500">
                 <span className="font-semibold">{t('date_prevue')}</span>{' '}
-                {new Date(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })}
+                {dateLocale(rapport.date_inspection).toLocaleDateString('fr-CA', { dateStyle: 'long' })}
               </p>
             </div>
           )}

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useT } from '@/lib/i18n'
 import { FICHES_MENU, ICONES_FICHES } from '@/lib/gicleurFiches'
 import LignesFiches from '@/components/rapports-gicleurs/LignesFiches'
+import { dateLocale } from '@/lib/dates'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -142,7 +143,7 @@ function TechnicienRapportsGicleursContent() {
                         </p>
                         <p className="text-xs text-gray-400">
                           {r.date_inspection
-                            ? new Date(r.date_inspection).toLocaleDateString('fr-CA', { day: 'numeric', month: 'short', year: 'numeric' })
+                            ? dateLocale(r.date_inspection).toLocaleDateString('fr-CA', { day: 'numeric', month: 'short', year: 'numeric' })
                             : t('date_non_definie')}
                         </p>
                       </div>

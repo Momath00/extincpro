@@ -15,6 +15,7 @@ import BoutonPdf from '@/components/BoutonPdf'
 import { useT, useLangue } from '@/lib/i18n'
 import { fetchWithCache } from '@/lib/offline/reportCache'
 import SectionPhotos from '@/components/rapports/SectionPhotos'
+import { dateLocale } from '@/lib/dates'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 const NAVY = '#0a0b0d'
@@ -329,7 +330,7 @@ export default function SuperviseurRapportDetailPage() {
               {rapport.batiment?.fabricant_reseau || ''}
               {rapport.batiment?.modele_systeme ? ` · ${rapport.batiment.modele_systeme}` : ''}
               {rapport.date_inspection
-                ? ` ${rapport.batiment?.fabricant_reseau ? '· ' : ''}${new Date(rapport.date_inspection).toLocaleDateString(langue === 'en' ? 'en-CA' : 'fr-CA', { dateStyle: 'long' })}`
+                ? ` ${rapport.batiment?.fabricant_reseau ? '· ' : ''}${dateLocale(rapport.date_inspection).toLocaleDateString(langue === 'en' ? 'en-CA' : 'fr-CA', { dateStyle: 'long' })}`
                 : ''}
             </p>
             {horsLigne && (
