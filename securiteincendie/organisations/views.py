@@ -73,6 +73,11 @@ class OrganisationViewSet(viewsets.ModelViewSet):
                 return Response({"error": "Langue invalide."}, status=status.HTTP_400_BAD_REQUEST)
             organisation.langue = request.data["langue"]
             champs.append("langue")
+        if "gabarit_rapports" in request.data:
+            if request.data["gabarit_rapports"] not in dict(Organisation.GabaritRapports.choices):
+                return Response({"error": "Gabarit de rapports invalide."}, status=status.HTTP_400_BAD_REQUEST)
+            organisation.gabarit_rapports = request.data["gabarit_rapports"]
+            champs.append("gabarit_rapports")
         if "logo" in request.data:
             logo = request.data["logo"] or ""
             erreur = valider_logo(logo)
