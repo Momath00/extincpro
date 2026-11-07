@@ -39,7 +39,7 @@ const partners = [
     name: "Groupe Prevent-Ex Sécurité",
     logo: "/partners/groupe-prevent-ex.png",
     width: 1000,
-    height: 367,
+    height: 648,
   },
 ];
 
