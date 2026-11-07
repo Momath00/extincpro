@@ -103,18 +103,18 @@ sin.thumbnail((900, 900))
 sin.save(os.path.join(OUT_DIR, "securite-incendie-national.png"), "PNG", optimize=True)
 print("securite-incendie-national", sin.size)
 
-# 6) Groupe Prevent-Ex Sécurité — version « couleur » (pour fond clair).
-# On garde seulement le haut (pictogramme + nom) : les lignes de services,
-# téléphone et site seraient illisibles à la taille d'une carte partenaire.
+# 6) Groupe Prevent-Ex Sécurité — version « inverse » (fond noir), logo complet.
 PREVENTEX = os.path.join(
     DOWNLOADS, "WE_2016-020-lg-prevent_ex 2 (1)", "WE_2016-020-lg-prevent_ex",
-    "couleur", "WE_2016-020-lg-prevent_ex-F_couleur.png",
+    "inverse", "WE_2016-020-lg-prevent_ex-F_inverse.png",
 )
 pex = Image.open(PREVENTEX).convert("RGBA")
-fond = Image.new("RGBA", pex.size, (255, 255, 255, 255))
+fond = Image.new("RGBA", pex.size, (0, 0, 0, 255))
 pex = Image.alpha_composite(fond, pex).convert("RGB")
-pex = pex.crop((0, 0, pex.width, int(pex.height * 0.585)))
-pex = autocrop_white(pex, thresh=245)
+# Retire l'éventuel liseré clair sur les bords du fichier source.
+arr = np.array(pex)
+sombre = np.where(np.all(arr < 40, axis=2))
+pex = pex.crop((sombre[1].min(), sombre[0].min(), sombre[1].max() + 1, sombre[0].max() + 1))
 pex.thumbnail((1000, 1000))
 pex.save(os.path.join(OUT_DIR, "groupe-prevent-ex.png"), "PNG", optimize=True)
 print("groupe-prevent-ex", pex.size)
