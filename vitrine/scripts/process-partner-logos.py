@@ -95,3 +95,26 @@ pubms = Image.open(os.path.join(CACHE, "4.png")).convert("RGB")
 pubms = autocrop_white(pubms, thresh=250)
 pubms.save(os.path.join(OUT_DIR, "pubms.png"), "PNG")
 print("pubms", pubms.size)
+
+# 5) Sécurité Incendie National — fond blanc propre, simple recadrage.
+sin = Image.open(os.path.join(DOWNLOADS, "Logo.jpg")).convert("RGB")
+sin = autocrop_white(sin, thresh=245)
+sin.thumbnail((900, 900))
+sin.save(os.path.join(OUT_DIR, "securite-incendie-national.png"), "PNG", optimize=True)
+print("securite-incendie-national", sin.size)
+
+# 6) Groupe Prevent-Ex Sécurité — version « couleur » (pour fond clair).
+# On garde seulement le haut (pictogramme + nom) : les lignes de services,
+# téléphone et site seraient illisibles à la taille d'une carte partenaire.
+PREVENTEX = os.path.join(
+    DOWNLOADS, "WE_2016-020-lg-prevent_ex 2 (1)", "WE_2016-020-lg-prevent_ex",
+    "couleur", "WE_2016-020-lg-prevent_ex-F_couleur.png",
+)
+pex = Image.open(PREVENTEX).convert("RGBA")
+fond = Image.new("RGBA", pex.size, (255, 255, 255, 255))
+pex = Image.alpha_composite(fond, pex).convert("RGB")
+pex = pex.crop((0, 0, pex.width, int(pex.height * 0.585)))
+pex = autocrop_white(pex, thresh=245)
+pex.thumbnail((1000, 1000))
+pex.save(os.path.join(OUT_DIR, "groupe-prevent-ex.png"), "PNG", optimize=True)
+print("groupe-prevent-ex", pex.size)
