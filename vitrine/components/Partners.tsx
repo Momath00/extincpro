@@ -29,6 +29,18 @@ const partners = [
     width: 1109,
     height: 1172,
   },
+  {
+    name: "Sécurité Incendie National",
+    logo: "/partners/securite-incendie-national.png",
+    width: 824,
+    height: 900,
+  },
+  {
+    name: "Groupe Prevent-Ex Sécurité",
+    logo: "/partners/groupe-prevent-ex.png",
+    width: 1000,
+    height: 367,
+  },
 ];
 
 export function Partners() {
@@ -41,7 +53,7 @@ export function Partners() {
           title={t("partners_titre")}
           align="center"
         />
-        <div className="mt-14 grid grid-cols-2 gap-6 lg:grid-cols-4">
+        <div className="mt-14 grid grid-cols-2 gap-6 sm:grid-cols-3">
           {partners.map((partner) => (
             <div
               key={partner.name}
